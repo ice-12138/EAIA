@@ -20,10 +20,10 @@ class OfficialHeroDataTests(unittest.TestCase):
         first = seed_official_hero_catalog(self.db.connection)
         second = seed_official_hero_catalog(self.db.connection)
         self.assertEqual(first, second)
-        self.assertGreaterEqual(first["heroes"], 50)
-        self.assertGreaterEqual(first["skills"], 20)
-        self.assertGreaterEqual(first["optimizer_usable_skills"], 5)
-        self.assertGreaterEqual(first.get("numeric_partial", 0), 7)
+        self.assertGreaterEqual(first["heroes"], 58)
+        self.assertGreaterEqual(first["skills"], 32)
+        self.assertGreaterEqual(first["optimizer_usable_skills"], 7)
+        self.assertGreaterEqual(first.get("numeric_partial", 0), 8)
 
     def test_morrigan_official_numeric_basic_is_preserved(self):
         seed_official_hero_catalog(self.db.connection)
@@ -38,6 +38,24 @@ class OfficialHeroDataTests(unittest.TestCase):
         self.assertEqual(row["optimizer_usable"], 1)
         self.assertIn("taptap.cn", row["source_url"])
 
+    def test_river_captain_official_skill_facts_are_seeded(self):
+        seed_official_hero_catalog(self.db.connection)
+        basic = self.db.connection.execute(
+            """SELECT coefficient,target_cap,optimizer_usable FROM official_skill_catalog
+               WHERE hero_key='RIVER_CAPTAIN' AND skill_key='basic_magic'"""
+        ).fetchone()
+        ultimate = self.db.connection.execute(
+            """SELECT coefficient,duration,optimizer_usable,value_json FROM official_skill_catalog
+               WHERE hero_key='RIVER_CAPTAIN' AND skill_key='ultimate_deep_sea_rage'"""
+        ).fetchone()
+        self.assertAlmostEqual(basic["coefficient"], 1.0)
+        self.assertEqual(basic["target_cap"], "1")
+        self.assertEqual(basic["optimizer_usable"], 1)
+        self.assertAlmostEqual(ultimate["coefficient"], 2.0)
+        self.assertAlmostEqual(ultimate["duration"], 20.0)
+        self.assertEqual(ultimate["optimizer_usable"], 0)
+        self.assertIn("stun", ultimate["value_json"])
+
     def test_incomplete_official_data_does_not_pollute_production_heroes(self):
         seed_official_hero_catalog(self.db.connection)
         self.assertIsNone(
@@ -48,7 +66,7 @@ class OfficialHeroDataTests(unittest.TestCase):
         seed_official_hero_catalog(self.db.connection)
         rows = load_optimizer_usable_official_basics(self.db.connection)
         names = {row["hero_name"] for row in rows}
-        self.assertTrue({"摩瑞甘", "赫克斯", "维尔娜", "兹丽忒", "西拉斯", "妲丽亚"} <= names)
+        self.assertTrue({"摩瑞甘", "赫克斯", "维尔娜", "兹丽忒", "西拉斯", "妲丽亚", "里弗船长"} <= names)
         for row in rows:
             self.assertIsNotNone(row["coefficient"])
             self.assertIsNotNone(row["target_cap"])
