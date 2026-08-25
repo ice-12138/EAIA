@@ -164,6 +164,8 @@ def seed_v22_defaults(connection: sqlite3.Connection, data_path: str | Path | No
             if not row:
                 continue
             if table == "main_stat_max_values":
+                if "max_enhancement_level" in available:
+                    row.setdefault("max_enhancement_level", 16)
                 if "updated_at" in available:
                     row.setdefault("updated_at", "2026-08-25")
                 if "data_source" in available:
