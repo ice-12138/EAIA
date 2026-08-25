@@ -36,18 +36,26 @@ class SourceType(StrEnum):
 class StatType(StrEnum):
     ATK_FLAT = "ATK_FLAT"
     ATK_PCT = "ATK_PCT"
+    HP_FLAT = "HP_FLAT"
+    HP_PCT = "HP_PCT"
+    DEF_FLAT = "DEF_FLAT"
+    DEF_PCT = "DEF_PCT"
     CRIT_RATE = "CRIT_RATE"
     CRIT_DMG = "CRIT_DMG"
     ATK_SPEED = "ATK_SPEED"
     RAGE_REGEN = "RAGE_REGEN"
+    HEALING_EFFECT = "HEALING_EFFECT"
 
 
 class EffectType(StrEnum):
     ATK_PCT = "ATK_PCT"
+    HP_PCT = "HP_PCT"
+    DEF_PCT = "DEF_PCT"
     CRIT_RATE = "CRIT_RATE"
     CRIT_DMG = "CRIT_DMG"
     ATK_SPEED = "ATK_SPEED"
     RAGE_REGEN = "RAGE_REGEN"
+    HEALING_EFFECT = "HEALING_EFFECT"
     DAMAGE_PCT = "DAMAGE_PCT"
     BASIC_DMG = "BASIC_DMG"
     SKILL_DMG = "SKILL_DMG"
@@ -68,6 +76,10 @@ class Hero:
     rage_max: float
     damage_type: DamageType
     main_output: MainOutput
+    hp_base: float = 0.0
+    def_base: float = 0.0
+    rage_regen_base: float = 0.0
+    healing_effect_base: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -122,7 +134,7 @@ class SimulationResult:
     mode: str
     enemy_count: int
     duration: float
-    panel: Panel
+    panel: "Panel"
     total_damage: float
     dps: float
     source_damage: dict[str, float]
@@ -152,6 +164,7 @@ class EquipmentStat:
     stat_source: str
     stat_type: StatType
     stat_value: float
+    stat_index: int = 0
 
 
 @dataclass(frozen=True)
@@ -218,6 +231,9 @@ class Panel:
     crit_dmg: float
     atk_speed: float
     rage_regen: float
+    hp: float = 0.0
+    defense: float = 0.0
+    healing_effect: float = 0.0
 
 
 @dataclass(frozen=True)
