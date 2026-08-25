@@ -27,8 +27,38 @@ CREATE INDEX IF NOT EXISTS idx_official_skill_optimizer_usable ON official_skill
 """
 
 
-def _payload():
-    return json.loads(Path(__file__).with_name("official_hero_seed.json").read_text(encoding="utf-8"))
+def _read_payload(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
+def _payload() -> dict:
+    """Merge the stable catalog with small evidence-backed incremental additions.
+
+    Rows are keyed before insertion so an extra payload may correct source metadata
+    without duplicating a hero or skill. Numeric facts are only added when visible
+    in publicly indexed official posts; unknown values remain NULL.
+    """
+    root = Path(__file__).parent
+    base = _read_payload(root / "official_hero_seed.json")
+    hero_rows = {row[0]: row for row in base.get("heroes", [])}
+    skill_rows = {(row[0], row[1]): row for row in base.get("skills", [])}
+    versions = [base.get("version", "unknown")]
+    for name in ("official_hero_seed_extra.json",):
+        path = root / name
+        if not path.exists():
+            continue
+        extra = _read_payload(path)
+        versions.append(extra.get("version", name))
+        for row in extra.get("heroes", []):
+            hero_rows[row[0]] = row
+        for row in extra.get("skills", []):
+            skill_rows[(row[0], row[1])] = row
+    return {
+        "version": "+".join(versions),
+        "official_channel": base["official_channel"],
+        "heroes": list(hero_rows.values()),
+        "skills": list(skill_rows.values()),
+    }
 
 
 def ensure_official_hero_schema(connection: sqlite3.Connection) -> None:
