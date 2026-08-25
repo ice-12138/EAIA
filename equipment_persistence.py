@@ -25,6 +25,8 @@ def normalize_attribute(raw_text: str) -> str:
 
 
 def _field_value(field: object) -> float | None:
+    if isinstance(field, (int, float)):
+        return float(field)
     if not isinstance(field, dict):
         return None
     value = field.get("value")
@@ -121,10 +123,11 @@ def _set_id(name: str) -> str:
 
 
 def _stat_type(raw: str) -> str | None:
-    if "攻击" in raw and ("%" in raw or "加成" in raw):
-        return "ATK_PCT"
-    if "攻击" in raw:
-        return "ATK_FLAT"
+    """Map an OCR stat label to the optimizer stat vocabulary.
+
+    More specific labels must be checked before the generic ``攻击`` branch;
+    otherwise ``攻击速度`` is incorrectly stored as flat attack.
+    """
     if "暴击率" in raw:
         return "CRIT_RATE"
     if "暴击伤害" in raw:
@@ -133,7 +136,27 @@ def _stat_type(raw: str) -> str | None:
         return "ATK_SPEED"
     if "怒气" in raw or "能量回复" in raw:
         return "RAGE_REGEN"
+    if "攻击" in raw and ("%" in raw or "加成" in raw):
+        return "ATK_PCT"
+    if "攻击" in raw:
+        return "ATK_FLAT"
     return None
+
+
+_PERCENT_STAT_TYPES = {"ATK_PCT", "CRIT_RATE", "CRIT_DMG", "RAGE_REGEN"}
+
+
+def _normalized_stat_value(raw: str, stat_type: str, value: float) -> float:
+    """Convert OCR percentage displays to the decimal representation used by rules.
+
+    The raw OCR record remains untouched for display/audit. Only the normalized
+    ``equipment_stats.stat_value`` uses decimal percentages, e.g. ``66%`` ->
+    ``0.66``. Flat attack and attack speed remain in their displayed units.
+    """
+    numeric = float(value)
+    if stat_type in _PERCENT_STAT_TYPES and "%" in raw:
+        return numeric / 100.0
+    return numeric
 
 
 def build_database_rows(record: dict, *, source_screenshot: str | Path | None = None) -> tuple[tuple, list[tuple], tuple]:
@@ -151,7 +174,7 @@ def build_database_rows(record: dict, *, source_screenshot: str | Path | None = 
     seen: set[tuple[str, str]] = set()
     for source, field in candidates:
         raw = _text(field)
-        value = field.get("value") if isinstance(field, dict) else None
+        value = field.get("value") if isinstance(field, dict) else _field_value(field)
         stat_type = _stat_type(raw)
         if stat_type is None or value is None or float(value) < 0:
             continue
@@ -159,7 +182,7 @@ def build_database_rows(record: dict, *, source_screenshot: str | Path | None = 
         if key in seen:  # Existing schema keys stats by source and type.
             continue
         seen.add(key)
-        stats.append((item_id, source, stat_type, float(value)))
+        stats.append((item_id, source, stat_type, _normalized_stat_value(raw, stat_type, float(value))))
     raw_result = json.dumps(record, ensure_ascii=False, sort_keys=True)
     parsed_attributes = _recognition_attributes(raw_result)
     recognition = (item_id, str(record.get("profile", "general")), int(not bool(record.get("fully_unlocked") is False)),
