@@ -43,6 +43,7 @@ class MainStatCapLearner:
         if not item_id or value < 0:
             raise ValueError("item_id and a non-negative value are required")
         scope = self._scope(slot)
+        stat_type = str(stat_type).lower()
         now = datetime.now(timezone.utc).isoformat()
         row = self.connection.execute(
             "SELECT * FROM main_stat_max_values WHERE quality_id=? AND slot_scope=? AND stat_type=?",
@@ -90,6 +91,6 @@ class MainStatCapLearner:
     def get_cap(self, *, slot: str, stat_type: str, quality_id: str = "mythic_red") -> float | None:
         row = self.connection.execute(
             "SELECT max_value_at_level_cap FROM main_stat_max_values WHERE quality_id=? AND slot_scope=? AND stat_type=?",
-            (quality_id, self._scope(slot), stat_type),
+            (quality_id, self._scope(slot), str(stat_type).lower()),
         ).fetchone()
         return None if row is None else row[0]
