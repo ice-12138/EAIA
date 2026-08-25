@@ -149,9 +149,14 @@ _PERCENT_STAT_TYPES = {"ATK_PCT", "HP_PCT", "DEF_PCT", "CRIT_RATE", "CRIT_DMG", 
 
 
 def _normalized_stat_value(raw: str, stat_type: str, value: float) -> float:
-    """Convert displayed percentages to decimal storage used by game rules."""
+    """Convert displayed percentage-point values to decimal storage.
+
+    OCR occasionally drops the percent glyph (notably on crit-damage rolls), so
+    percentage stats with values greater than 1 are also interpreted as display
+    percentage points. Already-normalized values in [0, 1] remain unchanged.
+    """
     numeric = float(value)
-    if stat_type in _PERCENT_STAT_TYPES and "%" in raw:
+    if stat_type in _PERCENT_STAT_TYPES and ("%" in raw or numeric > 1.0):
         return numeric / 100.0
     return numeric
 
