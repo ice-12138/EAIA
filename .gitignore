@@ -1,0 +1,25 @@
+# Local Python runtime and dependency bundles
+.python_packages/
+.paddle_home/
+__pycache__/
+*.py[cod]
+
+# Local frontend dependencies and build output
+frontend/node_modules/
+frontend/dist/
+frontend/build/
+frontend/.next/
+
+# Generated captures and OCR run output
+captures/
+ocr_results*/
+fine_ocr_results*/
+fine_ocr_test/
+
+# Local secrets and environment files
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+

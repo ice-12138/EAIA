@@ -1,0 +1,4463 @@
+{
+  "version": "2026-08",
+  "source": "潮汐守望者_游戏术语中英对照表_2026-08.md",
+  "entryCount": 312,
+  "terms": {
+    "watcher_of_realms": {
+      "id": "watcher_of_realms",
+      "zh-CN": "潮汐守望者",
+      "en-US": "Watcher of Realms",
+      "section": "1. 基础游戏与角色术语",
+      "notes": "游戏名称"
+    },
+    "hero": {
+      "id": "hero",
+      "zh-CN": "英雄",
+      "en-US": "Hero",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "max_level_hero": {
+      "id": "max_level_hero",
+      "zh-CN": "满级英雄",
+      "en-US": "Max-Level Hero",
+      "section": "1. 基础游戏与角色术语",
+      "notes": "当前项目固定60级"
+    },
+    "level_lvl": {
+      "id": "level_lvl",
+      "zh-CN": "等级",
+      "en-US": "Level / Lvl.",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "max_level": {
+      "id": "max_level",
+      "zh-CN": "满级",
+      "en-US": "Max Level",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "base_attributes_base_stats": {
+      "id": "base_attributes_base_stats",
+      "zh-CN": "基础属性",
+      "en-US": "Base Attributes / Base Stats",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "base_stats_unequipped_stats": {
+      "id": "base_stats_unequipped_stats",
+      "zh-CN": "裸装属性",
+      "en-US": "Base Stats / Unequipped Stats",
+      "section": "1. 基础游戏与角色术语",
+      "notes": "项目术语"
+    },
+    "battle_power_bp": {
+      "id": "battle_power_bp",
+      "zh-CN": "战斗力",
+      "en-US": "Battle Power / BP",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "faction": {
+      "id": "faction",
+      "zh-CN": "阵营",
+      "en-US": "Faction",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "class": {
+      "id": "class",
+      "zh-CN": "职业",
+      "en-US": "Class",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "deploy_deployment": {
+      "id": "deploy_deployment",
+      "zh-CN": "上阵",
+      "en-US": "Deploy / Deployment",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "redeploy_redeployment": {
+      "id": "redeploy_redeployment",
+      "zh-CN": "重新部署",
+      "en-US": "Redeploy / Redeployment",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "atk_range": {
+      "id": "atk_range",
+      "zh-CN": "攻击范围",
+      "en-US": "ATK Range",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "target": {
+      "id": "target",
+      "zh-CN": "目标",
+      "en-US": "Target",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "enemy": {
+      "id": "enemy",
+      "zh-CN": "敌人",
+      "en-US": "Enemy",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "ally": {
+      "id": "ally",
+      "zh-CN": "友方",
+      "en-US": "Ally",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "boss": {
+      "id": "boss",
+      "zh-CN": "首领",
+      "en-US": "Boss",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "elite": {
+      "id": "elite",
+      "zh-CN": "精英",
+      "en-US": "Elite",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "ground_unit": {
+      "id": "ground_unit",
+      "zh-CN": "地面单位",
+      "en-US": "Ground Unit",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "airborne_unit": {
+      "id": "airborne_unit",
+      "zh-CN": "空中单位",
+      "en-US": "Airborne Unit",
+      "section": "1. 基础游戏与角色术语"
+    },
+    "training_dummy_dummy_target": {
+      "id": "training_dummy_dummy_target",
+      "zh-CN": "木桩",
+      "en-US": "Training Dummy / Dummy Target",
+      "section": "1. 基础游戏与角色术语",
+      "notes": "项目测试场景"
+    },
+    "gear": {
+      "id": "gear",
+      "zh-CN": "装备",
+      "en-US": "Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_set": {
+      "id": "gear_set",
+      "zh-CN": "装备套装",
+      "en-US": "Gear Set",
+      "section": "2. 装备系统与槽位"
+    },
+    "2_piece_gear_set": {
+      "id": "2_piece_gear_set",
+      "zh-CN": "两件套",
+      "en-US": "2-Piece Gear Set",
+      "section": "2. 装备系统与槽位"
+    },
+    "3_piece_gear_set": {
+      "id": "3_piece_gear_set",
+      "zh-CN": "三件套",
+      "en-US": "3-Piece Gear Set",
+      "section": "2. 装备系统与槽位"
+    },
+    "term": {
+      "id": "term",
+      "zh-CN": "左侧装备",
+      "en-US": "Left-Side Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "term_2": {
+      "id": "term_2",
+      "zh-CN": "右侧装备",
+      "en-US": "Right-Side Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "weapon": {
+      "id": "weapon",
+      "zh-CN": "武器",
+      "en-US": "Weapon",
+      "section": "2. 装备系统与槽位"
+    },
+    "armor": {
+      "id": "armor",
+      "zh-CN": "防具",
+      "en-US": "Breastplate",
+      "section": "2. 装备系统与槽位"
+    },
+    "bracelet": {
+      "id": "bracelet",
+      "zh-CN": "手镯",
+      "en-US": "Bangle",
+      "section": "2. 装备系统与槽位"
+    },
+    "necklace": {
+      "id": "necklace",
+      "zh-CN": "项链",
+      "en-US": "Amulet",
+      "section": "2. 装备系统与槽位"
+    },
+    "ring": {
+      "id": "ring",
+      "zh-CN": "戒指",
+      "en-US": "Ring",
+      "section": "2. 装备系统与槽位"
+    },
+    "artifact": {
+      "id": "artifact",
+      "zh-CN": "神器",
+      "en-US": "Artifact",
+      "section": "2. 装备系统与槽位"
+    },
+    "exclusive_artifact": {
+      "id": "exclusive_artifact",
+      "zh-CN": "专属神器",
+      "en-US": "Exclusive Artifact",
+      "section": "2. 装备系统与槽位"
+    },
+    "primary_attribute_main_stat": {
+      "id": "primary_attribute_main_stat",
+      "zh-CN": "主词条",
+      "en-US": "Primary Attribute / Main Stat",
+      "section": "2. 装备系统与槽位"
+    },
+    "term_3": {
+      "id": "term_3",
+      "zh-CN": "主属性",
+      "en-US": "Primary Attribute",
+      "section": "2. 装备系统与槽位"
+    },
+    "secondary_attribute_substat": {
+      "id": "secondary_attribute_substat",
+      "zh-CN": "副词条",
+      "en-US": "Secondary Attribute / Substat",
+      "section": "2. 装备系统与槽位"
+    },
+    "term_4": {
+      "id": "term_4",
+      "zh-CN": "副属性",
+      "en-US": "Secondary Attribute",
+      "section": "2. 装备系统与槽位"
+    },
+    "set_bonus_set_effect": {
+      "id": "set_bonus_set_effect",
+      "zh-CN": "套装效果",
+      "en-US": "Set Bonus / Set Effect",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_set_tier": {
+      "id": "gear_set_tier",
+      "zh-CN": "套装等级",
+      "en-US": "Gear Set Tier",
+      "section": "2. 装备系统与槽位"
+    },
+    "tier_0_t0": {
+      "id": "tier_0_t0",
+      "zh-CN": "T0",
+      "en-US": "Tier 0 / T0",
+      "section": "2. 装备系统与槽位"
+    },
+    "tier_1_t1": {
+      "id": "tier_1_t1",
+      "zh-CN": "T1",
+      "en-US": "Tier 1 / T1",
+      "section": "2. 装备系统与槽位"
+    },
+    "tier_2_t2": {
+      "id": "tier_2_t2",
+      "zh-CN": "T2",
+      "en-US": "Tier 2 / T2",
+      "section": "2. 装备系统与槽位"
+    },
+    "tier_3_t3": {
+      "id": "tier_3_t3",
+      "zh-CN": "T3",
+      "en-US": "Tier 3 / T3",
+      "section": "2. 装备系统与槽位"
+    },
+    "enhance_enhancement": {
+      "id": "enhance_enhancement",
+      "zh-CN": "强化",
+      "en-US": "Enhance / Enhancement",
+      "section": "2. 装备系统与槽位"
+    },
+    "enhancement_level": {
+      "id": "enhancement_level",
+      "zh-CN": "强化等级",
+      "en-US": "Enhancement Level",
+      "section": "2. 装备系统与槽位"
+    },
+    "ascend_gear_ascension": {
+      "id": "ascend_gear_ascension",
+      "zh-CN": "升华",
+      "en-US": "Ascend / Gear Ascension",
+      "section": "2. 装备系统与槽位"
+    },
+    "forge_forging": {
+      "id": "forge_forging",
+      "zh-CN": "打造",
+      "en-US": "Forge / Forging",
+      "section": "2. 装备系统与槽位"
+    },
+    "ui": {
+      "id": "ui",
+      "zh-CN": "工坊",
+      "en-US": "Foundry",
+      "section": "2. 装备系统与槽位"
+    },
+    "identify_identification": {
+      "id": "identify_identification",
+      "zh-CN": "鉴定",
+      "en-US": "Identify / Identification",
+      "section": "2. 装备系统与槽位"
+    },
+    "recast": {
+      "id": "recast",
+      "zh-CN": "重铸",
+      "en-US": "Recast",
+      "section": "2. 装备系统与槽位"
+    },
+    "advanced_recast": {
+      "id": "advanced_recast",
+      "zh-CN": "高级重铸",
+      "en-US": "Advanced Recast",
+      "section": "2. 装备系统与槽位"
+    },
+    "refine": {
+      "id": "refine",
+      "zh-CN": "精炼",
+      "en-US": "Refine",
+      "section": "2. 装备系统与槽位"
+    },
+    "transmute_transmutation": {
+      "id": "transmute_transmutation",
+      "zh-CN": "转化词条",
+      "en-US": "Transmute / Transmutation",
+      "section": "2. 装备系统与槽位"
+    },
+    "unidentified_gear": {
+      "id": "unidentified_gear",
+      "zh-CN": "未鉴定装备",
+      "en-US": "Unidentified Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "unidentified_weapon": {
+      "id": "unidentified_weapon",
+      "zh-CN": "未鉴定武器",
+      "en-US": "Unidentified Weapon",
+      "section": "2. 装备系统与槽位"
+    },
+    "unidentified_bangle": {
+      "id": "unidentified_bangle",
+      "zh-CN": "未鉴定手镯",
+      "en-US": "Unidentified Bangle",
+      "section": "2. 装备系统与槽位"
+    },
+    "ancient_gear": {
+      "id": "ancient_gear",
+      "zh-CN": "上古装备",
+      "en-US": "Ancient Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "ancient_mythic_gear": {
+      "id": "ancient_mythic_gear",
+      "zh-CN": "上古神话装备",
+      "en-US": "Ancient Mythic Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "variant_gear": {
+      "id": "variant_gear",
+      "zh-CN": "异化装备",
+      "en-US": "Variant Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "exclusive_gear": {
+      "id": "exclusive_gear",
+      "zh-CN": "专属装备",
+      "en-US": "Exclusive Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "hero_exclusive_gear": {
+      "id": "hero_exclusive_gear",
+      "zh-CN": "英雄专属装备",
+      "en-US": "Hero Exclusive Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "faction_exclusive_gear": {
+      "id": "faction_exclusive_gear",
+      "zh-CN": "阵营专属装备",
+      "en-US": "Faction Exclusive Gear",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_recommendations": {
+      "id": "gear_recommendations",
+      "zh-CN": "装备推荐",
+      "en-US": "Gear Recommendations",
+      "section": "2. 装备系统与槽位"
+    },
+    "equipment_plan_gear_plan": {
+      "id": "equipment_plan_gear_plan",
+      "zh-CN": "配装方案",
+      "en-US": "Equipment Plan / Gear Plan",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_dungeon": {
+      "id": "gear_dungeon",
+      "zh-CN": "装备地下城",
+      "en-US": "Gear Dungeon",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_raid": {
+      "id": "gear_raid",
+      "zh-CN": "装备副本",
+      "en-US": "Gear Raid",
+      "section": "2. 装备系统与槽位"
+    },
+    "gear_forge_material": {
+      "id": "gear_forge_material",
+      "zh-CN": "装备工坊材料",
+      "en-US": "Gear Forge Material",
+      "section": "2. 装备系统与槽位"
+    },
+    "rare_blue": {
+      "id": "rare_blue",
+      "zh-CN": "稀有/蓝色品质",
+      "en-US": "Rare",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "epic_purple": {
+      "id": "epic_purple",
+      "zh-CN": "史诗/紫色品质",
+      "en-US": "Epic",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "legendary_gold": {
+      "id": "legendary_gold",
+      "zh-CN": "传说/金色品质",
+      "en-US": "Legendary",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "mythic_red": {
+      "id": "mythic_red",
+      "zh-CN": "神话/红色品质",
+      "en-US": "Mythic",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "blue": {
+      "id": "blue",
+      "zh-CN": "蓝色副词条",
+      "en-US": "Blue Roll / Blue Secondary Attribute",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "purple": {
+      "id": "purple",
+      "zh-CN": "紫色副词条",
+      "en-US": "Purple Roll / Purple Secondary Attribute",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "gold": {
+      "id": "gold",
+      "zh-CN": "金色副词条",
+      "en-US": "Gold Roll / Gold Secondary Attribute",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "red": {
+      "id": "red",
+      "zh-CN": "红色/满值副词条",
+      "en-US": "Red / Maxed Secondary Attribute",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "maximum_value_max_value": {
+      "id": "maximum_value_max_value",
+      "zh-CN": "最大值",
+      "en-US": "Maximum Value / Max Value",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "max_level_primary_attribute": {
+      "id": "max_level_primary_attribute",
+      "zh-CN": "满级主词条",
+      "en-US": "Max-Level Primary Attribute",
+      "section": "3. 装备品质与副词条质量"
+    },
+    "hp_flat": {
+      "id": "hp_flat",
+      "zh-CN": "生命",
+      "en-US": "HP",
+      "section": "4. 属性与词条"
+    },
+    "hp_pct": {
+      "id": "hp_pct",
+      "zh-CN": "生命加成",
+      "en-US": "HP Bonus / HP%",
+      "section": "4. 属性与词条"
+    },
+    "max_hp": {
+      "id": "max_hp",
+      "zh-CN": "最大生命",
+      "en-US": "Max HP",
+      "section": "4. 属性与词条"
+    },
+    "atk_flat": {
+      "id": "atk_flat",
+      "zh-CN": "攻击",
+      "en-US": "ATK",
+      "section": "4. 属性与词条"
+    },
+    "atk_pct": {
+      "id": "atk_pct",
+      "zh-CN": "攻击加成",
+      "en-US": "ATK Bonus / ATK%",
+      "section": "4. 属性与词条"
+    },
+    "def_flat": {
+      "id": "def_flat",
+      "zh-CN": "防御",
+      "en-US": "DEF",
+      "section": "4. 属性与词条"
+    },
+    "def_pct": {
+      "id": "def_pct",
+      "zh-CN": "防御加成",
+      "en-US": "DEF Bonus / DEF%",
+      "section": "4. 属性与词条"
+    },
+    "m_res_magic_resistance": {
+      "id": "m_res_magic_resistance",
+      "zh-CN": "魔抗",
+      "en-US": "M.RES / Magic Resistance",
+      "section": "4. 属性与词条"
+    },
+    "crit_rate": {
+      "id": "crit_rate",
+      "zh-CN": "暴击率",
+      "en-US": "Crit. Rate / Critical Rate",
+      "section": "4. 属性与词条"
+    },
+    "crit_dmg": {
+      "id": "crit_dmg",
+      "zh-CN": "暴击伤害",
+      "en-US": "Crit. DMG / Critical Damage",
+      "section": "4. 属性与词条"
+    },
+    "ocr": {
+      "id": "ocr",
+      "zh-CN": "暴伤",
+      "en-US": "Crit. DMG",
+      "section": "4. 属性与词条"
+    },
+    "atk_speed": {
+      "id": "atk_speed",
+      "zh-CN": "攻击速度",
+      "en-US": "ATK Speed / ATK Spd.",
+      "section": "4. 属性与词条"
+    },
+    "ocr_2": {
+      "id": "ocr_2",
+      "zh-CN": "攻速",
+      "en-US": "ATK Spd.",
+      "section": "4. 属性与词条"
+    },
+    "atk_interval": {
+      "id": "atk_interval",
+      "zh-CN": "攻击间隔",
+      "en-US": "ATK Interval",
+      "section": "4. 属性与词条"
+    },
+    "rage": {
+      "id": "rage",
+      "zh-CN": "怒气",
+      "en-US": "Rage",
+      "section": "4. 属性与词条"
+    },
+    "initial_rage": {
+      "id": "initial_rage",
+      "zh-CN": "初始怒气",
+      "en-US": "Initial Rage",
+      "section": "4. 属性与词条"
+    },
+    "rage_cost": {
+      "id": "rage_cost",
+      "zh-CN": "怒气消耗",
+      "en-US": "Rage Cost",
+      "section": "4. 属性与词条"
+    },
+    "rage_regen": {
+      "id": "rage_regen",
+      "zh-CN": "怒气回复速度",
+      "en-US": "Rage Regen",
+      "section": "4. 属性与词条"
+    },
+    "term_5": {
+      "id": "term_5",
+      "zh-CN": "怒气恢复效率",
+      "en-US": "Rage Regen",
+      "section": "4. 属性与词条"
+    },
+    "auto_rage_regen": {
+      "id": "auto_rage_regen",
+      "zh-CN": "自然回怒",
+      "en-US": "Rage Regen (Auto)",
+      "section": "4. 属性与词条"
+    },
+    "attack_rage_regen": {
+      "id": "attack_rage_regen",
+      "zh-CN": "攻击回怒",
+      "en-US": "Rage Regen (ATK) / Rage Regen (Basic ATK)",
+      "section": "4. 属性与词条"
+    },
+    "rage_regen_attacked": {
+      "id": "rage_regen_attacked",
+      "zh-CN": "受击回怒",
+      "en-US": "Rage Regen (Attacked)",
+      "section": "4. 属性与词条"
+    },
+    "healing_effect": {
+      "id": "healing_effect",
+      "zh-CN": "治疗效果",
+      "en-US": "Healing Effect",
+      "section": "4. 属性与词条"
+    },
+    "ocr_3": {
+      "id": "ocr_3",
+      "zh-CN": "治疗加成",
+      "en-US": "Healing Effect",
+      "section": "4. 属性与词条"
+    },
+    "penetration": {
+      "id": "penetration",
+      "zh-CN": "穿透",
+      "en-US": "Penetration",
+      "section": "4. 属性与词条"
+    },
+    "def_penetration": {
+      "id": "def_penetration",
+      "zh-CN": "防御穿透",
+      "en-US": "DEF Penetration",
+      "section": "4. 属性与词条"
+    },
+    "m_res_penetration": {
+      "id": "m_res_penetration",
+      "zh-CN": "魔抗穿透",
+      "en-US": "M.RES Penetration",
+      "section": "4. 属性与词条"
+    },
+    "ignore_def": {
+      "id": "ignore_def",
+      "zh-CN": "无视防御",
+      "en-US": "Ignore DEF",
+      "section": "4. 属性与词条"
+    },
+    "ignore_m_res": {
+      "id": "ignore_m_res",
+      "zh-CN": "无视魔抗",
+      "en-US": "Ignore M.RES",
+      "section": "4. 属性与词条"
+    },
+    "damage_reduction": {
+      "id": "damage_reduction",
+      "zh-CN": "减伤",
+      "en-US": "DMG Reduction",
+      "section": "4. 属性与词条"
+    },
+    "dmg_taken_reduction_dmg_taken_x": {
+      "id": "dmg_taken_reduction_dmg_taken_x",
+      "zh-CN": "受到伤害降低",
+      "en-US": "DMG Taken Reduction / DMG Taken -X%",
+      "section": "4. 属性与词条"
+    },
+    "deployment_cost": {
+      "id": "deployment_cost",
+      "zh-CN": "部署费用",
+      "en-US": "Cost / Deployment Cost",
+      "section": "4. 属性与词条"
+    },
+    "block": {
+      "id": "block",
+      "zh-CN": "阻挡数",
+      "en-US": "Block",
+      "section": "4. 属性与词条"
+    },
+    "basic_attributes_increase": {
+      "id": "basic_attributes_increase",
+      "zh-CN": "基础属性提升",
+      "en-US": "Basic Attributes Increase",
+      "section": "4. 属性与词条"
+    },
+    "basic_atk": {
+      "id": "basic_atk",
+      "zh-CN": "普通攻击",
+      "en-US": "Basic ATK",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "basic_atk_2": {
+      "id": "basic_atk_2",
+      "zh-CN": "普攻",
+      "en-US": "Basic ATK",
+      "section": "5. 战斗、技能与状态机制",
+      "notes": "简称"
+    },
+    "skill": {
+      "id": "skill",
+      "zh-CN": "技能",
+      "en-US": "Skill",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "active_skill": {
+      "id": "active_skill",
+      "zh-CN": "主动技能",
+      "en-US": "Active Skill",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "passive_passive_skill": {
+      "id": "passive_passive_skill",
+      "zh-CN": "被动技能",
+      "en-US": "Passive / Passive Skill",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "ultimate_ultimate_skill": {
+      "id": "ultimate_ultimate_skill",
+      "zh-CN": "终结技",
+      "en-US": "Ultimate / Ultimate Skill",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "talent": {
+      "id": "talent",
+      "zh-CN": "天赋",
+      "en-US": "Talent",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "awakening_awaken": {
+      "id": "awakening_awaken",
+      "zh-CN": "觉醒",
+      "en-US": "Awakening / Awaken",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "bond_skill": {
+      "id": "bond_skill",
+      "zh-CN": "羁绊技",
+      "en-US": "Bond Skill",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "dmg_damage": {
+      "id": "dmg_damage",
+      "zh-CN": "伤害",
+      "en-US": "DMG / Damage",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "dmg_increase_dmg_bonus": {
+      "id": "dmg_increase_dmg_bonus",
+      "zh-CN": "伤害加成",
+      "en-US": "DMG Increase / DMG Bonus",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "basic_atk_dmg": {
+      "id": "basic_atk_dmg",
+      "zh-CN": "普通攻击伤害",
+      "en-US": "Basic ATK DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "basic_atk_dmg_increase": {
+      "id": "basic_atk_dmg_increase",
+      "zh-CN": "普通攻击伤害加成",
+      "en-US": "Basic ATK DMG Increase",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "single_target_dmg": {
+      "id": "single_target_dmg",
+      "zh-CN": "单体伤害",
+      "en-US": "Single-Target DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "aoe_dmg_area_of_effect_damage": {
+      "id": "aoe_dmg_area_of_effect_damage",
+      "zh-CN": "范围伤害",
+      "en-US": "AoE DMG / Area-of-Effect Damage",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "p_dmg_physical_dmg": {
+      "id": "p_dmg_physical_dmg",
+      "zh-CN": "物理伤害",
+      "en-US": "P. DMG / Physical DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "m_dmg_magic_dmg": {
+      "id": "m_dmg_magic_dmg",
+      "zh-CN": "魔法伤害",
+      "en-US": "M. DMG / Magic DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "true_dmg": {
+      "id": "true_dmg",
+      "zh-CN": "真实伤害",
+      "en-US": "True DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "extra_dmg_additional_dmg": {
+      "id": "extra_dmg_additional_dmg",
+      "zh-CN": "额外伤害",
+      "en-US": "Extra DMG / Additional DMG",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "follow_up_attack_additional_attack": {
+      "id": "follow_up_attack_additional_attack",
+      "zh-CN": "追加攻击",
+      "en-US": "Follow-Up Attack / Additional Attack",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "multi_hit_attack": {
+      "id": "multi_hit_attack",
+      "zh-CN": "多段攻击",
+      "en-US": "Multi-Hit Attack",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "crit_hit_critical_hit": {
+      "id": "crit_hit_critical_hit",
+      "zh-CN": "暴击",
+      "en-US": "Crit. Hit / Critical Hit",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "continuous_dmg_damage_over_time": {
+      "id": "continuous_dmg_damage_over_time",
+      "zh-CN": "持续伤害",
+      "en-US": "Continuous DMG / Damage over Time",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "damage_over_time": {
+      "id": "damage_over_time",
+      "zh-CN": "DoT",
+      "en-US": "Damage over Time",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "burning": {
+      "id": "burning",
+      "zh-CN": "灼烧",
+      "en-US": "Burning",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "poison": {
+      "id": "poison",
+      "zh-CN": "中毒",
+      "en-US": "Poison",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "bleed_bleeding": {
+      "id": "bleed_bleeding",
+      "zh-CN": "流血",
+      "en-US": "Bleed / Bleeding",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "slow": {
+      "id": "slow",
+      "zh-CN": "减速",
+      "en-US": "Slow",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "stun": {
+      "id": "stun",
+      "zh-CN": "眩晕",
+      "en-US": "Stun",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "freeze": {
+      "id": "freeze",
+      "zh-CN": "冻结",
+      "en-US": "Freeze",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "immobilized_state_immobilize": {
+      "id": "immobilized_state_immobilize",
+      "zh-CN": "定身",
+      "en-US": "Immobilized State / Immobilize",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "curse": {
+      "id": "curse",
+      "zh-CN": "诅咒状态",
+      "en-US": "Curse",
+      "section": "5. 战斗、技能与状态机制",
+      "notes": "注意与“诅咒套装”区分"
+    },
+    "cc_effect_crowd_control_effect": {
+      "id": "cc_effect_crowd_control_effect",
+      "zh-CN": "控制效果",
+      "en-US": "CC Effect / Crowd Control Effect",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "shield": {
+      "id": "shield",
+      "zh-CN": "护盾",
+      "en-US": "Shield",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "healing_heal": {
+      "id": "healing_heal",
+      "zh-CN": "治疗",
+      "en-US": "Healing / Heal",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "recover_hp_restore_hp": {
+      "id": "recover_hp_restore_hp",
+      "zh-CN": "回复生命",
+      "en-US": "Recover HP / Restore HP",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "buff": {
+      "id": "buff",
+      "zh-CN": "增益",
+      "en-US": "Buff",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "debuff": {
+      "id": "debuff",
+      "zh-CN": "减益",
+      "en-US": "Debuff",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "vulnerability": {
+      "id": "vulnerability",
+      "zh-CN": "易伤",
+      "en-US": "Vulnerability",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "def_reduction": {
+      "id": "def_reduction",
+      "zh-CN": "防御降低",
+      "en-US": "DEF Reduction",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "m_res_reduction": {
+      "id": "m_res_reduction",
+      "zh-CN": "魔抗降低",
+      "en-US": "M.RES Reduction",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "invisibility": {
+      "id": "invisibility",
+      "zh-CN": "隐身",
+      "en-US": "Invisibility",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "summon": {
+      "id": "summon",
+      "zh-CN": "召唤物",
+      "en-US": "Summon",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "trigger_proc": {
+      "id": "trigger_proc",
+      "zh-CN": "触发",
+      "en-US": "Trigger / Proc",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "trigger_chance_proc_chance": {
+      "id": "trigger_chance_proc_chance",
+      "zh-CN": "触发概率",
+      "en-US": "Trigger Chance / Proc Chance",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "duration_effect_duration": {
+      "id": "duration_effect_duration",
+      "zh-CN": "持续时间",
+      "en-US": "Duration / Effect Duration",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "stack": {
+      "id": "stack",
+      "zh-CN": "叠层",
+      "en-US": "Stack",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "max_stacks_stack_cap": {
+      "id": "max_stacks_stack_cap",
+      "zh-CN": "最大层数",
+      "en-US": "Max Stacks / Stack Cap",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "refresh_duration": {
+      "id": "refresh_duration",
+      "zh-CN": "刷新持续时间",
+      "en-US": "Refresh Duration",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "cooldown_cd": {
+      "id": "cooldown_cd",
+      "zh-CN": "冷却时间",
+      "en-US": "Cooldown / CD",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "internal_cooldown_icd": {
+      "id": "internal_cooldown_icd",
+      "zh-CN": "内置冷却",
+      "en-US": "Internal Cooldown / ICD",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "cast_time_action_time": {
+      "id": "cast_time_action_time",
+      "zh-CN": "施法时间",
+      "en-US": "Cast Time / Action Time",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "target_cap": {
+      "id": "target_cap",
+      "zh-CN": "目标上限",
+      "en-US": "Target Cap",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "secondary_target_ratio": {
+      "id": "secondary_target_ratio",
+      "zh-CN": "副目标伤害比例",
+      "en-US": "Secondary Target Ratio",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "defeat_an_enemy_kill_an_enemy": {
+      "id": "defeat_an_enemy_kill_an_enemy",
+      "zh-CN": "击败敌人",
+      "en-US": "Defeat an Enemy / Kill an Enemy",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "when_attacked": {
+      "id": "when_attacked",
+      "zh-CN": "受到攻击",
+      "en-US": "When Attacked",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "on_the_field": {
+      "id": "on_the_field",
+      "zh-CN": "在场",
+      "en-US": "On the Field",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "when_deployed": {
+      "id": "when_deployed",
+      "zh-CN": "上阵时",
+      "en-US": "When Deployed",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "hp_above_70": {
+      "id": "hp_above_70",
+      "zh-CN": "生命高于70%",
+      "en-US": "HP Above 70%",
+      "section": "5. 战斗、技能与状态机制"
+    },
+    "output": {
+      "id": "output",
+      "zh-CN": "输出",
+      "en-US": "DPS / Damage",
+      "section": "6. 本项目四类装备用途"
+    },
+    "defense": {
+      "id": "defense",
+      "zh-CN": "防御",
+      "en-US": "Tank / Defensive",
+      "section": "6. 本项目四类装备用途"
+    },
+    "healing": {
+      "id": "healing",
+      "zh-CN": "治疗",
+      "en-US": "Healing",
+      "section": "6. 本项目四类装备用途"
+    },
+    "buff_2": {
+      "id": "buff_2",
+      "zh-CN": "增益",
+      "en-US": "Utility / Buff",
+      "section": "6. 本项目四类装备用途"
+    },
+    "set_salvation": {
+      "id": "set_salvation",
+      "zh-CN": "救赎",
+      "en-US": "Salvation",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T1"
+    },
+    "set_life_force": {
+      "id": "set_life_force",
+      "zh-CN": "活力",
+      "en-US": "Life Force",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T1"
+    },
+    "set_calamity": {
+      "id": "set_calamity",
+      "zh-CN": "灾难",
+      "en-US": "Calamity",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T1"
+    },
+    "set_whirlwind": {
+      "id": "set_whirlwind",
+      "zh-CN": "疾风",
+      "en-US": "Whirlwind",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T1"
+    },
+    "set_annihilating_might": {
+      "id": "set_annihilating_might",
+      "zh-CN": "湮灭",
+      "en-US": "Annihilating Might",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T1"
+    },
+    "set_immortal_warrior": {
+      "id": "set_immortal_warrior",
+      "zh-CN": "不朽勇者",
+      "en-US": "Immortal Warrior",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T2"
+    },
+    "set_warlord": {
+      "id": "set_warlord",
+      "zh-CN": "战争之主",
+      "en-US": "Warlord",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T2"
+    },
+    "set_astral_guardian": {
+      "id": "set_astral_guardian",
+      "zh-CN": "星魂守卫",
+      "en-US": "Astral Guardian",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T3"
+    },
+    "set_lights_grace": {
+      "id": "set_lights_grace",
+      "zh-CN": "光之恩惠",
+      "en-US": "Light's Grace",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T3"
+    },
+    "set_wicked_vengeance": {
+      "id": "set_wicked_vengeance",
+      "zh-CN": "邪恶复仇",
+      "en-US": "Wicked Vengeance",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T3"
+    },
+    "set_bloodflame_dragonborn": {
+      "id": "set_bloodflame_dragonborn",
+      "zh-CN": "血炎龙裔",
+      "en-US": "Drakefire",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "新2件套"
+    },
+    "set_roaring_lion": {
+      "id": "set_roaring_lion",
+      "zh-CN": "咆哮雄狮",
+      "en-US": "Goldmane",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "新2件套"
+    },
+    "set_vitality": {
+      "id": "set_vitality",
+      "zh-CN": null,
+      "en-US": "Vitality",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_juggernaut": {
+      "id": "set_juggernaut",
+      "zh-CN": null,
+      "en-US": "Juggernaut",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_lifegiver": {
+      "id": "set_lifegiver",
+      "zh-CN": null,
+      "en-US": "Lifegiver",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_iron_fortress": {
+      "id": "set_iron_fortress",
+      "zh-CN": null,
+      "en-US": "Iron Fortress",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_wrathful_onslaught": {
+      "id": "set_wrathful_onslaught",
+      "zh-CN": null,
+      "en-US": "Wrathful Onslaught",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_savage_strike": {
+      "id": "set_savage_strike",
+      "zh-CN": null,
+      "en-US": "Savage Strike",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_deadly_aim": {
+      "id": "set_deadly_aim",
+      "zh-CN": null,
+      "en-US": "Deadly Aim",
+      "section": "7. 左侧 / 两件套名称",
+      "tier": "T0"
+    },
+    "set_asclepius": {
+      "id": "set_asclepius",
+      "zh-CN": "圣愈",
+      "en-US": "Asclepius",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_insight": {
+      "id": "set_insight",
+      "zh-CN": "洞悉",
+      "en-US": "The Insight",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_wisdom": {
+      "id": "set_wisdom",
+      "zh-CN": "智慧",
+      "en-US": "The Wisdom",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_doom": {
+      "id": "set_doom",
+      "zh-CN": "毁灭",
+      "en-US": "The Doom",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_styx": {
+      "id": "set_styx",
+      "zh-CN": "冥河",
+      "en-US": "The Styx",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_night_terror": {
+      "id": "set_night_terror",
+      "zh-CN": "梦魇",
+      "en-US": "Night Terror",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_glacier": {
+      "id": "set_glacier",
+      "zh-CN": "北方",
+      "en-US": "The Glacier",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_hawk_eye": {
+      "id": "set_hawk_eye",
+      "zh-CN": "鹰眼",
+      "en-US": "Hawk Eye",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_mana_spring": {
+      "id": "set_mana_spring",
+      "zh-CN": "魔能",
+      "en-US": "Mana Spring",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_fracture": {
+      "id": "set_fracture",
+      "zh-CN": "爆裂",
+      "en-US": "Fracture",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_curse": {
+      "id": "set_curse",
+      "zh-CN": "诅咒",
+      "en-US": "Curse",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_fatality": {
+      "id": "set_fatality",
+      "zh-CN": "致命",
+      "en-US": "Fatality",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_guardian": {
+      "id": "set_guardian",
+      "zh-CN": "守护",
+      "en-US": "Guardian",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T1"
+    },
+    "set_ageless_wrath": {
+      "id": "set_ageless_wrath",
+      "zh-CN": "远古之怒",
+      "en-US": "Ageless Wrath",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T2"
+    },
+    "set_invigoration": {
+      "id": "set_invigoration",
+      "zh-CN": "至善之灵",
+      "en-US": "Invigoration",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T2"
+    },
+    "set_infernal_roar": {
+      "id": "set_infernal_roar",
+      "zh-CN": "炽魔之啸",
+      "en-US": "Infernal Roar",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T2"
+    },
+    "set_soulbound_arcana": {
+      "id": "set_soulbound_arcana",
+      "zh-CN": "古灵绝秘",
+      "en-US": "Soulbound Arcana",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T2"
+    },
+    "set_undying_savage": {
+      "id": "set_undying_savage",
+      "zh-CN": "不朽狂徒",
+      "en-US": "Undying Savage",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T2"
+    },
+    "set_wings_of_grace": {
+      "id": "set_wings_of_grace",
+      "zh-CN": "慈光圣翼",
+      "en-US": "Wings of Grace",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_cataclysm": {
+      "id": "set_cataclysm",
+      "zh-CN": "裂界灾龙",
+      "en-US": "Cataclysm",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_hells_lament": {
+      "id": "set_hells_lament",
+      "zh-CN": "地狱哀嚎",
+      "en-US": "Hell's Lament",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_tempered_will": {
+      "id": "set_tempered_will",
+      "zh-CN": "钢铁意志",
+      "en-US": "Tempered Will",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_unshaken_will": {
+      "id": "set_unshaken_will",
+      "zh-CN": "不灭意志",
+      "en-US": "Unshaken Will",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_morale": {
+      "id": "set_morale",
+      "zh-CN": "战意",
+      "en-US": "Morale",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T3"
+    },
+    "set_lone_wolf": {
+      "id": "set_lone_wolf",
+      "zh-CN": "独狼绝境",
+      "en-US": "Greyfang",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "新3件套"
+    },
+    "set_occult_shield": {
+      "id": "set_occult_shield",
+      "zh-CN": null,
+      "en-US": "Occult Shield",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T0"
+    },
+    "set_twisted_blade": {
+      "id": "set_twisted_blade",
+      "zh-CN": null,
+      "en-US": "Twisted Blade",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T0"
+    },
+    "set_rapidity": {
+      "id": "set_rapidity",
+      "zh-CN": null,
+      "en-US": "Rapidity",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T0"
+    },
+    "set_the_tempest": {
+      "id": "set_the_tempest",
+      "zh-CN": null,
+      "en-US": "The Tempest",
+      "section": "8. 右侧 / 三件套名称",
+      "tier": "T0"
+    },
+    "calamity_warlord": {
+      "id": "calamity_warlord",
+      "zh-CN": "灾难 → 战争之主",
+      "en-US": "Calamity → Warlord",
+      "section": "9. 套装升华关系"
+    },
+    "life_force_immortal_warrior": {
+      "id": "life_force_immortal_warrior",
+      "zh-CN": "活力 → 不朽勇者",
+      "en-US": "Life Force → Immortal Warrior",
+      "section": "9. 套装升华关系"
+    },
+    "night_terror_ageless_wrath": {
+      "id": "night_terror_ageless_wrath",
+      "zh-CN": "梦魇 → 远古之怒",
+      "en-US": "Night Terror → Ageless Wrath",
+      "section": "9. 套装升华关系"
+    },
+    "asclepius_invigoration": {
+      "id": "asclepius_invigoration",
+      "zh-CN": "圣愈 → 至善之灵",
+      "en-US": "Asclepius → Invigoration",
+      "section": "9. 套装升华关系"
+    },
+    "the_insight_infernal_roar": {
+      "id": "the_insight_infernal_roar",
+      "zh-CN": "洞悉 → 炽魔之啸",
+      "en-US": "The Insight → Infernal Roar",
+      "section": "9. 套装升华关系"
+    },
+    "the_wisdom_soulbound_arcana": {
+      "id": "the_wisdom_soulbound_arcana",
+      "zh-CN": "智慧 → 古灵绝秘",
+      "en-US": "The Wisdom → Soulbound Arcana",
+      "section": "9. 套装升华关系"
+    },
+    "variant_overlord_awakening": {
+      "id": "variant_overlord_awakening",
+      "zh-CN": "霸者觉醒",
+      "en-US": "Renewed Vigor",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "60秒后提升基础属性"
+    },
+    "variant_unrivalled_power": {
+      "id": "variant_unrivalled_power",
+      "zh-CN": "非凡之力",
+      "en-US": "Unrivalled Power",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "至少1条随机副属性达到最大值"
+    },
+    "variant_unstoppable_force": {
+      "id": "variant_unstoppable_force",
+      "zh-CN": "不挡之力",
+      "en-US": "The Unstoppable Force",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "攻击+5%，可联动额外增伤"
+    },
+    "variant_arrogance": {
+      "id": "variant_arrogance",
+      "zh-CN": "嚣张",
+      "en-US": "Agression",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "全球资料当前拼写为 Agression"
+    },
+    "variant_ferocity": {
+      "id": "variant_ferocity",
+      "zh-CN": "迅猛",
+      "en-US": "Rapidity",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "攻击+2%，攻速+10"
+    },
+    "variant_immovable_object": {
+      "id": "variant_immovable_object",
+      "zh-CN": "不动之物",
+      "en-US": "The Immovable Object",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "防御+5%，可联动减伤"
+    },
+    "variant_wildness": {
+      "id": "variant_wildness",
+      "zh-CN": "野性",
+      "en-US": "Brutality",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "暴击率+2%，暴伤+2%"
+    },
+    "variant_endless_calamity": {
+      "id": "variant_endless_calamity",
+      "zh-CN": "灾厄不息",
+      "en-US": "Merciless",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "对受控目标增伤"
+    },
+    "variant_summoner": {
+      "id": "variant_summoner",
+      "zh-CN": "唤灵师",
+      "en-US": "Spirit Mastery",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "召唤物伤害提升"
+    },
+    "variant_last_stand": {
+      "id": "variant_last_stand",
+      "zh-CN": "背水一战",
+      "en-US": "Last Stand",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "无法复活、再部署延长、攻速提升"
+    },
+    "variant_grace": {
+      "id": "variant_grace",
+      "zh-CN": "恩泽",
+      "en-US": "Grace",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "治疗效果+怒气回复"
+    },
+    "variant_great_wave": {
+      "id": "variant_great_wave",
+      "zh-CN": "惊天巨浪",
+      "en-US": "Tital Wave",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "全球资料当前文本写作 Tital Wave"
+    },
+    "variant_cursed_touch": {
+      "id": "variant_cursed_touch",
+      "zh-CN": "诅咒之触",
+      "en-US": "Languid Curse",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "对减速目标增伤"
+    },
+    "variant_toughness": {
+      "id": "variant_toughness",
+      "zh-CN": "强韧",
+      "en-US": "Fortitude",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "固定生命提升"
+    },
+    "variant_shopkeeper": {
+      "id": "variant_shopkeeper",
+      "zh-CN": "掌柜包办",
+      "en-US": "On the House",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "伤害+2%，强化不消耗金币"
+    },
+    "variant_blessing_prayer": {
+      "id": "variant_blessing_prayer",
+      "zh-CN": "赐福祈祷",
+      "en-US": "Benediction",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "高生命时提高治疗效果"
+    },
+    "variant_gluttony_blessing": {
+      "id": "variant_gluttony_blessing",
+      "zh-CN": "暴食赐福",
+      "en-US": "Well-Nourished",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "开大后最大生命叠层"
+    },
+    "variant_fortress": {
+      "id": "variant_fortress",
+      "zh-CN": "堡垒",
+      "en-US": "Bulwark",
+      "section": "10. 已在前文出现的异化效果名称",
+      "notes": "防御+2%，生命+2%"
+    },
+    "blood_sacrifice": {
+      "id": "blood_sacrifice",
+      "zh-CN": null,
+      "en-US": "Blood Sacrifice",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "bloodthirst": {
+      "id": "bloodthirst",
+      "zh-CN": null,
+      "en-US": "Bloodthirst",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "divine_fury": {
+      "id": "divine_fury",
+      "zh-CN": null,
+      "en-US": "Divine Fury",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "incindiary_roar": {
+      "id": "incindiary_roar",
+      "zh-CN": null,
+      "en-US": "Incindiary Roar",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "recklessness": {
+      "id": "recklessness",
+      "zh-CN": null,
+      "en-US": "Recklessness",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "retaliation": {
+      "id": "retaliation",
+      "zh-CN": null,
+      "en-US": "Retaliation",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "steady_poise": {
+      "id": "steady_poise",
+      "zh-CN": null,
+      "en-US": "Steady Poise",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "stoicism": {
+      "id": "stoicism",
+      "zh-CN": null,
+      "en-US": "Stoicism",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "wisdom": {
+      "id": "wisdom",
+      "zh-CN": null,
+      "en-US": "Wisdom",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认；注意不要与“智慧套装 / The Wisdom”混淆）"
+    },
+    "witches_charm": {
+      "id": "witches_charm",
+      "zh-CN": null,
+      "en-US": "Witches' Charm",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "woeful_optimism": {
+      "id": "woeful_optimism",
+      "zh-CN": null,
+      "en-US": "Woeful Optimism",
+      "section": "11. 其他全球版异化效果（国服中文名待确认）",
+      "status": "NULL（待确认）"
+    },
+    "darkfall_gem": {
+      "id": "darkfall_gem",
+      "zh-CN": "暗陨宝石",
+      "en-US": "Darkfall Gem",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "提高Mythic或更高装备主属性；当前项目暂不计算"
+    },
+    "evolution_gem": {
+      "id": "evolution_gem",
+      "zh-CN": "进化宝石",
+      "en-US": "Evolution Gem",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "T1 Mythic+ 转换为同部位T2/T3并保留副词条"
+    },
+    "variant_gem": {
+      "id": "variant_gem",
+      "zh-CN": "异化宝石",
+      "en-US": "Variant Gem",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "为上古神话武器/手镯赋予异化属性"
+    },
+    "transmutation_gem": {
+      "id": "transmutation_gem",
+      "zh-CN": "转化宝石",
+      "en-US": "Transmutation Gem",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "改变一条副属性类型并保留进度"
+    },
+    "gem_enhancement": {
+      "id": "gem_enhancement",
+      "zh-CN": "宝石强化",
+      "en-US": "Gem Enhancement",
+      "section": "12. 宝石与装备改造术语"
+    },
+    "progress_bar": {
+      "id": "progress_bar",
+      "zh-CN": "强化进度条",
+      "en-US": "Progress Bar",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "副词条成长"
+    },
+    "evolution": {
+      "id": "evolution",
+      "zh-CN": "进化",
+      "en-US": "Evolution",
+      "section": "12. 宝石与装备改造术语",
+      "notes": "注意与Gear Ascension按UI上下文区分"
+    },
+    "term_6": {
+      "id": "term_6",
+      "zh-CN": "攻击",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Attack"
+    },
+    "term_7": {
+      "id": "term_7",
+      "zh-CN": "攻击加成",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "ATK Bonus"
+    },
+    "term_8": {
+      "id": "term_8",
+      "zh-CN": "生命",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Hit Points / Health"
+    },
+    "term_9": {
+      "id": "term_9",
+      "zh-CN": "生命加成",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "HP Bonus"
+    },
+    "term_10": {
+      "id": "term_10",
+      "zh-CN": "防御",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Defense"
+    },
+    "term_11": {
+      "id": "term_11",
+      "zh-CN": "防御加成",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "DEF Bonus"
+    },
+    "term_12": {
+      "id": "term_12",
+      "zh-CN": "魔抗",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Magic Resistance"
+    },
+    "term_13": {
+      "id": "term_13",
+      "zh-CN": "暴击率",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Crit. Rate"
+    },
+    "term_14": {
+      "id": "term_14",
+      "zh-CN": "暴击伤害",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Crit. DMG"
+    },
+    "term_15": {
+      "id": "term_15",
+      "zh-CN": "攻击速度",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "ATK Speed"
+    },
+    "term_16": {
+      "id": "term_16",
+      "zh-CN": "怒气回复；社区非统一缩写",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Rage Regen"
+    },
+    "term_17": {
+      "id": "term_17",
+      "zh-CN": "伤害",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Damage"
+    },
+    "term_18": {
+      "id": "term_18",
+      "zh-CN": "物理伤害",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Physical Damage"
+    },
+    "term_19": {
+      "id": "term_19",
+      "zh-CN": "魔法伤害",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Magic Damage"
+    },
+    "term_20": {
+      "id": "term_20",
+      "zh-CN": "范围",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Area of Effect"
+    },
+    "term_21": {
+      "id": "term_21",
+      "zh-CN": "单体",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Single Target"
+    },
+    "term_22": {
+      "id": "term_22",
+      "zh-CN": "持续伤害",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Damage over Time"
+    },
+    "term_23": {
+      "id": "term_23",
+      "zh-CN": "冷却时间",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Cooldown"
+    },
+    "term_24": {
+      "id": "term_24",
+      "zh-CN": "内置冷却",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Internal Cooldown"
+    },
+    "term_25": {
+      "id": "term_25",
+      "zh-CN": "战斗力",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Battle Power"
+    },
+    "term_26": {
+      "id": "term_26",
+      "zh-CN": "装备副本",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Gear Raid I / II / III"
+    },
+    "term_27": {
+      "id": "term_27",
+      "zh-CN": "装备地下城",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Gear Dungeon"
+    },
+    "term_28": {
+      "id": "term_28",
+      "zh-CN": "炽魔之啸",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Infernal Roar"
+    },
+    "term_29": {
+      "id": "term_29",
+      "zh-CN": "古灵绝秘",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Soulbound Arcana"
+    },
+    "term_30": {
+      "id": "term_30",
+      "zh-CN": "远古之怒",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Ageless Wrath"
+    },
+    "term_31": {
+      "id": "term_31",
+      "zh-CN": "邪恶复仇",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Wicked Vengeance"
+    },
+    "term_32": {
+      "id": "term_32",
+      "zh-CN": "地狱哀嚎",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Hell's Lament"
+    },
+    "term_33": {
+      "id": "term_33",
+      "zh-CN": "裂界灾龙",
+      "en-US": null,
+      "section": "13. 常见英文缩写与社区简称",
+      "en_full": "Cataclysm"
+    },
+    "crit_dmg_2": {
+      "id": "crit_dmg_2",
+      "zh-CN": "暴击伤害",
+      "en-US": "Crit. DMG",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "暴伤"
+    },
+    "atk_speed_2": {
+      "id": "atk_speed_2",
+      "zh-CN": "攻击速度",
+      "en-US": "ATK Speed",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "攻速"
+    },
+    "rage_regen_2": {
+      "id": "rage_regen_2",
+      "zh-CN": "怒气回复速度",
+      "en-US": "Rage Regen",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "回怒"
+    },
+    "rage_regen_3": {
+      "id": "rage_regen_3",
+      "zh-CN": "怒气回复速度",
+      "en-US": "Rage Regen",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "怒气恢复效率"
+    },
+    "healing_effect_2": {
+      "id": "healing_effect_2",
+      "zh-CN": "治疗效果",
+      "en-US": "Healing Effect",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "治疗加成"
+    },
+    "atk_pct_2": {
+      "id": "atk_pct_2",
+      "zh-CN": "攻击加成",
+      "en-US": "ATK Bonus",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "攻击百分比"
+    },
+    "hp_pct_2": {
+      "id": "hp_pct_2",
+      "zh-CN": "生命加成",
+      "en-US": "HP Bonus",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "生命百分比"
+    },
+    "def_pct_2": {
+      "id": "def_pct_2",
+      "zh-CN": "防御加成",
+      "en-US": "DEF Bonus",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "防御百分比"
+    },
+    "set_hells_lament_2": {
+      "id": "set_hells_lament_2",
+      "zh-CN": "地狱哀嚎",
+      "en-US": "Hell's Lament",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "地狱哀号"
+    },
+    "set_bloodflame_dragonborn_2": {
+      "id": "set_bloodflame_dragonborn_2",
+      "zh-CN": "血炎龙裔",
+      "en-US": "Drakefire",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "血焰龙裔"
+    },
+    "set_soulbound_arcana_2": {
+      "id": "set_soulbound_arcana_2",
+      "zh-CN": "古灵绝秘",
+      "en-US": "Soulbound Arcana",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "古灵绝密"
+    },
+    "set_cataclysm_2": {
+      "id": "set_cataclysm_2",
+      "zh-CN": "裂界灾龙",
+      "en-US": "Cataclysm",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "裂界"
+    },
+    "set_soulbound_arcana_3": {
+      "id": "set_soulbound_arcana_3",
+      "zh-CN": "古灵绝秘",
+      "en-US": "Soulbound Arcana",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "古灵"
+    },
+    "set_invigoration_2": {
+      "id": "set_invigoration_2",
+      "zh-CN": "至善之灵",
+      "en-US": "Invigoration",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "至善"
+    },
+    "set_wings_of_grace_2": {
+      "id": "set_wings_of_grace_2",
+      "zh-CN": "慈光圣翼",
+      "en-US": "Wings of Grace",
+      "section": "14. 推荐 OCR 别名标准化",
+      "term": "慈光"
+    },
+    "term_34": {
+      "id": "term_34",
+      "zh-CN": null,
+      "en-US": null,
+      "section": "15. OCR中必须结合上下文判别的同名术语",
+      "entities": "The Wisdom` 套装；`Wisdom` 异化效果",
+      "disambiguation": "看所在UI区域与是否有Tier/套装图标",
+      "term": "智慧 / Wisdom"
+    },
+    "term_35": {
+      "id": "term_35",
+      "zh-CN": null,
+      "en-US": null,
+      "section": "15. OCR中必须结合上下文判别的同名术语",
+      "entities": "Curse` 套装；诅咒状态",
+      "disambiguation": "看是否为装备套装区域",
+      "term": "诅咒 / Curse"
+    },
+    "term_36": {
+      "id": "term_36",
+      "zh-CN": null,
+      "en-US": null,
+      "section": "15. OCR中必须结合上下文判别的同名术语",
+      "entities": "T0套装；异化效果“迅猛”",
+      "disambiguation": "看是否为套装名称还是独立异化属性",
+      "term": "Rapidity"
+    },
+    "term_37": {
+      "id": "term_37",
+      "zh-CN": null,
+      "en-US": null,
+      "section": "15. OCR中必须结合上下文判别的同名术语",
+      "entities": "固定攻击数值；攻击加成ATK Bonus",
+      "disambiguation": "必须区分是否带 `%/Bonus",
+      "term": "攻击 / ATK"
+    }
+  },
+  "aliases": {
+    "ATK": "term_6",
+    "ATK%": "term_7",
+    "HP": "term_8",
+    "HP%": "term_9",
+    "DEF": "term_10",
+    "DEF%": "term_11",
+    "M.RES": "term_12",
+    "CR / C.Rate": "term_13",
+    "CDMG / Crit.DMG": "term_14",
+    "AS / SPD / ATK Spd.": "term_15",
+    "RR": "term_16",
+    "DMG": "term_17",
+    "P.DMG": "term_18",
+    "M.DMG": "term_19",
+    "AoE": "term_20",
+    "ST": "term_21",
+    "DoT": "term_22",
+    "CD": "term_23",
+    "ICD": "term_24",
+    "BP": "term_25",
+    "GR1 / GR2 / GR3": "term_26",
+    "GD": "term_27",
+    "IR": "term_28",
+    "SBA / SA": "term_29",
+    "AW": "term_30",
+    "WV": "term_31",
+    "HL": "term_32",
+    "Cata": "term_33"
+  },
+  "lookup": {
+    "level": "level_lvl",
+    "watcher_of_realms": "watcher_of_realms",
+    "潮汐守望者": "watcher_of_realms",
+    "hero": "hero",
+    "英雄": "hero",
+    "max_level_hero": "max_level_hero",
+    "满级英雄": "max_level_hero",
+    "level_lvl": "level_lvl",
+    "等级": "level_lvl",
+    "max_level": "max_level",
+    "满级": "max_level",
+    "base_attributes_base_stats": "base_attributes_base_stats",
+    "基础属性": "base_attributes_base_stats",
+    "base_stats_unequipped_stats": "base_stats_unequipped_stats",
+    "裸装属性": "base_stats_unequipped_stats",
+    "battle_power_bp": "battle_power_bp",
+    "战斗力": "battle_power_bp",
+    "faction": "faction",
+    "阵营": "faction",
+    "class": "class",
+    "职业": "class",
+    "deploy_deployment": "deploy_deployment",
+    "上阵": "deploy_deployment",
+    "redeploy_redeployment": "redeploy_redeployment",
+    "重新部署": "redeploy_redeployment",
+    "atk_range": "atk_range",
+    "攻击范围": "atk_range",
+    "target": "target",
+    "目标": "target",
+    "enemy": "enemy",
+    "敌人": "enemy",
+    "ally": "ally",
+    "友方": "ally",
+    "boss": "boss",
+    "首领": "boss",
+    "elite": "elite",
+    "精英": "elite",
+    "ground_unit": "ground_unit",
+    "地面单位": "ground_unit",
+    "airborne_unit": "airborne_unit",
+    "空中单位": "airborne_unit",
+    "training_dummy_dummy_target": "training_dummy_dummy_target",
+    "木桩": "training_dummy_dummy_target",
+    "gear": "gear",
+    "装备": "gear",
+    "gear_set": "gear_set",
+    "装备套装": "gear_set",
+    "2_piece_gear_set": "2_piece_gear_set",
+    "两件套": "2_piece_gear_set",
+    "3_piece_gear_set": "3_piece_gear_set",
+    "三件套": "3_piece_gear_set",
+    "term": "term",
+    "左侧装备": "term",
+    "left_side_gear": "term",
+    "term_2": "term_2",
+    "右侧装备": "term_2",
+    "right_side_gear": "term_2",
+    "weapon": "weapon",
+    "武器": "weapon",
+    "armor": "armor",
+    "防具": "armor",
+    "breastplate": "armor",
+    "bracelet": "bracelet",
+    "手镯": "bracelet",
+    "bangle": "bracelet",
+    "necklace": "necklace",
+    "项链": "necklace",
+    "amulet": "necklace",
+    "ring": "ring",
+    "戒指": "ring",
+    "artifact": "artifact",
+    "神器": "artifact",
+    "exclusive_artifact": "exclusive_artifact",
+    "专属神器": "exclusive_artifact",
+    "primary_attribute_main_stat": "primary_attribute_main_stat",
+    "主词条": "primary_attribute_main_stat",
+    "term_3": "term_3",
+    "主属性": "term_3",
+    "primary_attribute": "term_3",
+    "secondary_attribute_substat": "secondary_attribute_substat",
+    "副词条": "secondary_attribute_substat",
+    "term_4": "term_4",
+    "副属性": "term_4",
+    "secondary_attribute": "term_4",
+    "set_bonus_set_effect": "set_bonus_set_effect",
+    "套装效果": "set_bonus_set_effect",
+    "gear_set_tier": "gear_set_tier",
+    "套装等级": "gear_set_tier",
+    "tier_0_t0": "tier_0_t0",
+    "t0": "tier_0_t0",
+    "tier_1_t1": "tier_1_t1",
+    "t1": "tier_1_t1",
+    "tier_2_t2": "tier_2_t2",
+    "t2": "tier_2_t2",
+    "tier_3_t3": "tier_3_t3",
+    "t3": "tier_3_t3",
+    "enhance_enhancement": "enhance_enhancement",
+    "强化": "enhance_enhancement",
+    "enhancement_level": "enhancement_level",
+    "强化等级": "enhancement_level",
+    "ascend_gear_ascension": "ascend_gear_ascension",
+    "升华": "ascend_gear_ascension",
+    "forge_forging": "forge_forging",
+    "打造": "forge_forging",
+    "ui": "ui",
+    "工坊": "ui",
+    "foundry": "ui",
+    "identify_identification": "identify_identification",
+    "鉴定": "identify_identification",
+    "recast": "recast",
+    "重铸": "recast",
+    "advanced_recast": "advanced_recast",
+    "高级重铸": "advanced_recast",
+    "refine": "refine",
+    "精炼": "refine",
+    "transmute_transmutation": "transmute_transmutation",
+    "转化词条": "transmute_transmutation",
+    "unidentified_gear": "unidentified_gear",
+    "未鉴定装备": "unidentified_gear",
+    "unidentified_weapon": "unidentified_weapon",
+    "未鉴定武器": "unidentified_weapon",
+    "unidentified_bangle": "unidentified_bangle",
+    "未鉴定手镯": "unidentified_bangle",
+    "ancient_gear": "ancient_gear",
+    "上古装备": "ancient_gear",
+    "ancient_mythic_gear": "ancient_mythic_gear",
+    "上古神话装备": "ancient_mythic_gear",
+    "variant_gear": "variant_gear",
+    "异化装备": "variant_gear",
+    "exclusive_gear": "exclusive_gear",
+    "专属装备": "exclusive_gear",
+    "hero_exclusive_gear": "hero_exclusive_gear",
+    "英雄专属装备": "hero_exclusive_gear",
+    "faction_exclusive_gear": "faction_exclusive_gear",
+    "阵营专属装备": "faction_exclusive_gear",
+    "gear_recommendations": "gear_recommendations",
+    "装备推荐": "gear_recommendations",
+    "equipment_plan_gear_plan": "equipment_plan_gear_plan",
+    "配装方案": "equipment_plan_gear_plan",
+    "gear_dungeon": "gear_dungeon",
+    "装备地下城": "gear_dungeon",
+    "gear_raid": "gear_raid",
+    "装备副本": "gear_raid",
+    "gear_forge_material": "gear_forge_material",
+    "装备工坊材料": "gear_forge_material",
+    "rare_blue": "rare_blue",
+    "稀有_蓝色品质": "rare_blue",
+    "rare": "rare_blue",
+    "epic_purple": "epic_purple",
+    "史诗_紫色品质": "epic_purple",
+    "epic": "epic_purple",
+    "legendary_gold": "legendary_gold",
+    "传说_金色品质": "legendary_gold",
+    "legendary": "legendary_gold",
+    "mythic_red": "mythic_red",
+    "神话_红色品质": "mythic_red",
+    "mythic": "mythic_red",
+    "blue": "blue",
+    "蓝色副词条": "blue",
+    "blue_roll_blue_secondary_attribute": "blue",
+    "purple": "purple",
+    "紫色副词条": "purple",
+    "purple_roll_purple_secondary_attribute": "purple",
+    "gold": "gold",
+    "金色副词条": "gold",
+    "gold_roll_gold_secondary_attribute": "gold",
+    "red": "red",
+    "红色_满值副词条": "red",
+    "red_maxed_secondary_attribute": "red",
+    "maximum_value_max_value": "maximum_value_max_value",
+    "最大值": "maximum_value_max_value",
+    "max_level_primary_attribute": "max_level_primary_attribute",
+    "满级主词条": "max_level_primary_attribute",
+    "hp_flat": "hp_flat",
+    "生命": "hp_flat",
+    "hp": "term_9",
+    "hp_pct": "hp_pct",
+    "生命加成": "hp_pct",
+    "hp_bonus_hp": "hp_pct",
+    "max_hp": "max_hp",
+    "最大生命": "max_hp",
+    "atk_flat": "atk_flat",
+    "攻击": "atk_flat",
+    "atk": "term_7",
+    "atk_pct": "atk_pct",
+    "攻击加成": "atk_pct",
+    "atk_bonus_atk": "atk_pct",
+    "def_flat": "def_flat",
+    "防御": "def_flat",
+    "def": "term_11",
+    "def_pct": "def_pct",
+    "防御加成": "def_pct",
+    "def_bonus_def": "def_pct",
+    "m_res_magic_resistance": "m_res_magic_resistance",
+    "魔抗": "m_res_magic_resistance",
+    "crit_rate": "crit_rate",
+    "暴击率": "crit_rate",
+    "crit_rate_critical_rate": "crit_rate",
+    "crit_dmg": "crit_dmg",
+    "暴击伤害": "crit_dmg",
+    "crit_dmg_critical_damage": "crit_dmg",
+    "ocr": "ocr",
+    "暴伤": "ocr",
+    "atk_speed": "atk_speed",
+    "攻击速度": "atk_speed",
+    "atk_speed_atk_spd": "atk_speed",
+    "ocr_2": "ocr_2",
+    "攻速": "ocr_2",
+    "atk_spd": "ocr_2",
+    "atk_interval": "atk_interval",
+    "攻击间隔": "atk_interval",
+    "rage": "rage",
+    "怒气": "rage",
+    "initial_rage": "initial_rage",
+    "初始怒气": "initial_rage",
+    "rage_cost": "rage_cost",
+    "怒气消耗": "rage_cost",
+    "rage_regen": "rage_regen",
+    "怒气回复速度": "rage_regen",
+    "term_5": "term_5",
+    "怒气恢复效率": "term_5",
+    "auto_rage_regen": "auto_rage_regen",
+    "自然回怒": "auto_rage_regen",
+    "rage_regen_auto": "auto_rage_regen",
+    "attack_rage_regen": "attack_rage_regen",
+    "攻击回怒": "attack_rage_regen",
+    "rage_regen_atk_rage_regen_basic_atk": "attack_rage_regen",
+    "rage_regen_attacked": "rage_regen_attacked",
+    "受击回怒": "rage_regen_attacked",
+    "healing_effect": "healing_effect",
+    "治疗效果": "healing_effect",
+    "ocr_3": "ocr_3",
+    "治疗加成": "ocr_3",
+    "penetration": "penetration",
+    "穿透": "penetration",
+    "def_penetration": "def_penetration",
+    "防御穿透": "def_penetration",
+    "m_res_penetration": "m_res_penetration",
+    "魔抗穿透": "m_res_penetration",
+    "ignore_def": "ignore_def",
+    "无视防御": "ignore_def",
+    "ignore_m_res": "ignore_m_res",
+    "无视魔抗": "ignore_m_res",
+    "damage_reduction": "damage_reduction",
+    "减伤": "damage_reduction",
+    "dmg_reduction": "damage_reduction",
+    "dmg_taken_reduction_dmg_taken_x": "dmg_taken_reduction_dmg_taken_x",
+    "受到伤害降低": "dmg_taken_reduction_dmg_taken_x",
+    "deployment_cost": "deployment_cost",
+    "部署费用": "deployment_cost",
+    "cost_deployment_cost": "deployment_cost",
+    "block": "block",
+    "阻挡数": "block",
+    "basic_attributes_increase": "basic_attributes_increase",
+    "基础属性提升": "basic_attributes_increase",
+    "basic_atk": "basic_atk",
+    "普通攻击": "basic_atk",
+    "basic_atk_2": "basic_atk_2",
+    "普攻": "basic_atk_2",
+    "skill": "skill",
+    "技能": "skill",
+    "active_skill": "active_skill",
+    "主动技能": "active_skill",
+    "passive_passive_skill": "passive_passive_skill",
+    "被动技能": "passive_passive_skill",
+    "ultimate_ultimate_skill": "ultimate_ultimate_skill",
+    "终结技": "ultimate_ultimate_skill",
+    "talent": "talent",
+    "天赋": "talent",
+    "awakening_awaken": "awakening_awaken",
+    "觉醒": "awakening_awaken",
+    "bond_skill": "bond_skill",
+    "羁绊技": "bond_skill",
+    "dmg_damage": "dmg_damage",
+    "伤害": "dmg_damage",
+    "dmg_increase_dmg_bonus": "dmg_increase_dmg_bonus",
+    "伤害加成": "dmg_increase_dmg_bonus",
+    "basic_atk_dmg": "basic_atk_dmg",
+    "普通攻击伤害": "basic_atk_dmg",
+    "basic_atk_dmg_increase": "basic_atk_dmg_increase",
+    "普通攻击伤害加成": "basic_atk_dmg_increase",
+    "single_target_dmg": "single_target_dmg",
+    "单体伤害": "single_target_dmg",
+    "aoe_dmg_area_of_effect_damage": "aoe_dmg_area_of_effect_damage",
+    "范围伤害": "aoe_dmg_area_of_effect_damage",
+    "p_dmg_physical_dmg": "p_dmg_physical_dmg",
+    "物理伤害": "p_dmg_physical_dmg",
+    "m_dmg_magic_dmg": "m_dmg_magic_dmg",
+    "魔法伤害": "m_dmg_magic_dmg",
+    "true_dmg": "true_dmg",
+    "真实伤害": "true_dmg",
+    "extra_dmg_additional_dmg": "extra_dmg_additional_dmg",
+    "额外伤害": "extra_dmg_additional_dmg",
+    "follow_up_attack_additional_attack": "follow_up_attack_additional_attack",
+    "追加攻击": "follow_up_attack_additional_attack",
+    "multi_hit_attack": "multi_hit_attack",
+    "多段攻击": "multi_hit_attack",
+    "crit_hit_critical_hit": "crit_hit_critical_hit",
+    "暴击": "crit_hit_critical_hit",
+    "continuous_dmg_damage_over_time": "continuous_dmg_damage_over_time",
+    "持续伤害": "continuous_dmg_damage_over_time",
+    "damage_over_time": "damage_over_time",
+    "dot": "term_22",
+    "burning": "burning",
+    "灼烧": "burning",
+    "poison": "poison",
+    "中毒": "poison",
+    "bleed_bleeding": "bleed_bleeding",
+    "流血": "bleed_bleeding",
+    "slow": "slow",
+    "减速": "slow",
+    "stun": "stun",
+    "眩晕": "stun",
+    "freeze": "freeze",
+    "冻结": "freeze",
+    "immobilized_state_immobilize": "immobilized_state_immobilize",
+    "定身": "immobilized_state_immobilize",
+    "curse": "curse",
+    "诅咒状态": "curse",
+    "cc_effect_crowd_control_effect": "cc_effect_crowd_control_effect",
+    "控制效果": "cc_effect_crowd_control_effect",
+    "shield": "shield",
+    "护盾": "shield",
+    "healing_heal": "healing_heal",
+    "治疗": "healing_heal",
+    "recover_hp_restore_hp": "recover_hp_restore_hp",
+    "回复生命": "recover_hp_restore_hp",
+    "buff": "buff",
+    "增益": "buff",
+    "debuff": "debuff",
+    "减益": "debuff",
+    "vulnerability": "vulnerability",
+    "易伤": "vulnerability",
+    "def_reduction": "def_reduction",
+    "防御降低": "def_reduction",
+    "m_res_reduction": "m_res_reduction",
+    "魔抗降低": "m_res_reduction",
+    "invisibility": "invisibility",
+    "隐身": "invisibility",
+    "summon": "summon",
+    "召唤物": "summon",
+    "trigger_proc": "trigger_proc",
+    "触发": "trigger_proc",
+    "trigger_chance_proc_chance": "trigger_chance_proc_chance",
+    "触发概率": "trigger_chance_proc_chance",
+    "duration_effect_duration": "duration_effect_duration",
+    "持续时间": "duration_effect_duration",
+    "stack": "stack",
+    "叠层": "stack",
+    "max_stacks_stack_cap": "max_stacks_stack_cap",
+    "最大层数": "max_stacks_stack_cap",
+    "refresh_duration": "refresh_duration",
+    "刷新持续时间": "refresh_duration",
+    "cooldown_cd": "cooldown_cd",
+    "冷却时间": "cooldown_cd",
+    "internal_cooldown_icd": "internal_cooldown_icd",
+    "内置冷却": "internal_cooldown_icd",
+    "cast_time_action_time": "cast_time_action_time",
+    "施法时间": "cast_time_action_time",
+    "target_cap": "target_cap",
+    "目标上限": "target_cap",
+    "secondary_target_ratio": "secondary_target_ratio",
+    "副目标伤害比例": "secondary_target_ratio",
+    "defeat_an_enemy_kill_an_enemy": "defeat_an_enemy_kill_an_enemy",
+    "击败敌人": "defeat_an_enemy_kill_an_enemy",
+    "when_attacked": "when_attacked",
+    "受到攻击": "when_attacked",
+    "on_the_field": "on_the_field",
+    "在场": "on_the_field",
+    "when_deployed": "when_deployed",
+    "上阵时": "when_deployed",
+    "hp_above_70": "hp_above_70",
+    "生命高于70": "hp_above_70",
+    "output": "output",
+    "输出": "output",
+    "dps_damage": "output",
+    "defense": "defense",
+    "tank_defensive": "defense",
+    "healing": "healing",
+    "buff_2": "buff_2",
+    "utility_buff": "buff_2",
+    "set_salvation": "set_salvation",
+    "救赎": "set_salvation",
+    "salvation": "set_salvation",
+    "set_life_force": "set_life_force",
+    "活力": "set_life_force",
+    "life_force": "set_life_force",
+    "set_calamity": "set_calamity",
+    "灾难": "set_calamity",
+    "calamity": "set_calamity",
+    "set_whirlwind": "set_whirlwind",
+    "疾风": "set_whirlwind",
+    "whirlwind": "set_whirlwind",
+    "set_annihilating_might": "set_annihilating_might",
+    "湮灭": "set_annihilating_might",
+    "annihilating_might": "set_annihilating_might",
+    "set_immortal_warrior": "set_immortal_warrior",
+    "不朽勇者": "set_immortal_warrior",
+    "immortal_warrior": "set_immortal_warrior",
+    "set_warlord": "set_warlord",
+    "战争之主": "set_warlord",
+    "warlord": "set_warlord",
+    "set_astral_guardian": "set_astral_guardian",
+    "星魂守卫": "set_astral_guardian",
+    "astral_guardian": "set_astral_guardian",
+    "set_lights_grace": "set_lights_grace",
+    "光之恩惠": "set_lights_grace",
+    "light_s_grace": "set_lights_grace",
+    "set_wicked_vengeance": "set_wicked_vengeance",
+    "邪恶复仇": "set_wicked_vengeance",
+    "wicked_vengeance": "set_wicked_vengeance",
+    "set_bloodflame_dragonborn": "set_bloodflame_dragonborn",
+    "血炎龙裔": "set_bloodflame_dragonborn",
+    "drakefire": "set_bloodflame_dragonborn",
+    "set_roaring_lion": "set_roaring_lion",
+    "咆哮雄狮": "set_roaring_lion",
+    "goldmane": "set_roaring_lion",
+    "set_vitality": "set_vitality",
+    "vitality": "set_vitality",
+    "set_juggernaut": "set_juggernaut",
+    "juggernaut": "set_juggernaut",
+    "set_lifegiver": "set_lifegiver",
+    "lifegiver": "set_lifegiver",
+    "set_iron_fortress": "set_iron_fortress",
+    "iron_fortress": "set_iron_fortress",
+    "set_wrathful_onslaught": "set_wrathful_onslaught",
+    "wrathful_onslaught": "set_wrathful_onslaught",
+    "set_savage_strike": "set_savage_strike",
+    "savage_strike": "set_savage_strike",
+    "set_deadly_aim": "set_deadly_aim",
+    "deadly_aim": "set_deadly_aim",
+    "set_asclepius": "set_asclepius",
+    "圣愈": "set_asclepius",
+    "asclepius": "set_asclepius",
+    "set_insight": "set_insight",
+    "洞悉": "set_insight",
+    "the_insight": "set_insight",
+    "set_wisdom": "set_wisdom",
+    "智慧": "set_wisdom",
+    "the_wisdom": "set_wisdom",
+    "set_doom": "set_doom",
+    "毁灭": "set_doom",
+    "the_doom": "set_doom",
+    "set_styx": "set_styx",
+    "冥河": "set_styx",
+    "the_styx": "set_styx",
+    "set_night_terror": "set_night_terror",
+    "梦魇": "set_night_terror",
+    "night_terror": "set_night_terror",
+    "set_glacier": "set_glacier",
+    "北方": "set_glacier",
+    "the_glacier": "set_glacier",
+    "set_hawk_eye": "set_hawk_eye",
+    "鹰眼": "set_hawk_eye",
+    "hawk_eye": "set_hawk_eye",
+    "set_mana_spring": "set_mana_spring",
+    "魔能": "set_mana_spring",
+    "mana_spring": "set_mana_spring",
+    "set_fracture": "set_fracture",
+    "爆裂": "set_fracture",
+    "fracture": "set_fracture",
+    "set_curse": "set_curse",
+    "诅咒": "set_curse",
+    "set_fatality": "set_fatality",
+    "致命": "set_fatality",
+    "fatality": "set_fatality",
+    "set_guardian": "set_guardian",
+    "守护": "set_guardian",
+    "guardian": "set_guardian",
+    "set_ageless_wrath": "set_ageless_wrath",
+    "远古之怒": "set_ageless_wrath",
+    "ageless_wrath": "set_ageless_wrath",
+    "set_invigoration": "set_invigoration",
+    "至善之灵": "set_invigoration",
+    "invigoration": "set_invigoration",
+    "set_infernal_roar": "set_infernal_roar",
+    "炽魔之啸": "set_infernal_roar",
+    "infernal_roar": "set_infernal_roar",
+    "set_soulbound_arcana": "set_soulbound_arcana",
+    "古灵绝秘": "set_soulbound_arcana",
+    "soulbound_arcana": "set_soulbound_arcana",
+    "set_undying_savage": "set_undying_savage",
+    "不朽狂徒": "set_undying_savage",
+    "undying_savage": "set_undying_savage",
+    "set_wings_of_grace": "set_wings_of_grace",
+    "慈光圣翼": "set_wings_of_grace",
+    "wings_of_grace": "set_wings_of_grace",
+    "set_cataclysm": "set_cataclysm",
+    "裂界灾龙": "set_cataclysm",
+    "cataclysm": "set_cataclysm",
+    "set_hells_lament": "set_hells_lament",
+    "地狱哀嚎": "set_hells_lament",
+    "hell_s_lament": "set_hells_lament",
+    "set_tempered_will": "set_tempered_will",
+    "钢铁意志": "set_tempered_will",
+    "tempered_will": "set_tempered_will",
+    "set_unshaken_will": "set_unshaken_will",
+    "不灭意志": "set_unshaken_will",
+    "unshaken_will": "set_unshaken_will",
+    "set_morale": "set_morale",
+    "战意": "set_morale",
+    "morale": "set_morale",
+    "set_lone_wolf": "set_lone_wolf",
+    "独狼绝境": "set_lone_wolf",
+    "greyfang": "set_lone_wolf",
+    "set_occult_shield": "set_occult_shield",
+    "occult_shield": "set_occult_shield",
+    "set_twisted_blade": "set_twisted_blade",
+    "twisted_blade": "set_twisted_blade",
+    "set_rapidity": "set_rapidity",
+    "rapidity": "set_rapidity",
+    "set_the_tempest": "set_the_tempest",
+    "the_tempest": "set_the_tempest",
+    "calamity_warlord": "calamity_warlord",
+    "灾难_战争之主": "calamity_warlord",
+    "life_force_immortal_warrior": "life_force_immortal_warrior",
+    "活力_不朽勇者": "life_force_immortal_warrior",
+    "night_terror_ageless_wrath": "night_terror_ageless_wrath",
+    "梦魇_远古之怒": "night_terror_ageless_wrath",
+    "asclepius_invigoration": "asclepius_invigoration",
+    "圣愈_至善之灵": "asclepius_invigoration",
+    "the_insight_infernal_roar": "the_insight_infernal_roar",
+    "洞悉_炽魔之啸": "the_insight_infernal_roar",
+    "the_wisdom_soulbound_arcana": "the_wisdom_soulbound_arcana",
+    "智慧_古灵绝秘": "the_wisdom_soulbound_arcana",
+    "variant_overlord_awakening": "variant_overlord_awakening",
+    "霸者觉醒": "variant_overlord_awakening",
+    "renewed_vigor": "variant_overlord_awakening",
+    "variant_unrivalled_power": "variant_unrivalled_power",
+    "非凡之力": "variant_unrivalled_power",
+    "unrivalled_power": "variant_unrivalled_power",
+    "variant_unstoppable_force": "variant_unstoppable_force",
+    "不挡之力": "variant_unstoppable_force",
+    "the_unstoppable_force": "variant_unstoppable_force",
+    "variant_arrogance": "variant_arrogance",
+    "嚣张": "variant_arrogance",
+    "agression": "variant_arrogance",
+    "variant_ferocity": "variant_ferocity",
+    "迅猛": "variant_ferocity",
+    "variant_immovable_object": "variant_immovable_object",
+    "不动之物": "variant_immovable_object",
+    "the_immovable_object": "variant_immovable_object",
+    "variant_wildness": "variant_wildness",
+    "野性": "variant_wildness",
+    "brutality": "variant_wildness",
+    "variant_endless_calamity": "variant_endless_calamity",
+    "灾厄不息": "variant_endless_calamity",
+    "merciless": "variant_endless_calamity",
+    "variant_summoner": "variant_summoner",
+    "唤灵师": "variant_summoner",
+    "spirit_mastery": "variant_summoner",
+    "variant_last_stand": "variant_last_stand",
+    "背水一战": "variant_last_stand",
+    "last_stand": "variant_last_stand",
+    "variant_grace": "variant_grace",
+    "恩泽": "variant_grace",
+    "grace": "variant_grace",
+    "variant_great_wave": "variant_great_wave",
+    "惊天巨浪": "variant_great_wave",
+    "tital_wave": "variant_great_wave",
+    "variant_cursed_touch": "variant_cursed_touch",
+    "诅咒之触": "variant_cursed_touch",
+    "languid_curse": "variant_cursed_touch",
+    "variant_toughness": "variant_toughness",
+    "强韧": "variant_toughness",
+    "fortitude": "variant_toughness",
+    "variant_shopkeeper": "variant_shopkeeper",
+    "掌柜包办": "variant_shopkeeper",
+    "on_the_house": "variant_shopkeeper",
+    "variant_blessing_prayer": "variant_blessing_prayer",
+    "赐福祈祷": "variant_blessing_prayer",
+    "benediction": "variant_blessing_prayer",
+    "variant_gluttony_blessing": "variant_gluttony_blessing",
+    "暴食赐福": "variant_gluttony_blessing",
+    "well_nourished": "variant_gluttony_blessing",
+    "variant_fortress": "variant_fortress",
+    "堡垒": "variant_fortress",
+    "bulwark": "variant_fortress",
+    "blood_sacrifice": "blood_sacrifice",
+    "bloodthirst": "bloodthirst",
+    "divine_fury": "divine_fury",
+    "incindiary_roar": "incindiary_roar",
+    "recklessness": "recklessness",
+    "retaliation": "retaliation",
+    "steady_poise": "steady_poise",
+    "stoicism": "stoicism",
+    "wisdom": "wisdom",
+    "witches_charm": "witches_charm",
+    "woeful_optimism": "woeful_optimism",
+    "darkfall_gem": "darkfall_gem",
+    "暗陨宝石": "darkfall_gem",
+    "evolution_gem": "evolution_gem",
+    "进化宝石": "evolution_gem",
+    "variant_gem": "variant_gem",
+    "异化宝石": "variant_gem",
+    "transmutation_gem": "transmutation_gem",
+    "转化宝石": "transmutation_gem",
+    "gem_enhancement": "gem_enhancement",
+    "宝石强化": "gem_enhancement",
+    "progress_bar": "progress_bar",
+    "强化进度条": "progress_bar",
+    "evolution": "evolution",
+    "进化": "evolution",
+    "term_6": "term_6",
+    "term_7": "term_7",
+    "term_8": "term_8",
+    "term_9": "term_9",
+    "term_10": "term_10",
+    "term_11": "term_11",
+    "term_12": "term_12",
+    "m_res": "term_12",
+    "term_13": "term_13",
+    "cr_c_rate": "term_13",
+    "term_14": "term_14",
+    "cdmg_crit_dmg": "term_14",
+    "term_15": "term_15",
+    "as_spd_atk_spd": "term_15",
+    "term_16": "term_16",
+    "怒气回复_社区非统一缩写": "term_16",
+    "rr": "term_16",
+    "term_17": "term_17",
+    "dmg": "term_17",
+    "term_18": "term_18",
+    "p_dmg": "term_18",
+    "term_19": "term_19",
+    "m_dmg": "term_19",
+    "term_20": "term_20",
+    "范围": "term_20",
+    "aoe": "term_20",
+    "term_21": "term_21",
+    "单体": "term_21",
+    "st": "term_21",
+    "term_22": "term_22",
+    "term_23": "term_23",
+    "cd": "term_23",
+    "term_24": "term_24",
+    "icd": "term_24",
+    "term_25": "term_25",
+    "bp": "term_25",
+    "term_26": "term_26",
+    "gr1_gr2_gr3": "term_26",
+    "term_27": "term_27",
+    "gd": "term_27",
+    "term_28": "term_28",
+    "ir": "term_28",
+    "term_29": "term_29",
+    "sba_sa": "term_29",
+    "term_30": "term_30",
+    "aw": "term_30",
+    "term_31": "term_31",
+    "wv": "term_31",
+    "term_32": "term_32",
+    "hl": "term_32",
+    "term_33": "term_33",
+    "cata": "term_33",
+    "crit_dmg_2": "crit_dmg_2",
+    "atk_speed_2": "atk_speed_2",
+    "rage_regen_2": "rage_regen_2",
+    "rage_regen_3": "rage_regen_3",
+    "healing_effect_2": "healing_effect_2",
+    "atk_pct_2": "atk_pct_2",
+    "atk_bonus": "atk_pct_2",
+    "hp_pct_2": "hp_pct_2",
+    "hp_bonus": "hp_pct_2",
+    "def_pct_2": "def_pct_2",
+    "def_bonus": "def_pct_2",
+    "set_hells_lament_2": "set_hells_lament_2",
+    "set_bloodflame_dragonborn_2": "set_bloodflame_dragonborn_2",
+    "set_soulbound_arcana_2": "set_soulbound_arcana_2",
+    "set_cataclysm_2": "set_cataclysm_2",
+    "set_soulbound_arcana_3": "set_soulbound_arcana_3",
+    "set_invigoration_2": "set_invigoration_2",
+    "set_wings_of_grace_2": "set_wings_of_grace_2",
+    "term_34": "term_34",
+    "term_35": "term_35",
+    "term_36": "term_36",
+    "term_37": "term_37"
+  },
+  "contextRules": [
+    {
+      "term": "智慧 / Wisdom",
+      "entities": "The Wisdom` 套装；`Wisdom` 异化效果",
+      "disambiguation": "看所在UI区域与是否有Tier/套装图标"
+    },
+    {
+      "term": "诅咒 / Curse",
+      "entities": "Curse` 套装；诅咒状态",
+      "disambiguation": "看是否为装备套装区域"
+    },
+    {
+      "term": "Rapidity",
+      "entities": "T0套装；异化效果“迅猛”",
+      "disambiguation": "看是否为套装名称还是独立异化属性"
+    },
+    {
+      "term": "攻击 / ATK",
+      "entities": "固定攻击数值；攻击加成ATK Bonus",
+      "disambiguation": "必须区分是否带 `%/Bonus"
+    }
+  ],
+  "sections": [
+    {
+      "title": "说明",
+      "entries": []
+    },
+    {
+      "title": "1. 基础游戏与角色术语",
+      "entries": [
+        {
+          "zh": "潮汐守望者",
+          "en": "Watcher of Realms",
+          "notes": "游戏名称"
+        },
+        {
+          "zh": "英雄",
+          "en": "Hero",
+          "notes": ""
+        },
+        {
+          "zh": "满级英雄",
+          "en": "Max-Level Hero",
+          "notes": "当前项目固定60级"
+        },
+        {
+          "zh": "等级",
+          "en": "Level / Lvl.",
+          "notes": ""
+        },
+        {
+          "zh": "满级",
+          "en": "Max Level",
+          "notes": ""
+        },
+        {
+          "zh": "基础属性",
+          "en": "Base Attributes / Base Stats",
+          "notes": ""
+        },
+        {
+          "zh": "裸装属性",
+          "en": "Base Stats / Unequipped Stats",
+          "notes": "项目术语"
+        },
+        {
+          "zh": "战斗力",
+          "en": "Battle Power / BP",
+          "notes": ""
+        },
+        {
+          "zh": "阵营",
+          "en": "Faction",
+          "notes": ""
+        },
+        {
+          "zh": "职业",
+          "en": "Class",
+          "notes": ""
+        },
+        {
+          "zh": "上阵",
+          "en": "Deploy / Deployment",
+          "notes": ""
+        },
+        {
+          "zh": "重新部署",
+          "en": "Redeploy / Redeployment",
+          "notes": ""
+        },
+        {
+          "zh": "攻击范围",
+          "en": "ATK Range",
+          "notes": ""
+        },
+        {
+          "zh": "目标",
+          "en": "Target",
+          "notes": ""
+        },
+        {
+          "zh": "敌人",
+          "en": "Enemy",
+          "notes": ""
+        },
+        {
+          "zh": "友方",
+          "en": "Ally",
+          "notes": ""
+        },
+        {
+          "zh": "首领",
+          "en": "Boss",
+          "notes": ""
+        },
+        {
+          "zh": "精英",
+          "en": "Elite",
+          "notes": ""
+        },
+        {
+          "zh": "地面单位",
+          "en": "Ground Unit",
+          "notes": ""
+        },
+        {
+          "zh": "空中单位",
+          "en": "Airborne Unit",
+          "notes": ""
+        },
+        {
+          "zh": "木桩",
+          "en": "Training Dummy / Dummy Target",
+          "notes": "项目测试场景"
+        }
+      ]
+    },
+    {
+      "title": "2. 装备系统与槽位",
+      "entries": [
+        {
+          "zh": "装备",
+          "en": "Gear",
+          "id": ""
+        },
+        {
+          "zh": "装备套装",
+          "en": "Gear Set",
+          "id": ""
+        },
+        {
+          "zh": "两件套",
+          "en": "2-Piece Gear Set",
+          "id": ""
+        },
+        {
+          "zh": "三件套",
+          "en": "3-Piece Gear Set",
+          "id": ""
+        },
+        {
+          "zh": "左侧装备",
+          "en": "Left-Side Gear",
+          "id": "武器+防具"
+        },
+        {
+          "zh": "右侧装备",
+          "en": "Right-Side Gear",
+          "id": "手镯+项链+戒指"
+        },
+        {
+          "zh": "武器",
+          "en": "Weapon",
+          "id": "weapon"
+        },
+        {
+          "zh": "防具",
+          "en": "Breastplate",
+          "id": "armor"
+        },
+        {
+          "zh": "手镯",
+          "en": "Bangle",
+          "id": "bracelet"
+        },
+        {
+          "zh": "项链",
+          "en": "Amulet",
+          "id": "necklace"
+        },
+        {
+          "zh": "戒指",
+          "en": "Ring",
+          "id": "ring"
+        },
+        {
+          "zh": "神器",
+          "en": "Artifact",
+          "id": ""
+        },
+        {
+          "zh": "专属神器",
+          "en": "Exclusive Artifact",
+          "id": ""
+        },
+        {
+          "zh": "主词条",
+          "en": "Primary Attribute / Main Stat",
+          "id": ""
+        },
+        {
+          "zh": "主属性",
+          "en": "Primary Attribute",
+          "id": "与主词条同义"
+        },
+        {
+          "zh": "副词条",
+          "en": "Secondary Attribute / Substat",
+          "id": ""
+        },
+        {
+          "zh": "副属性",
+          "en": "Secondary Attribute",
+          "id": "与副词条同义"
+        },
+        {
+          "zh": "套装效果",
+          "en": "Set Bonus / Set Effect",
+          "id": ""
+        },
+        {
+          "zh": "套装等级",
+          "en": "Gear Set Tier",
+          "id": ""
+        },
+        {
+          "zh": "T0",
+          "en": "Tier 0 / T0",
+          "id": ""
+        },
+        {
+          "zh": "T1",
+          "en": "Tier 1 / T1",
+          "id": ""
+        },
+        {
+          "zh": "T2",
+          "en": "Tier 2 / T2",
+          "id": ""
+        },
+        {
+          "zh": "T3",
+          "en": "Tier 3 / T3",
+          "id": ""
+        },
+        {
+          "zh": "强化",
+          "en": "Enhance / Enhancement",
+          "id": ""
+        },
+        {
+          "zh": "强化等级",
+          "en": "Enhancement Level",
+          "id": ""
+        },
+        {
+          "zh": "升华",
+          "en": "Ascend / Gear Ascension",
+          "id": ""
+        },
+        {
+          "zh": "打造",
+          "en": "Forge / Forging",
+          "id": ""
+        },
+        {
+          "zh": "工坊",
+          "en": "Foundry",
+          "id": "全球版UI常用"
+        },
+        {
+          "zh": "鉴定",
+          "en": "Identify / Identification",
+          "id": ""
+        },
+        {
+          "zh": "重铸",
+          "en": "Recast",
+          "id": ""
+        },
+        {
+          "zh": "高级重铸",
+          "en": "Advanced Recast",
+          "id": ""
+        },
+        {
+          "zh": "精炼",
+          "en": "Refine",
+          "id": ""
+        },
+        {
+          "zh": "转化词条",
+          "en": "Transmute / Transmutation",
+          "id": ""
+        },
+        {
+          "zh": "未鉴定装备",
+          "en": "Unidentified Gear",
+          "id": ""
+        },
+        {
+          "zh": "未鉴定武器",
+          "en": "Unidentified Weapon",
+          "id": ""
+        },
+        {
+          "zh": "未鉴定手镯",
+          "en": "Unidentified Bangle",
+          "id": ""
+        },
+        {
+          "zh": "上古装备",
+          "en": "Ancient Gear",
+          "id": ""
+        },
+        {
+          "zh": "上古神话装备",
+          "en": "Ancient Mythic Gear",
+          "id": ""
+        },
+        {
+          "zh": "异化装备",
+          "en": "Variant Gear",
+          "id": ""
+        },
+        {
+          "zh": "专属装备",
+          "en": "Exclusive Gear",
+          "id": ""
+        },
+        {
+          "zh": "英雄专属装备",
+          "en": "Hero Exclusive Gear",
+          "id": ""
+        },
+        {
+          "zh": "阵营专属装备",
+          "en": "Faction Exclusive Gear",
+          "id": ""
+        },
+        {
+          "zh": "装备推荐",
+          "en": "Gear Recommendations",
+          "id": ""
+        },
+        {
+          "zh": "配装方案",
+          "en": "Equipment Plan / Gear Plan",
+          "id": ""
+        },
+        {
+          "zh": "装备地下城",
+          "en": "Gear Dungeon",
+          "id": ""
+        },
+        {
+          "zh": "装备副本",
+          "en": "Gear Raid",
+          "id": ""
+        },
+        {
+          "zh": "装备工坊材料",
+          "en": "Gear Forge Material",
+          "id": ""
+        }
+      ]
+    },
+    {
+      "title": "3. 装备品质与副词条质量",
+      "entries": [
+        {
+          "zh": "稀有/蓝色品质",
+          "en": "Rare",
+          "id": "rare_blue"
+        },
+        {
+          "zh": "史诗/紫色品质",
+          "en": "Epic",
+          "id": "epic_purple"
+        },
+        {
+          "zh": "传说/金色品质",
+          "en": "Legendary",
+          "id": "legendary_gold"
+        },
+        {
+          "zh": "神话/红色品质",
+          "en": "Mythic",
+          "id": "mythic_red"
+        },
+        {
+          "zh": "蓝色副词条",
+          "en": "Blue Roll / Blue Secondary Attribute",
+          "id": "blue"
+        },
+        {
+          "zh": "紫色副词条",
+          "en": "Purple Roll / Purple Secondary Attribute",
+          "id": "purple"
+        },
+        {
+          "zh": "金色副词条",
+          "en": "Gold Roll / Gold Secondary Attribute",
+          "id": "gold"
+        },
+        {
+          "zh": "红色/满值副词条",
+          "en": "Red / Maxed Secondary Attribute",
+          "id": "red"
+        },
+        {
+          "zh": "最大值",
+          "en": "Maximum Value / Max Value",
+          "id": ""
+        },
+        {
+          "zh": "满级主词条",
+          "en": "Max-Level Primary Attribute",
+          "id": ""
+        }
+      ]
+    },
+    {
+      "title": "4. 属性与词条",
+      "entries": [
+        {
+          "zh": "生命",
+          "en": "HP",
+          "id": "hp_flat"
+        },
+        {
+          "zh": "生命加成",
+          "en": "HP Bonus / HP%",
+          "id": "hp_pct"
+        },
+        {
+          "zh": "最大生命",
+          "en": "Max HP",
+          "id": ""
+        },
+        {
+          "zh": "攻击",
+          "en": "ATK",
+          "id": "atk_flat"
+        },
+        {
+          "zh": "攻击加成",
+          "en": "ATK Bonus / ATK%",
+          "id": "atk_pct"
+        },
+        {
+          "zh": "防御",
+          "en": "DEF",
+          "id": "def_flat"
+        },
+        {
+          "zh": "防御加成",
+          "en": "DEF Bonus / DEF%",
+          "id": "def_pct"
+        },
+        {
+          "zh": "魔抗",
+          "en": "M.RES / Magic Resistance",
+          "id": ""
+        },
+        {
+          "zh": "暴击率",
+          "en": "Crit. Rate / Critical Rate",
+          "id": "crit_rate"
+        },
+        {
+          "zh": "暴击伤害",
+          "en": "Crit. DMG / Critical Damage",
+          "id": "crit_dmg"
+        },
+        {
+          "zh": "暴伤",
+          "en": "Crit. DMG",
+          "id": "OCR/玩家别名"
+        },
+        {
+          "zh": "攻击速度",
+          "en": "ATK Speed / ATK Spd.",
+          "id": "atk_speed"
+        },
+        {
+          "zh": "攻速",
+          "en": "ATK Spd.",
+          "id": "OCR/玩家别名"
+        },
+        {
+          "zh": "攻击间隔",
+          "en": "ATK Interval",
+          "id": ""
+        },
+        {
+          "zh": "怒气",
+          "en": "Rage",
+          "id": ""
+        },
+        {
+          "zh": "初始怒气",
+          "en": "Initial Rage",
+          "id": ""
+        },
+        {
+          "zh": "怒气消耗",
+          "en": "Rage Cost",
+          "id": ""
+        },
+        {
+          "zh": "怒气回复速度",
+          "en": "Rage Regen",
+          "id": "rage_regen"
+        },
+        {
+          "zh": "怒气恢复效率",
+          "en": "Rage Regen",
+          "id": "国服历史/别名"
+        },
+        {
+          "zh": "自然回怒",
+          "en": "Rage Regen (Auto)",
+          "id": "auto_rage_regen"
+        },
+        {
+          "zh": "攻击回怒",
+          "en": "Rage Regen (ATK) / Rage Regen (Basic ATK)",
+          "id": "attack_rage_regen"
+        },
+        {
+          "zh": "受击回怒",
+          "en": "Rage Regen (Attacked)",
+          "id": ""
+        },
+        {
+          "zh": "治疗效果",
+          "en": "Healing Effect",
+          "id": "healing_effect"
+        },
+        {
+          "zh": "治疗加成",
+          "en": "Healing Effect",
+          "id": "OCR/玩家别名"
+        },
+        {
+          "zh": "穿透",
+          "en": "Penetration",
+          "id": "penetration"
+        },
+        {
+          "zh": "防御穿透",
+          "en": "DEF Penetration",
+          "id": ""
+        },
+        {
+          "zh": "魔抗穿透",
+          "en": "M.RES Penetration",
+          "id": ""
+        },
+        {
+          "zh": "无视防御",
+          "en": "Ignore DEF",
+          "id": ""
+        },
+        {
+          "zh": "无视魔抗",
+          "en": "Ignore M.RES",
+          "id": ""
+        },
+        {
+          "zh": "减伤",
+          "en": "DMG Reduction",
+          "id": "damage_reduction"
+        },
+        {
+          "zh": "受到伤害降低",
+          "en": "DMG Taken Reduction / DMG Taken -X%",
+          "id": ""
+        },
+        {
+          "zh": "部署费用",
+          "en": "Cost / Deployment Cost",
+          "id": "deployment_cost"
+        },
+        {
+          "zh": "阻挡数",
+          "en": "Block",
+          "id": ""
+        },
+        {
+          "zh": "基础属性提升",
+          "en": "Basic Attributes Increase",
+          "id": ""
+        }
+      ]
+    },
+    {
+      "title": "5. 战斗、技能与状态机制",
+      "entries": [
+        {
+          "zh": "普通攻击",
+          "en": "Basic ATK",
+          "notes": ""
+        },
+        {
+          "zh": "普攻",
+          "en": "Basic ATK",
+          "notes": "简称"
+        },
+        {
+          "zh": "技能",
+          "en": "Skill",
+          "notes": ""
+        },
+        {
+          "zh": "主动技能",
+          "en": "Active Skill",
+          "notes": ""
+        },
+        {
+          "zh": "被动技能",
+          "en": "Passive / Passive Skill",
+          "notes": ""
+        },
+        {
+          "zh": "终结技",
+          "en": "Ultimate / Ultimate Skill",
+          "notes": ""
+        },
+        {
+          "zh": "天赋",
+          "en": "Talent",
+          "notes": ""
+        },
+        {
+          "zh": "觉醒",
+          "en": "Awakening / Awaken",
+          "notes": ""
+        },
+        {
+          "zh": "羁绊技",
+          "en": "Bond Skill",
+          "notes": ""
+        },
+        {
+          "zh": "伤害",
+          "en": "DMG / Damage",
+          "notes": ""
+        },
+        {
+          "zh": "伤害加成",
+          "en": "DMG Increase / DMG Bonus",
+          "notes": ""
+        },
+        {
+          "zh": "普通攻击伤害",
+          "en": "Basic ATK DMG",
+          "notes": ""
+        },
+        {
+          "zh": "普通攻击伤害加成",
+          "en": "Basic ATK DMG Increase",
+          "notes": ""
+        },
+        {
+          "zh": "单体伤害",
+          "en": "Single-Target DMG",
+          "notes": ""
+        },
+        {
+          "zh": "范围伤害",
+          "en": "AoE DMG / Area-of-Effect Damage",
+          "notes": ""
+        },
+        {
+          "zh": "物理伤害",
+          "en": "P. DMG / Physical DMG",
+          "notes": ""
+        },
+        {
+          "zh": "魔法伤害",
+          "en": "M. DMG / Magic DMG",
+          "notes": ""
+        },
+        {
+          "zh": "真实伤害",
+          "en": "True DMG",
+          "notes": ""
+        },
+        {
+          "zh": "额外伤害",
+          "en": "Extra DMG / Additional DMG",
+          "notes": ""
+        },
+        {
+          "zh": "追加攻击",
+          "en": "Follow-Up Attack / Additional Attack",
+          "notes": ""
+        },
+        {
+          "zh": "多段攻击",
+          "en": "Multi-Hit Attack",
+          "notes": ""
+        },
+        {
+          "zh": "暴击",
+          "en": "Crit. Hit / Critical Hit",
+          "notes": ""
+        },
+        {
+          "zh": "持续伤害",
+          "en": "Continuous DMG / Damage over Time",
+          "notes": ""
+        },
+        {
+          "zh": "DoT",
+          "en": "Damage over Time",
+          "notes": ""
+        },
+        {
+          "zh": "灼烧",
+          "en": "Burning",
+          "notes": ""
+        },
+        {
+          "zh": "中毒",
+          "en": "Poison",
+          "notes": ""
+        },
+        {
+          "zh": "流血",
+          "en": "Bleed / Bleeding",
+          "notes": ""
+        },
+        {
+          "zh": "减速",
+          "en": "Slow",
+          "notes": ""
+        },
+        {
+          "zh": "眩晕",
+          "en": "Stun",
+          "notes": ""
+        },
+        {
+          "zh": "冻结",
+          "en": "Freeze",
+          "notes": ""
+        },
+        {
+          "zh": "定身",
+          "en": "Immobilized State / Immobilize",
+          "notes": ""
+        },
+        {
+          "zh": "诅咒状态",
+          "en": "Curse",
+          "notes": "注意与“诅咒套装”区分"
+        },
+        {
+          "zh": "控制效果",
+          "en": "CC Effect / Crowd Control Effect",
+          "notes": ""
+        },
+        {
+          "zh": "护盾",
+          "en": "Shield",
+          "notes": ""
+        },
+        {
+          "zh": "治疗",
+          "en": "Healing / Heal",
+          "notes": ""
+        },
+        {
+          "zh": "回复生命",
+          "en": "Recover HP / Restore HP",
+          "notes": ""
+        },
+        {
+          "zh": "增益",
+          "en": "Buff",
+          "notes": ""
+        },
+        {
+          "zh": "减益",
+          "en": "Debuff",
+          "notes": ""
+        },
+        {
+          "zh": "易伤",
+          "en": "Vulnerability",
+          "notes": ""
+        },
+        {
+          "zh": "防御降低",
+          "en": "DEF Reduction",
+          "notes": ""
+        },
+        {
+          "zh": "魔抗降低",
+          "en": "M.RES Reduction",
+          "notes": ""
+        },
+        {
+          "zh": "隐身",
+          "en": "Invisibility",
+          "notes": ""
+        },
+        {
+          "zh": "召唤物",
+          "en": "Summon",
+          "notes": ""
+        },
+        {
+          "zh": "触发",
+          "en": "Trigger / Proc",
+          "notes": ""
+        },
+        {
+          "zh": "触发概率",
+          "en": "Trigger Chance / Proc Chance",
+          "notes": ""
+        },
+        {
+          "zh": "持续时间",
+          "en": "Duration / Effect Duration",
+          "notes": ""
+        },
+        {
+          "zh": "叠层",
+          "en": "Stack",
+          "notes": ""
+        },
+        {
+          "zh": "最大层数",
+          "en": "Max Stacks / Stack Cap",
+          "notes": ""
+        },
+        {
+          "zh": "刷新持续时间",
+          "en": "Refresh Duration",
+          "notes": ""
+        },
+        {
+          "zh": "冷却时间",
+          "en": "Cooldown / CD",
+          "notes": ""
+        },
+        {
+          "zh": "内置冷却",
+          "en": "Internal Cooldown / ICD",
+          "notes": ""
+        },
+        {
+          "zh": "施法时间",
+          "en": "Cast Time / Action Time",
+          "notes": ""
+        },
+        {
+          "zh": "目标上限",
+          "en": "Target Cap",
+          "notes": ""
+        },
+        {
+          "zh": "副目标伤害比例",
+          "en": "Secondary Target Ratio",
+          "notes": ""
+        },
+        {
+          "zh": "击败敌人",
+          "en": "Defeat an Enemy / Kill an Enemy",
+          "notes": ""
+        },
+        {
+          "zh": "受到攻击",
+          "en": "When Attacked",
+          "notes": ""
+        },
+        {
+          "zh": "在场",
+          "en": "On the Field",
+          "notes": ""
+        },
+        {
+          "zh": "上阵时",
+          "en": "When Deployed",
+          "notes": ""
+        },
+        {
+          "zh": "生命高于70%",
+          "en": "HP Above 70%",
+          "notes": ""
+        }
+      ]
+    },
+    {
+      "title": "6. 本项目四类装备用途",
+      "entries": [
+        {
+          "zh": "输出",
+          "en": "DPS / Damage",
+          "id": "output"
+        },
+        {
+          "zh": "防御",
+          "en": "Tank / Defensive",
+          "id": "defense"
+        },
+        {
+          "zh": "治疗",
+          "en": "Healing",
+          "id": "healing"
+        },
+        {
+          "zh": "增益",
+          "en": "Utility / Buff",
+          "id": "buff"
+        }
+      ]
+    },
+    {
+      "title": "7. 左侧 / 两件套名称",
+      "entries": [
+        {
+          "zh": "救赎",
+          "en": "Salvation",
+          "id": "set_salvation",
+          "tier": "T1"
+        },
+        {
+          "zh": "活力",
+          "en": "Life Force",
+          "id": "set_life_force",
+          "tier": "T1"
+        },
+        {
+          "zh": "灾难",
+          "en": "Calamity",
+          "id": "set_calamity",
+          "tier": "T1"
+        },
+        {
+          "zh": "疾风",
+          "en": "Whirlwind",
+          "id": "set_whirlwind",
+          "tier": "T1"
+        },
+        {
+          "zh": "湮灭",
+          "en": "Annihilating Might",
+          "id": "set_annihilating_might",
+          "tier": "T1"
+        },
+        {
+          "zh": "不朽勇者",
+          "en": "Immortal Warrior",
+          "id": "set_immortal_warrior",
+          "tier": "T2"
+        },
+        {
+          "zh": "战争之主",
+          "en": "Warlord",
+          "id": "set_warlord",
+          "tier": "T2"
+        },
+        {
+          "zh": "星魂守卫",
+          "en": "Astral Guardian",
+          "id": "set_astral_guardian",
+          "tier": "T3"
+        },
+        {
+          "zh": "光之恩惠",
+          "en": "Light's Grace",
+          "id": "set_lights_grace",
+          "tier": "T3"
+        },
+        {
+          "zh": "邪恶复仇",
+          "en": "Wicked Vengeance",
+          "id": "set_wicked_vengeance",
+          "tier": "T3"
+        },
+        {
+          "zh": "血炎龙裔",
+          "en": "Drakefire",
+          "id": "set_bloodflame_dragonborn",
+          "tier": "新2件套"
+        },
+        {
+          "zh": "咆哮雄狮",
+          "en": "Goldmane",
+          "id": "set_roaring_lion",
+          "tier": "新2件套"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Vitality",
+          "id": "set_vitality",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Juggernaut",
+          "id": "set_juggernaut",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Lifegiver",
+          "id": "set_lifegiver",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Iron Fortress",
+          "id": "set_iron_fortress",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Wrathful Onslaught",
+          "id": "set_wrathful_onslaught",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Savage Strike",
+          "id": "set_savage_strike",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Deadly Aim",
+          "id": "set_deadly_aim",
+          "tier": "T0"
+        }
+      ]
+    },
+    {
+      "title": "8. 右侧 / 三件套名称",
+      "entries": [
+        {
+          "zh": "圣愈",
+          "en": "Asclepius",
+          "id": "set_asclepius",
+          "tier": "T1"
+        },
+        {
+          "zh": "洞悉",
+          "en": "The Insight",
+          "id": "set_insight",
+          "tier": "T1"
+        },
+        {
+          "zh": "智慧",
+          "en": "The Wisdom",
+          "id": "set_wisdom",
+          "tier": "T1"
+        },
+        {
+          "zh": "毁灭",
+          "en": "The Doom",
+          "id": "set_doom",
+          "tier": "T1"
+        },
+        {
+          "zh": "冥河",
+          "en": "The Styx",
+          "id": "set_styx",
+          "tier": "T1"
+        },
+        {
+          "zh": "梦魇",
+          "en": "Night Terror",
+          "id": "set_night_terror",
+          "tier": "T1"
+        },
+        {
+          "zh": "北方",
+          "en": "The Glacier",
+          "id": "set_glacier",
+          "tier": "T1"
+        },
+        {
+          "zh": "鹰眼",
+          "en": "Hawk Eye",
+          "id": "set_hawk_eye",
+          "tier": "T1"
+        },
+        {
+          "zh": "魔能",
+          "en": "Mana Spring",
+          "id": "set_mana_spring",
+          "tier": "T1"
+        },
+        {
+          "zh": "爆裂",
+          "en": "Fracture",
+          "id": "set_fracture",
+          "tier": "T1"
+        },
+        {
+          "zh": "诅咒",
+          "en": "Curse",
+          "id": "set_curse",
+          "tier": "T1"
+        },
+        {
+          "zh": "致命",
+          "en": "Fatality",
+          "id": "set_fatality",
+          "tier": "T1"
+        },
+        {
+          "zh": "守护",
+          "en": "Guardian",
+          "id": "set_guardian",
+          "tier": "T1"
+        },
+        {
+          "zh": "远古之怒",
+          "en": "Ageless Wrath",
+          "id": "set_ageless_wrath",
+          "tier": "T2"
+        },
+        {
+          "zh": "至善之灵",
+          "en": "Invigoration",
+          "id": "set_invigoration",
+          "tier": "T2"
+        },
+        {
+          "zh": "炽魔之啸",
+          "en": "Infernal Roar",
+          "id": "set_infernal_roar",
+          "tier": "T2"
+        },
+        {
+          "zh": "古灵绝秘",
+          "en": "Soulbound Arcana",
+          "id": "set_soulbound_arcana",
+          "tier": "T2"
+        },
+        {
+          "zh": "不朽狂徒",
+          "en": "Undying Savage",
+          "id": "set_undying_savage",
+          "tier": "T2"
+        },
+        {
+          "zh": "慈光圣翼",
+          "en": "Wings of Grace",
+          "id": "set_wings_of_grace",
+          "tier": "T3"
+        },
+        {
+          "zh": "裂界灾龙",
+          "en": "Cataclysm",
+          "id": "set_cataclysm",
+          "tier": "T3"
+        },
+        {
+          "zh": "地狱哀嚎",
+          "en": "Hell's Lament",
+          "id": "set_hells_lament",
+          "tier": "T3"
+        },
+        {
+          "zh": "钢铁意志",
+          "en": "Tempered Will",
+          "id": "set_tempered_will",
+          "tier": "T3"
+        },
+        {
+          "zh": "不灭意志",
+          "en": "Unshaken Will",
+          "id": "set_unshaken_will",
+          "tier": "T3"
+        },
+        {
+          "zh": "战意",
+          "en": "Morale",
+          "id": "set_morale",
+          "tier": "T3"
+        },
+        {
+          "zh": "独狼绝境",
+          "en": "Greyfang",
+          "id": "set_lone_wolf",
+          "tier": "新3件套"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Occult Shield",
+          "id": "set_occult_shield",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Twisted Blade",
+          "id": "set_twisted_blade",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "Rapidity",
+          "id": "set_rapidity",
+          "tier": "T0"
+        },
+        {
+          "zh": "NULL（待确认）",
+          "en": "The Tempest",
+          "id": "set_the_tempest",
+          "tier": "T0"
+        }
+      ]
+    },
+    {
+      "title": "9. 套装升华关系",
+      "entries": [
+        {
+          "zh": "灾难 → 战争之主",
+          "en": "Calamity → Warlord"
+        },
+        {
+          "zh": "活力 → 不朽勇者",
+          "en": "Life Force → Immortal Warrior"
+        },
+        {
+          "zh": "梦魇 → 远古之怒",
+          "en": "Night Terror → Ageless Wrath"
+        },
+        {
+          "zh": "圣愈 → 至善之灵",
+          "en": "Asclepius → Invigoration"
+        },
+        {
+          "zh": "洞悉 → 炽魔之啸",
+          "en": "The Insight → Infernal Roar"
+        },
+        {
+          "zh": "智慧 → 古灵绝秘",
+          "en": "The Wisdom → Soulbound Arcana"
+        }
+      ]
+    },
+    {
+      "title": "10. 已在前文出现的异化效果名称",
+      "entries": [
+        {
+          "zh": "霸者觉醒",
+          "en": "Renewed Vigor",
+          "id": "variant_overlord_awakening",
+          "notes": "60秒后提升基础属性"
+        },
+        {
+          "zh": "非凡之力",
+          "en": "Unrivalled Power",
+          "id": "variant_unrivalled_power",
+          "notes": "至少1条随机副属性达到最大值"
+        },
+        {
+          "zh": "不挡之力",
+          "en": "The Unstoppable Force",
+          "id": "variant_unstoppable_force",
+          "notes": "攻击+5%，可联动额外增伤"
+        },
+        {
+          "zh": "嚣张",
+          "en": "Agression",
+          "id": "variant_arrogance",
+          "notes": "全球资料当前拼写为 Agression"
+        },
+        {
+          "zh": "迅猛",
+          "en": "Rapidity",
+          "id": "variant_ferocity",
+          "notes": "攻击+2%，攻速+10"
+        },
+        {
+          "zh": "不动之物",
+          "en": "The Immovable Object",
+          "id": "variant_immovable_object",
+          "notes": "防御+5%，可联动减伤"
+        },
+        {
+          "zh": "野性",
+          "en": "Brutality",
+          "id": "variant_wildness",
+          "notes": "暴击率+2%，暴伤+2%"
+        },
+        {
+          "zh": "灾厄不息",
+          "en": "Merciless",
+          "id": "variant_endless_calamity",
+          "notes": "对受控目标增伤"
+        },
+        {
+          "zh": "唤灵师",
+          "en": "Spirit Mastery",
+          "id": "variant_summoner",
+          "notes": "召唤物伤害提升"
+        },
+        {
+          "zh": "背水一战",
+          "en": "Last Stand",
+          "id": "variant_last_stand",
+          "notes": "无法复活、再部署延长、攻速提升"
+        },
+        {
+          "zh": "恩泽",
+          "en": "Grace",
+          "id": "variant_grace",
+          "notes": "治疗效果+怒气回复"
+        },
+        {
+          "zh": "惊天巨浪",
+          "en": "Tital Wave",
+          "id": "variant_great_wave",
+          "notes": "全球资料当前文本写作 Tital Wave"
+        },
+        {
+          "zh": "诅咒之触",
+          "en": "Languid Curse",
+          "id": "variant_cursed_touch",
+          "notes": "对减速目标增伤"
+        },
+        {
+          "zh": "强韧",
+          "en": "Fortitude",
+          "id": "variant_toughness",
+          "notes": "固定生命提升"
+        },
+        {
+          "zh": "掌柜包办",
+          "en": "On the House",
+          "id": "variant_shopkeeper",
+          "notes": "伤害+2%，强化不消耗金币"
+        },
+        {
+          "zh": "赐福祈祷",
+          "en": "Benediction",
+          "id": "variant_blessing_prayer",
+          "notes": "高生命时提高治疗效果"
+        },
+        {
+          "zh": "暴食赐福",
+          "en": "Well-Nourished",
+          "id": "variant_gluttony_blessing",
+          "notes": "开大后最大生命叠层"
+        },
+        {
+          "zh": "堡垒",
+          "en": "Bulwark",
+          "id": "variant_fortress",
+          "notes": "防御+2%，生命+2%"
+        }
+      ]
+    },
+    {
+      "title": "11. 其他全球版异化效果（国服中文名待确认）",
+      "entries": [
+        {
+          "en": "Blood Sacrifice",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Bloodthirst",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Divine Fury",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Incindiary Roar",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Recklessness",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Retaliation",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Steady Poise",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Stoicism",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Wisdom",
+          "status": "NULL（待确认；注意不要与“智慧套装 / The Wisdom”混淆）"
+        },
+        {
+          "en": "Witches' Charm",
+          "status": "NULL（待确认）"
+        },
+        {
+          "en": "Woeful Optimism",
+          "status": "NULL（待确认）"
+        }
+      ]
+    },
+    {
+      "title": "12. 宝石与装备改造术语",
+      "entries": [
+        {
+          "zh": "暗陨宝石",
+          "en": "Darkfall Gem",
+          "notes": "提高Mythic或更高装备主属性；当前项目暂不计算"
+        },
+        {
+          "zh": "进化宝石",
+          "en": "Evolution Gem",
+          "notes": "T1 Mythic+ 转换为同部位T2/T3并保留副词条"
+        },
+        {
+          "zh": "异化宝石",
+          "en": "Variant Gem",
+          "notes": "为上古神话武器/手镯赋予异化属性"
+        },
+        {
+          "zh": "转化宝石",
+          "en": "Transmutation Gem",
+          "notes": "改变一条副属性类型并保留进度"
+        },
+        {
+          "zh": "宝石强化",
+          "en": "Gem Enhancement",
+          "notes": ""
+        },
+        {
+          "zh": "强化进度条",
+          "en": "Progress Bar",
+          "notes": "副词条成长"
+        },
+        {
+          "zh": "进化",
+          "en": "Evolution",
+          "notes": "注意与Gear Ascension按UI上下文区分"
+        }
+      ]
+    },
+    {
+      "title": "13. 常见英文缩写与社区简称",
+      "entries": [
+        {
+          "alias": "ATK",
+          "en_full": "Attack",
+          "zh": "攻击"
+        },
+        {
+          "alias": "ATK%",
+          "en_full": "ATK Bonus",
+          "zh": "攻击加成"
+        },
+        {
+          "alias": "HP",
+          "en_full": "Hit Points / Health",
+          "zh": "生命"
+        },
+        {
+          "alias": "HP%",
+          "en_full": "HP Bonus",
+          "zh": "生命加成"
+        },
+        {
+          "alias": "DEF",
+          "en_full": "Defense",
+          "zh": "防御"
+        },
+        {
+          "alias": "DEF%",
+          "en_full": "DEF Bonus",
+          "zh": "防御加成"
+        },
+        {
+          "alias": "M.RES",
+          "en_full": "Magic Resistance",
+          "zh": "魔抗"
+        },
+        {
+          "alias": "CR / C.Rate",
+          "en_full": "Crit. Rate",
+          "zh": "暴击率"
+        },
+        {
+          "alias": "CDMG / Crit.DMG",
+          "en_full": "Crit. DMG",
+          "zh": "暴击伤害"
+        },
+        {
+          "alias": "AS / SPD / ATK Spd.",
+          "en_full": "ATK Speed",
+          "zh": "攻击速度"
+        },
+        {
+          "alias": "RR",
+          "en_full": "Rage Regen",
+          "zh": "怒气回复；社区非统一缩写"
+        },
+        {
+          "alias": "DMG",
+          "en_full": "Damage",
+          "zh": "伤害"
+        },
+        {
+          "alias": "P.DMG",
+          "en_full": "Physical Damage",
+          "zh": "物理伤害"
+        },
+        {
+          "alias": "M.DMG",
+          "en_full": "Magic Damage",
+          "zh": "魔法伤害"
+        },
+        {
+          "alias": "AoE",
+          "en_full": "Area of Effect",
+          "zh": "范围"
+        },
+        {
+          "alias": "ST",
+          "en_full": "Single Target",
+          "zh": "单体"
+        },
+        {
+          "alias": "DoT",
+          "en_full": "Damage over Time",
+          "zh": "持续伤害"
+        },
+        {
+          "alias": "CD",
+          "en_full": "Cooldown",
+          "zh": "冷却时间"
+        },
+        {
+          "alias": "ICD",
+          "en_full": "Internal Cooldown",
+          "zh": "内置冷却"
+        },
+        {
+          "alias": "BP",
+          "en_full": "Battle Power",
+          "zh": "战斗力"
+        },
+        {
+          "alias": "GR1 / GR2 / GR3",
+          "en_full": "Gear Raid I / II / III",
+          "zh": "装备副本"
+        },
+        {
+          "alias": "GD",
+          "en_full": "Gear Dungeon",
+          "zh": "装备地下城"
+        },
+        {
+          "alias": "IR",
+          "en_full": "Infernal Roar",
+          "zh": "炽魔之啸"
+        },
+        {
+          "alias": "SBA / SA",
+          "en_full": "Soulbound Arcana",
+          "zh": "古灵绝秘"
+        },
+        {
+          "alias": "AW",
+          "en_full": "Ageless Wrath",
+          "zh": "远古之怒"
+        },
+        {
+          "alias": "WV",
+          "en_full": "Wicked Vengeance",
+          "zh": "邪恶复仇"
+        },
+        {
+          "alias": "HL",
+          "en_full": "Hell's Lament",
+          "zh": "地狱哀嚎"
+        },
+        {
+          "alias": "Cata",
+          "en_full": "Cataclysm",
+          "zh": "裂界灾龙"
+        }
+      ]
+    },
+    {
+      "title": "14. 推荐 OCR 别名标准化",
+      "entries": [
+        {
+          "term": "暴伤",
+          "canonical_zh": "暴击伤害",
+          "canonical_en": "Crit. DMG",
+          "id": "crit_dmg"
+        },
+        {
+          "term": "攻速",
+          "canonical_zh": "攻击速度",
+          "canonical_en": "ATK Speed",
+          "id": "atk_speed"
+        },
+        {
+          "term": "回怒",
+          "canonical_zh": "怒气回复速度",
+          "canonical_en": "Rage Regen",
+          "id": "rage_regen"
+        },
+        {
+          "term": "怒气恢复效率",
+          "canonical_zh": "怒气回复速度",
+          "canonical_en": "Rage Regen",
+          "id": "rage_regen"
+        },
+        {
+          "term": "治疗加成",
+          "canonical_zh": "治疗效果",
+          "canonical_en": "Healing Effect",
+          "id": "healing_effect"
+        },
+        {
+          "term": "攻击百分比",
+          "canonical_zh": "攻击加成",
+          "canonical_en": "ATK Bonus",
+          "id": "atk_pct"
+        },
+        {
+          "term": "生命百分比",
+          "canonical_zh": "生命加成",
+          "canonical_en": "HP Bonus",
+          "id": "hp_pct"
+        },
+        {
+          "term": "防御百分比",
+          "canonical_zh": "防御加成",
+          "canonical_en": "DEF Bonus",
+          "id": "def_pct"
+        },
+        {
+          "term": "地狱哀号",
+          "canonical_zh": "地狱哀嚎",
+          "canonical_en": "Hell's Lament",
+          "id": "set_hells_lament"
+        },
+        {
+          "term": "血焰龙裔",
+          "canonical_zh": "血炎龙裔",
+          "canonical_en": "Drakefire",
+          "id": "set_bloodflame_dragonborn"
+        },
+        {
+          "term": "古灵绝密",
+          "canonical_zh": "古灵绝秘",
+          "canonical_en": "Soulbound Arcana",
+          "id": "set_soulbound_arcana"
+        },
+        {
+          "term": "裂界",
+          "canonical_zh": "裂界灾龙",
+          "canonical_en": "Cataclysm",
+          "id": "set_cataclysm"
+        },
+        {
+          "term": "古灵",
+          "canonical_zh": "古灵绝秘",
+          "canonical_en": "Soulbound Arcana",
+          "id": "set_soulbound_arcana"
+        },
+        {
+          "term": "至善",
+          "canonical_zh": "至善之灵",
+          "canonical_en": "Invigoration",
+          "id": "set_invigoration"
+        },
+        {
+          "term": "慈光",
+          "canonical_zh": "慈光圣翼",
+          "canonical_en": "Wings of Grace",
+          "id": "set_wings_of_grace"
+        }
+      ]
+    },
+    {
+      "title": "15. OCR中必须结合上下文判别的同名术语",
+      "entries": [
+        {
+          "term": "智慧 / Wisdom",
+          "entities": "The Wisdom` 套装；`Wisdom` 异化效果",
+          "disambiguation": "看所在UI区域与是否有Tier/套装图标"
+        },
+        {
+          "term": "诅咒 / Curse",
+          "entities": "Curse` 套装；诅咒状态",
+          "disambiguation": "看是否为装备套装区域"
+        },
+        {
+          "term": "Rapidity",
+          "entities": "T0套装；异化效果“迅猛”",
+          "disambiguation": "看是否为套装名称还是独立异化属性"
+        },
+        {
+          "term": "攻击 / ATK",
+          "entities": "固定攻击数值；攻击加成ATK Bonus",
+          "disambiguation": "必须区分是否带 `%/Bonus"
+        }
+      ]
+    },
+    {
+      "title": "16. 标准化优先级",
+      "entries": []
+    }
+  ]
+}
