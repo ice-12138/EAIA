@@ -2,7 +2,7 @@ name: tests
 
 on:
   push:
-    branches: [main, review-fixes-20260825]
+    branches: [main, complete-development-20260825]
   pull_request:
 
 jobs:
@@ -17,3 +17,5 @@ jobs:
         run: python -m pip install --upgrade pip pillow
       - name: Run unit tests
         run: python -m unittest discover -s tests -v
+      - name: Run deterministic random equipment validation
+        run: python validate_random_builds.py --seed 20260825 --items-per-slot 4 --top-k 10
