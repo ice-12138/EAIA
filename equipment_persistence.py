@@ -139,10 +139,17 @@ _PERCENT_STAT_TYPES = {"ATK_PCT", "HP_PCT", "DEF_PCT", "CRIT_RATE", "CRIT_DMG", 
 
 
 def _normalized_stat_value(raw: str, stat_type: str, value: float | None) -> float | None:
+    """Convert fine-OCR display units into optimizer storage units.
+
+    Fine OCR extracts the number shown by the game UI. Percentage stats are
+    therefore percentage points even when OCR misses the '%' glyph; once the
+    stat label identifies a percentage type, 16 means 16% and is stored as
+    0.16. This function is intentionally specific to the OCR persistence path.
+    """
     if value is None or value < 0:
         return None
     numeric = float(value)
-    if stat_type in _PERCENT_STAT_TYPES and "%" in raw:
+    if stat_type in _PERCENT_STAT_TYPES:
         return numeric / 100.0
     return numeric
 
