@@ -1,9 +1,4 @@
-"""Repair normalized optimizer stats from persisted fine-OCR raw records.
-
-This is intended for databases created before OCR percentage normalization and
-attack-speed classification were fixed. Raw OCR audit fields are left intact;
-only ``equipment_stats`` rows for recognized items are rebuilt.
-"""
+"""Repair normalized optimizer stats from persisted fine-OCR raw records."""
 
 from __future__ import annotations
 
@@ -34,7 +29,7 @@ def repair_recognized_stats(database: EquipmentDatabase, *, dry_run: bool = Fals
 
         database.connection.execute("DELETE FROM equipment_stats WHERE item_id=?", (row["item_id"],))
         database.connection.executemany(
-            "INSERT INTO equipment_stats(item_id, stat_source, stat_type, stat_value) VALUES (?, ?, ?, ?)",
+            "INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value) VALUES (?,?,?,?,?)",
             stats,
         )
         repaired += 1
