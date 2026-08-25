@@ -6,7 +6,20 @@ import json
 import sqlite3
 from pathlib import Path
 
-from equipment_models import DamageProfile, EquipmentItem, EquipmentStat, SetDefinition, SetEffect, DamageType, MainOutput, Slot, StatType, EffectType, Skill, SourceType
+from equipment_models import (
+    DamageProfile,
+    DamageType,
+    EffectType,
+    EquipmentItem,
+    EquipmentStat,
+    MainOutput,
+    SetDefinition,
+    SetEffect,
+    Skill,
+    Slot,
+    SourceType,
+    StatType,
+)
 
 
 def _record_stat_type(field: object) -> str | None:
@@ -60,9 +73,18 @@ CREATE TABLE IF NOT EXISTS equipment (
  available INTEGER NOT NULL DEFAULT 1 CHECK(available IN (0,1))
 );
 CREATE TABLE IF NOT EXISTS equipment_stats (
- item_id TEXT NOT NULL REFERENCES equipment(item_id) ON DELETE CASCADE, stat_source TEXT NOT NULL CHECK(stat_source IN ('main','sub')),
- stat_type TEXT NOT NULL CHECK(stat_type IN ('ATK_FLAT','ATK_PCT','CRIT_RATE','CRIT_DMG','ATK_SPEED','RAGE_REGEN')),
- stat_value REAL NOT NULL, PRIMARY KEY(item_id, stat_source, stat_type)
+ item_id TEXT NOT NULL REFERENCES equipment(item_id) ON DELETE CASCADE,
+ stat_index INTEGER NOT NULL,
+ stat_source TEXT NOT NULL CHECK(stat_source IN ('main','sub')),
+ stat_type TEXT NOT NULL,
+ stat_value REAL,
+ unlock_level INTEGER NOT NULL DEFAULT 0,
+ is_unlocked INTEGER NOT NULL DEFAULT 1 CHECK(is_unlocked IN (0,1)),
+ roll_grade_id TEXT,
+ estimate_override REAL,
+ value_confidence REAL NOT NULL DEFAULT 1.0 CHECK(value_confidence BETWEEN 0 AND 1),
+ notes TEXT,
+ PRIMARY KEY(item_id, stat_index)
 );
 CREATE TABLE IF NOT EXISTS set_effects (
  set_id TEXT NOT NULL REFERENCES sets(set_id) ON DELETE CASCADE, effect_id TEXT NOT NULL,
@@ -91,27 +113,20 @@ CREATE TABLE IF NOT EXISTS equipment_recognition (
  set_name_text TEXT,
  raw_result TEXT NOT NULL, source_screenshot TEXT, recognized_at TEXT NOT NULL
 );
-CREATE TABLE IF NOT EXISTS main_stat_max_values (
- quality_id TEXT NOT NULL, slot_scope TEXT NOT NULL CHECK(slot_scope IN ('weapon','armor','right')),
- stat_type TEXT NOT NULL, max_value_at_level_cap REAL, observed_value REAL,
- confirmation_count INTEGER NOT NULL DEFAULT 0 CHECK(confirmation_count >= 0),
- value_status TEXT NOT NULL CHECK(value_status IN ('unknown','provisional','verified','conflict')),
- conflict_value REAL, data_source TEXT NOT NULL, updated_at TEXT NOT NULL,
- PRIMARY KEY(quality_id, slot_scope, stat_type)
-);
-CREATE TABLE IF NOT EXISTS stat_value_ranges (
- stat_type TEXT NOT NULL, roll_grade_id TEXT NOT NULL, observed_min REAL, observed_max REAL,
- verified_min REAL, verified_max REAL, sample_count INTEGER NOT NULL DEFAULT 0 CHECK(sample_count >= 0),
- range_status TEXT NOT NULL CHECK(range_status IN ('unknown','provisional','verified')),
- data_source TEXT NOT NULL, updated_at TEXT NOT NULL,
- PRIMARY KEY(stat_type, roll_grade_id)
-);
 CREATE TABLE IF NOT EXISTS sub_stat_observations (
  item_id TEXT NOT NULL REFERENCES equipment(item_id) ON DELETE CASCADE, stat_type TEXT NOT NULL,
  roll_grade_id TEXT NOT NULL, stat_value REAL NOT NULL, data_source TEXT NOT NULL, observed_at TEXT NOT NULL,
  PRIMARY KEY(item_id, stat_type, roll_grade_id)
 );
-CREATE TABLE IF NOT EXISTS ocr_import_queue (
+CREATE TABLE IF NOT EXISTS sub_stat_learned_ranges (
+ stat_type TEXT NOT NULL, roll_grade_id TEXT NOT NULL,
+ observed_min REAL, observed_max REAL, verified_min REAL, verified_max REAL,
+ sample_count INTEGER NOT NULL DEFAULT 0 CHECK(sample_count >= 0),
+ range_status TEXT NOT NULL CHECK(range_status IN ('unknown','provisional','verified')),
+ data_source TEXT NOT NULL, updated_at TEXT NOT NULL,
+ PRIMARY KEY(stat_type, roll_grade_id)
+);
+CREATE TABLE IF NOT EXISTS stat_observation_queue (
  queue_id INTEGER PRIMARY KEY AUTOINCREMENT, item_id TEXT, stat_type TEXT, roll_grade_id TEXT,
  stat_value REAL, data_source TEXT NOT NULL, reason TEXT NOT NULL, created_at TEXT NOT NULL
 );
@@ -129,9 +144,10 @@ class EquipmentDatabase:
     def initialize(self) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.connection.executescript(SCHEMA)
-        self._migrate_v11()
+        self._migrate_core_schema()
         from equipment_v22 import ensure_v22_schema, seed_v22_defaults
         ensure_v22_schema(self.connection)
+        self._migrate_v22_operational_columns()
         seed_v22_defaults(self.connection)
         defaults = [
             ("crit_rate_cap", "1.0", "number", "暴击率上限"),
@@ -144,9 +160,76 @@ class EquipmentDatabase:
             "INSERT OR IGNORE INTO game_rules(rule_key, rule_value, value_type, description) VALUES (?, ?, ?, ?)",
             defaults,
         )
+        self._ensure_effective_stat_view()
+        self._repair_legacy_ocr_stats_once()
         self.connection.commit()
 
-    def _migrate_v11(self) -> None:
+    def _migrate_core_schema(self) -> None:
+        """Repair legacy table collisions and rebuild EquipmentStats to indexed rows."""
+        queue_columns = {row[1] for row in self.connection.execute("PRAGMA table_info(ocr_import_queue)")}
+        if "queue_id" in queue_columns and "import_id" not in queue_columns:
+            if not self.connection.execute(
+                "SELECT 1 FROM sqlite_master WHERE type='table' AND name='stat_observation_queue'"
+            ).fetchone():
+                self.connection.execute("ALTER TABLE ocr_import_queue RENAME TO stat_observation_queue")
+            else:
+                self.connection.execute(
+                    "INSERT INTO stat_observation_queue(item_id,stat_type,roll_grade_id,stat_value,data_source,reason,created_at) "
+                    "SELECT item_id,stat_type,roll_grade_id,stat_value,data_source,reason,created_at FROM ocr_import_queue"
+                )
+                self.connection.execute("DROP TABLE ocr_import_queue")
+
+        info = self.connection.execute("PRAGMA table_info(equipment_stats)").fetchall()
+        pk_columns = [row[1] for row in sorted((r for r in info if r[5]), key=lambda r: r[5])]
+        stat_value_notnull = next((row[3] for row in info if row[1] == "stat_value"), 0)
+        if pk_columns == ["item_id", "stat_index"] and stat_value_notnull == 0:
+            return
+
+        legacy_columns = {row[1] for row in info}
+        self.connection.execute("ALTER TABLE equipment_stats RENAME TO equipment_stats_legacy")
+        self.connection.executescript("""
+        CREATE TABLE equipment_stats (
+         item_id TEXT NOT NULL REFERENCES equipment(item_id) ON DELETE CASCADE,
+         stat_index INTEGER NOT NULL,
+         stat_source TEXT NOT NULL CHECK(stat_source IN ('main','sub')),
+         stat_type TEXT NOT NULL,
+         stat_value REAL,
+         unlock_level INTEGER NOT NULL DEFAULT 0,
+         is_unlocked INTEGER NOT NULL DEFAULT 1 CHECK(is_unlocked IN (0,1)),
+         roll_grade_id TEXT,
+         estimate_override REAL,
+         value_confidence REAL NOT NULL DEFAULT 1.0 CHECK(value_confidence BETWEEN 0 AND 1),
+         notes TEXT,
+         PRIMARY KEY(item_id, stat_index)
+        );
+        """)
+        rows = self.connection.execute("SELECT rowid, * FROM equipment_stats_legacy ORDER BY item_id, rowid").fetchall()
+        next_sub_index: dict[str, int] = {}
+        for row in rows:
+            source = row["stat_source"]
+            if source == "main":
+                stat_index = 0
+            else:
+                stat_index = next_sub_index.get(row["item_id"], 1)
+                next_sub_index[row["item_id"]] = stat_index + 1
+            self.connection.execute(
+                """INSERT OR REPLACE INTO equipment_stats(
+                    item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,
+                    roll_grade_id,estimate_override,value_confidence,notes
+                ) VALUES (?,?,?,?,?,?,?,?,?,?,?)""",
+                (
+                    row["item_id"], stat_index, source, row["stat_type"], row["stat_value"],
+                    row["unlock_level"] if "unlock_level" in legacy_columns else 0,
+                    row["is_unlocked"] if "is_unlocked" in legacy_columns else 1,
+                    row["roll_grade_id"] if "roll_grade_id" in legacy_columns else None,
+                    row["estimate_override"] if "estimate_override" in legacy_columns else None,
+                    row["value_confidence"] if "value_confidence" in legacy_columns else 1.0,
+                    row["notes"] if "notes" in legacy_columns else None,
+                ),
+            )
+        self.connection.execute("DROP TABLE equipment_stats_legacy")
+
+    def _migrate_v22_operational_columns(self) -> None:
         columns = {
             "skills": {
                 "hit_interval": "REAL NOT NULL DEFAULT 0", "secondary_target_ratio": "REAL NOT NULL DEFAULT 1",
@@ -156,33 +239,16 @@ class EquipmentDatabase:
                 "direct_damage": "INTEGER NOT NULL DEFAULT 1", "notes": "TEXT",
             },
             "set_effects": {"requires_dot": "INTEGER NOT NULL DEFAULT 0", "enabled_in_v1_1": "INTEGER NOT NULL DEFAULT 1"},
-        }
-        for table, additions in columns.items():
-            existing = {row[1] for row in self.connection.execute(f"PRAGMA table_info({table})")}
-            for name, declaration in additions.items():
-                if name not in existing:
-                    self.connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
-        # V2.2 already owns the learning tables. Add the small operational
-        # fields used by the learners when opening an older V2.2 database.
-        learning_columns = {
             "equipment_recognition": {
                 "main_stat_name": "TEXT", "main_stat_value": "REAL",
                 "sub_stat_1_name": "TEXT", "sub_stat_1_value": "REAL", "sub_stat_2_name": "TEXT", "sub_stat_2_value": "REAL",
                 "sub_stat_3_name": "TEXT", "sub_stat_3_value": "REAL", "sub_stat_4_name": "TEXT", "sub_stat_4_value": "REAL",
             },
-            "stat_value_ranges": {
-                "stat_source": "TEXT NOT NULL DEFAULT 'sub'", "quality_id": "TEXT", "slot_id": "TEXT",
-                "set_tier_id": "TEXT", "min_value": "REAL", "max_value": "REAL", "mean_value": "REAL",
-                "median_value": "REAL", "distribution_type": "TEXT", "game_version": "TEXT",
-                "confidence": "REAL", "notes": "TEXT",
-            },
             "main_stat_max_values": {
-                "max_enhancement_level": "INTEGER NOT NULL DEFAULT 16", "observed_max": "REAL",
-                "game_version": "TEXT", "confidence": "REAL", "notes": "TEXT",
                 "observed_value": "REAL", "conflict_value": "REAL", "updated_at": "TEXT",
             },
         }
-        for table, additions in learning_columns.items():
+        for table, additions in columns.items():
             existing = {row[1] for row in self.connection.execute(f"PRAGMA table_info({table})")}
             for name, declaration in additions.items():
                 legacy_name = {
@@ -197,6 +263,7 @@ class EquipmentDatabase:
                     existing.add(name)
                 if name not in existing:
                     self.connection.execute(f"ALTER TABLE {table} ADD COLUMN {name} {declaration}")
+
         from equipment_persistence import _recognition_attributes
         for row in self.connection.execute("SELECT item_id, raw_result FROM equipment_recognition").fetchall():
             parsed = _recognition_attributes(row["raw_result"])
@@ -207,15 +274,80 @@ class EquipmentDatabase:
                    sub_stat_4_name=?, sub_stat_4_value=? WHERE item_id=?""",
                 (*parsed, row["item_id"]),
             )
-        self.connection.execute("CREATE UNIQUE INDEX IF NOT EXISTS uq_stat_value_ranges_key ON stat_value_ranges(stat_type, roll_grade_id)")
+
+    def _ensure_effective_stat_view(self) -> None:
+        self.connection.execute("DROP VIEW IF EXISTS v_equipment_stat_effective")
+        self.connection.execute("""
+        CREATE VIEW v_equipment_stat_effective AS
+        SELECT
+          es.item_id, es.stat_index, es.stat_source, es.stat_type, es.stat_value,
+          es.unlock_level, es.is_unlocked, es.roll_grade_id, es.estimate_override,
+          es.value_confidence,
+          CASE
+            WHEN es.is_unlocked = 1 AND es.stat_value IS NOT NULL THEN es.stat_value
+            WHEN es.estimate_override IS NOT NULL THEN es.estimate_override
+            ELSE COALESCE(
+              (SELECT r.mean_value FROM stat_value_ranges r
+               WHERE lower(r.stat_type)=lower(es.stat_type)
+                 AND (es.roll_grade_id IS NULL OR r.roll_grade_id=es.roll_grade_id OR r.roll_grade_id IS NULL)
+               ORDER BY COALESCE(r.confidence,0) DESC, r.sample_count DESC LIMIT 1),
+              (SELECT (r.min_value+r.max_value)/2.0 FROM stat_value_ranges r
+               WHERE lower(r.stat_type)=lower(es.stat_type)
+                 AND r.min_value IS NOT NULL AND r.max_value IS NOT NULL
+                 AND (es.roll_grade_id IS NULL OR r.roll_grade_id=es.roll_grade_id OR r.roll_grade_id IS NULL)
+               ORDER BY COALESCE(r.confidence,0) DESC, r.sample_count DESC LIMIT 1),
+              (SELECT (r.verified_min+r.verified_max)/2.0 FROM sub_stat_learned_ranges r
+               WHERE lower(r.stat_type)=lower(es.stat_type)
+                 AND (es.roll_grade_id IS NULL OR r.roll_grade_id=es.roll_grade_id)
+                 AND r.verified_min IS NOT NULL AND r.verified_max IS NOT NULL
+               ORDER BY r.sample_count DESC LIMIT 1),
+              (SELECT (r.observed_min+r.observed_max)/2.0 FROM sub_stat_learned_ranges r
+               WHERE lower(r.stat_type)=lower(es.stat_type)
+                 AND (es.roll_grade_id IS NULL OR r.roll_grade_id=es.roll_grade_id)
+                 AND r.sample_count >= 3
+               ORDER BY r.sample_count DESC LIMIT 1)
+            )
+          END AS effective_value,
+          CASE
+            WHEN es.is_unlocked = 1 AND es.stat_value IS NOT NULL THEN 'actual'
+            WHEN es.estimate_override IS NOT NULL THEN 'override'
+            ELSE 'estimated'
+          END AS value_source
+        FROM equipment_stats es
+        """)
+
+    def _repair_legacy_ocr_stats_once(self) -> None:
+        row = self.connection.execute(
+            "SELECT rule_value FROM game_rules WHERE rule_key='ocr_stat_storage_version'"
+        ).fetchone()
+        if row is not None and str(row[0]) == "2":
+            return
+        from equipment_persistence import build_database_rows
+        for recognition in self.connection.execute(
+            "SELECT item_id, raw_result FROM equipment_recognition ORDER BY recognized_at"
+        ).fetchall():
+            try:
+                record = json.loads(recognition["raw_result"])
+                record["item_id"] = recognition["item_id"]
+                _, stats, _ = build_database_rows(record)
+            except (TypeError, ValueError, json.JSONDecodeError):
+                continue
+            self.connection.execute("DELETE FROM equipment_stats WHERE item_id=?", (recognition["item_id"],))
+            self.connection.executemany(
+                "INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value) VALUES (?,?,?,?,?)",
+                stats,
+            )
+        self.connection.execute(
+            """INSERT INTO game_rules(rule_key,rule_value,value_type,description)
+               VALUES ('ocr_stat_storage_version','2','number','OCR装备词条标准化存储版本')
+               ON CONFLICT(rule_key) DO UPDATE SET rule_value='2', value_type='number'"""
+        )
 
     def close(self) -> None:
         self.connection.close()
 
     def find_upgrade_match(self, record: dict) -> str | None:
-        """Find an earlier item represented by the current upgraded OCR record."""
         from equipment_persistence import is_upgrade_of
-
         rows = self.connection.execute(
             "SELECT item_id, raw_result FROM equipment_recognition ORDER BY recognized_at DESC"
         ).fetchall()
@@ -230,9 +362,48 @@ class EquipmentDatabase:
                 return row["item_id"]
         return None
 
+    def _resolve_set_id(self, set_name: str, fallback: str) -> str:
+        row = self.connection.execute("SELECT set_id FROM sets WHERE set_name=?", (set_name,)).fetchone()
+        if row:
+            return str(row[0])
+        alias = self.connection.execute(
+            """SELECT entity_key FROM ocr_aliases
+               WHERE active=1 AND (alias_text=? OR canonical_text=?)
+               ORDER BY priority DESC LIMIT 1""",
+            (set_name, set_name),
+        ).fetchone()
+        if alias and self.connection.execute("SELECT 1 FROM sets WHERE set_id=?", (alias[0],)).fetchone():
+            return str(alias[0])
+        return fallback
+
+    @staticmethod
+    def _record_level(record: dict) -> int | None:
+        value = record.get("enhancement_level", record.get("level"))
+        if isinstance(value, dict):
+            value = value.get("value")
+        try:
+            return None if value is None else int(value)
+        except (TypeError, ValueError):
+            return None
+
+    def _record_quality_id(self, record: dict) -> str | None:
+        explicit = str(record.get("quality_id") or "").strip().lower()
+        if explicit and self.connection.execute("SELECT 1 FROM gear_qualities WHERE quality_id=?", (explicit,)).fetchone():
+            return explicit
+        quality = record.get("quality") or {}
+        raw = str(quality.get("raw_text", "") if isinstance(quality, dict) else quality).lower()
+        mapping = (("红", "mythic_red"), ("mythic", "mythic_red"), ("金", "legendary_gold"),
+                   ("legendary", "legendary_gold"), ("紫", "epic_purple"), ("epic", "epic_purple"),
+                   ("蓝", "rare_blue"), ("rare", "rare_blue"))
+        for token, quality_id in mapping:
+            if token in raw:
+                return quality_id
+        level = self._record_level(record)
+        return "mythic_red" if level is not None and level > 12 else None
+
     def upsert_recognized_equipment(self, record: dict, *, source_screenshot: str | Path | None = None) -> dict:
         """Persist one fine-OCR record without creating duplicates on reprocessing."""
-        from equipment_persistence import build_database_rows
+        from equipment_persistence import _text, build_database_rows
 
         detected_item_id = str(record["item_id"])
         matched_item_id = self.find_upgrade_match(record)
@@ -240,33 +411,43 @@ class EquipmentDatabase:
         if matched_item_id is not None:
             stored_record["item_id"] = matched_item_id
         item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot)
+        set_name = _text(stored_record.get("set_name")) or "未识别套装"
+        set_id = self._resolve_set_id(set_name, item[2])
+        quality_id = self._record_quality_id(stored_record)
+        level = self._record_level(stored_record)
+
+        if set_id == item[2]:
+            self.connection.execute(
+                """INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set)
+                   VALUES (?, ?, 1, NULL, 0)
+                   ON CONFLICT(set_id) DO UPDATE SET set_name=excluded.set_name""",
+                (set_id, set_name),
+            )
         self.connection.execute(
-            """INSERT INTO sets(set_id, set_name, required_pieces, slot_group, output_set)
-               VALUES (?, ?, 1, NULL, 0) ON CONFLICT(set_id) DO UPDATE SET set_name=excluded.set_name""",
-            (item[2], recognition[6]),
-        )
-        self.connection.execute(
-            """INSERT INTO equipment(item_id, slot, set_id, tier, level, locked, available)
-               VALUES (?, ?, ?, ?, ?, ?, 1)
-               ON CONFLICT(item_id) DO UPDATE SET slot=excluded.slot, set_id=excluded.set_id,
-                 tier=excluded.tier, level=excluded.level, locked=excluded.locked, available=1""",
-            (*item[:5], 0),
+            """INSERT INTO equipment(
+                 item_id,slot,set_id,tier,level,locked,available,slot_id,quality_id,enhancement_level,item_locked
+               ) VALUES (?,?,?,?,?,0,1,?,?,?,0)
+               ON CONFLICT(item_id) DO UPDATE SET
+                 slot=excluded.slot, slot_id=excluded.slot_id, set_id=excluded.set_id,
+                 tier=excluded.tier, quality_id=excluded.quality_id, level=excluded.level,
+                 enhancement_level=excluded.enhancement_level, locked=0, item_locked=0, available=1""",
+            (item[0], item[1], set_id, item[3], level, item[1], quality_id, level or 0),
         )
         self.connection.execute("DELETE FROM equipment_stats WHERE item_id=?", (item[0],))
         self.connection.executemany(
-            "INSERT INTO equipment_stats(item_id, stat_source, stat_type, stat_value) VALUES (?, ?, ?, ?)",
+            "INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value) VALUES (?,?,?,?,?)",
             stats,
         )
         self.connection.execute(
             """INSERT INTO equipment_recognition(
-                 item_id, profile, fully_unlocked, quality_text, slot_text, primary_text,
-                 main_stat_name, main_stat_value, sub_stat_1_name, sub_stat_1_value, sub_stat_2_name, sub_stat_2_value,
-                 sub_stat_3_name, sub_stat_3_value, sub_stat_4_name, sub_stat_4_value, set_name_text,
-                 raw_result, source_screenshot, recognized_at
-               ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
-               ON CONFLICT(item_id) DO UPDATE SET profile=excluded.profile,
-                 fully_unlocked=excluded.fully_unlocked, quality_text=excluded.quality_text,
-                 slot_text=excluded.slot_text, primary_text=excluded.primary_text,
+                 item_id,profile,fully_unlocked,quality_text,slot_text,primary_text,
+                 main_stat_name,main_stat_value,sub_stat_1_name,sub_stat_1_value,sub_stat_2_name,sub_stat_2_value,
+                 sub_stat_3_name,sub_stat_3_value,sub_stat_4_name,sub_stat_4_value,set_name_text,
+                 raw_result,source_screenshot,recognized_at
+               ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,datetime('now'))
+               ON CONFLICT(item_id) DO UPDATE SET
+                 profile=excluded.profile, fully_unlocked=excluded.fully_unlocked,
+                 quality_text=excluded.quality_text, slot_text=excluded.slot_text, primary_text=excluded.primary_text,
                  main_stat_name=excluded.main_stat_name, main_stat_value=excluded.main_stat_value,
                  sub_stat_1_name=excluded.sub_stat_1_name, sub_stat_1_value=excluded.sub_stat_1_value,
                  sub_stat_2_name=excluded.sub_stat_2_name, sub_stat_2_value=excluded.sub_stat_2_value,
@@ -286,26 +467,26 @@ class EquipmentDatabase:
         }
 
     def _learn_recognized_stats(self, record: dict, *, item_id: str) -> None:
-        """Forward only validated observations to the two independent learners."""
+        from equipment_persistence import _normalized_stat_value, _text
         from main_stat_cap_learner import MainStatCapLearner
         from sub_stat_estimator import SubStatEstimator
 
-        quality = str(record.get("quality_id") or "").lower()
-        if quality in {"mythic", "mythic red", "red mythic"}:
-            quality = "mythic_red"
-        slot = str((record.get("slot") or {}).get("value") if isinstance(record.get("slot"), dict) else record.get("slot") or "").lower()
-        slot_map = {"武器": "weapon", "护甲": "armor", "铠甲": "armor", "手镯": "bracelet",
-                    "手环": "bracelet", "项链": "necklace", "戒指": "ring"}
-        for label, canonical in slot_map.items():
-            if label in slot:
-                slot = canonical
-                break
-        level = record.get("enhancement_level", record.get("level"))
+        quality = self._record_quality_id(record)
+        slot_raw = _text(record.get("slot"))
+        slot_map = {"武器": "weapon", "护甲": "armor", "铠甲": "armor", "防具": "armor",
+                    "手镯": "bracelet", "手环": "bracelet", "项链": "necklace", "戒指": "ring"}
+        slot = next((canonical for label, canonical in slot_map.items() if label in slot_raw), "")
+        level = self._record_level(record)
         primary = record.get("primary") or {}
         ptype = _record_stat_type(primary)
-        if quality == "mythic_red" and level is not None and ptype and primary.get("value") is not None:
-            MainStatCapLearner(self.connection).learn(item_id=item_id, quality_id=quality, slot=slot,
-                stat_type=ptype, enhancement_level=int(level), value=float(primary["value"]))
+        if quality == "mythic_red" and level == 16 and ptype and primary.get("value") is not None and slot:
+            raw = _text(primary)
+            value = _normalized_stat_value(raw, ptype, float(primary["value"]))
+            MainStatCapLearner(self.connection).learn(
+                item_id=item_id, quality_id=quality, slot=slot, stat_type=ptype,
+                enhancement_level=level, value=value,
+            )
+
         estimator = SubStatEstimator(self.connection)
         for sub in record.get("sub_attributes", []):
             if not isinstance(sub, dict) or sub.get("locked") is True or sub.get("value") in (None, -1):
@@ -313,36 +494,52 @@ class EquipmentDatabase:
             stype = _record_stat_type(sub)
             grade = sub.get("roll_grade_id") or sub.get("roll_grade")
             if stype and grade:
-                estimator.observe(item_id=item_id, stat_type=stype, roll_grade_id=str(grade),
-                    value=float(sub["value"]), ocr_confidence=float(sub.get("ocr_confidence", 1.0)))
+                raw = _text(sub)
+                value = _normalized_stat_value(raw, stype, float(sub["value"]))
+                estimator.observe(
+                    item_id=item_id, stat_type=stype, roll_grade_id=str(grade), value=value,
+                    ocr_confidence=float(sub.get("confidence", sub.get("ocr_confidence", 1.0))),
+                    slot=slot or None,
+                )
 
     def seed_minimal_fixture(self) -> None:
-        self.connection.execute("INSERT INTO heroes(hero_id,hero_name,atk_base,crit_rate_base,crit_dmg_base,atk_speed_base,atk_interval_base,rage_start,rage_max,damage_type,main_output) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("H1", "测试英雄", 100, 0.8, 1.5, 1, 1, 0, 100, "physical", "single"))
-        self.connection.execute("INSERT INTO scenarios(scenario_id,scenario_name,duration,target_mode,target_count,target_def,target_mres,spawn_pattern,kill_rate_hint,target_hp,weight_primary,weight_secondary) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("S1", "测试场景", 10, "single", 1, 0, 0, "static", 0, None, 1, 1))
-        self.connection.execute("INSERT INTO hero_damage_profiles(hero_id,scenario_id,basic_share,skill_share,ultimate_share,expected_targets_basic,expected_targets_skill,expected_targets_ult,ult_uptime_base) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-            ("H1", "S1", 0.3, 0.2, 0.5, 1, 1, 1, 0.5))
-        self.connection.execute("INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, ?, ?, ?)", ("SET_A", "测试三件套", 3, "right3", 1))
-        self.connection.execute("INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, ?, ?, ?)", ("SET_B", "测试二件套", 2, "left2", 1))
-        self.connection.execute("""INSERT INTO set_effects(
-            set_id, effect_id, effect_type, value, applies_to, trigger, duration, max_stacks,
-            stack_rule, proc_chance, internal_cd, condition, approximate
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            ("SET_A", "atk", "ATK_PCT", 0.2, "all", "always", None, 1, "add", 1, 0, None, 0))
-        self.connection.execute("""INSERT INTO set_effects(
-            set_id, effect_id, effect_type, value, applies_to, trigger, duration, max_stacks,
-            stack_rule, proc_chance, internal_cd, condition, approximate, enabled_in_v1_1
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
-            ("SET_A", "ult_buff", "DAMAGE_PCT", 0.3, "all", "on_ult", 12.0, 1, "refresh", 1, 0, None, 0, 1))
+        self.connection.execute(
+            "INSERT INTO heroes(hero_id,hero_name,atk_base,crit_rate_base,crit_dmg_base,atk_speed_base,atk_interval_base,rage_start,rage_max,damage_type,main_output) VALUES (?,?,?,?,?,?,?,?,?,?,?)",
+            ("H1", "测试英雄", 100, 0.8, 1.5, 1, 1, 0, 100, "physical", "single"),
+        )
+        self.connection.execute(
+            "INSERT INTO scenarios(scenario_id,scenario_name,duration,target_mode,target_count,target_def,target_mres,spawn_pattern,kill_rate_hint,target_hp,weight_primary,weight_secondary) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            ("S1", "测试场景", 10, "single", 1, 0, 0, "static", 0, None, 1, 1),
+        )
+        self.connection.execute(
+            "INSERT INTO hero_damage_profiles(hero_id,scenario_id,basic_share,skill_share,ultimate_share,expected_targets_basic,expected_targets_skill,expected_targets_ult,ult_uptime_base) VALUES (?,?,?,?,?,?,?,?,?)",
+            ("H1", "S1", 0.3, 0.2, 0.5, 1, 1, 1, 0.5),
+        )
+        self.connection.execute("INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?,?,?,?,?)", ("SET_A", "测试三件套", 3, "right3", 1))
+        self.connection.execute("INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?,?,?,?,?)", ("SET_B", "测试二件套", 2, "left2", 1))
+        self.connection.execute(
+            """INSERT INTO set_effects(set_id,effect_id,effect_type,value,applies_to,trigger,duration,max_stacks,stack_rule,proc_chance,internal_cd,condition,approximate)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ("SET_A", "atk", "ATK_PCT", 0.2, "all", "always", None, 1, "add", 1, 0, None, 0),
+        )
+        self.connection.execute(
+            """INSERT INTO set_effects(set_id,effect_id,effect_type,value,applies_to,trigger,duration,max_stacks,stack_rule,proc_chance,internal_cd,condition,approximate,enabled_in_v1_1)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            ("SET_A", "ult_buff", "DAMAGE_PCT", 0.3, "all", "on_ult", 12.0, 1, "refresh", 1, 0, None, 0, 1),
+        )
         items = [("W1", "weapon", "SET_B"), ("A1", "armor", "SET_B"), ("B1", "bracelet", "SET_A"),
                  ("N1", "necklace", "SET_A"), ("R1", "ring", "SET_A"), ("B2", "bracelet", "SET_B"),
                  ("N2", "necklace", "SET_B"), ("R2", "ring", "SET_B")]
-        self.connection.executemany("INSERT INTO equipment(item_id, slot, set_id, available) VALUES (?, ?, ?, 1)", items)
-        stats = [("W1", "main", "ATK_PCT", 0.2), ("A1", "main", "CRIT_RATE", 0.3),
-                 ("B1", "main", "ATK_FLAT", 50), ("N1", "main", "CRIT_DMG", 0.2), ("R1", "main", "ATK_PCT", 0.1),
-                 ("B2", "main", "ATK_FLAT", 10), ("N2", "main", "ATK_FLAT", 10), ("R2", "main", "ATK_FLAT", 10)]
-        self.connection.executemany("INSERT INTO equipment_stats(item_id,stat_source,stat_type,stat_value) VALUES (?, ?, ?, ?)", stats)
+        self.connection.executemany("INSERT INTO equipment(item_id,slot,set_id,available) VALUES (?,?,?,1)", items)
+        stats = [
+            ("W1", 0, "main", "ATK_PCT", 0.2), ("A1", 0, "main", "CRIT_RATE", 0.3),
+            ("B1", 0, "main", "ATK_FLAT", 50), ("N1", 0, "main", "CRIT_DMG", 0.2),
+            ("R1", 0, "main", "ATK_PCT", 0.1), ("B2", 0, "main", "ATK_FLAT", 10),
+            ("N2", 0, "main", "ATK_FLAT", 10), ("R2", 0, "main", "ATK_FLAT", 10),
+        ]
+        self.connection.executemany(
+            "INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value) VALUES (?,?,?,?,?)", stats
+        )
         self.connection.commit()
 
     def seed_full_fixture(self) -> None:
@@ -354,11 +551,11 @@ class EquipmentDatabase:
             ("H1", "FOLLOW_01", "追击", "followup", "ATK", 0.5, 1, 0.0, "1", 1.0, 1, 5.0, 0.0, 0.0, 0, 1, 0.0, 0, 1, "after_skill", 0.0, 1, ""),
             ("H1", "DOT_01", "灼烧", "skill", "ATK", 2.0, 1, 0.0, "1", 1.0, 0, 10.0, 0.0, 0.0, 0, 0, 0.0, 9, 1, "always", 0.0, 0, "DoT excluded"),
         ]
-        self.connection.executemany("""INSERT INTO skills(
-            hero_id, skill_id, skill_name, source_type, scaling_stat, coefficient, hit_count, hit_interval,
-            target_cap, secondary_target_ratio, can_crit, cooldown, action_time, rage_cost, rage_gain,
-            blocks_basic_attack, affected_by_atk_speed, initial_cooldown, priority, trigger_event, internal_cd, direct_damage, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""", skills)
+        self.connection.executemany(
+            """INSERT INTO skills(hero_id,skill_id,skill_name,source_type,scaling_stat,coefficient,hit_count,hit_interval,target_cap,secondary_target_ratio,can_crit,cooldown,action_time,rage_cost,rage_gain,blocks_basic_attack,affected_by_atk_speed,initial_cooldown,priority,trigger_event,internal_cd,direct_damage,notes)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
+            skills,
+        )
         self.connection.commit()
 
     def _one(self, sql: str, params: tuple = ()) -> sqlite3.Row:
@@ -368,18 +565,31 @@ class EquipmentDatabase:
         return row
 
     def load_equipment(self, item_ids: list[str] | None = None) -> list[EquipmentItem]:
-        query = "SELECT * FROM equipment WHERE available=1 AND locked=0"
+        query = "SELECT * FROM equipment WHERE available=1 AND locked=0 AND COALESCE(item_locked,0)=0"
         params: tuple = ()
         if item_ids:
             marks = ",".join("?" for _ in item_ids)
             query += f" AND item_id IN ({marks})"
             params = tuple(item_ids)
         rows = self.connection.execute(query, params).fetchall()
+        supported = {stat.value for stat in StatType}
         result = []
         for row in rows:
-            stats = tuple(EquipmentStat(r["item_id"], r["stat_source"], StatType(r["stat_type"]), r["stat_value"])
-                          for r in self.connection.execute("SELECT * FROM equipment_stats WHERE item_id=?", (row["item_id"],)))
-            result.append(EquipmentItem(row["item_id"], Slot(row["slot"]), row["set_id"], row["tier"], row["level"], bool(row["locked"]), bool(row["available"]), stats))
+            stats_list = []
+            for stat_row in self.connection.execute(
+                "SELECT * FROM v_equipment_stat_effective WHERE item_id=? ORDER BY stat_index", (row["item_id"],)
+            ):
+                stat_type = str(stat_row["stat_type"]).upper()
+                value = stat_row["effective_value"]
+                if stat_type in supported and value is not None:
+                    stats_list.append(EquipmentStat(row["item_id"], stat_row["stat_source"], StatType(stat_type), float(value)))
+            slot = row["slot_id"] or row["slot"]
+            tier = row["quality_id"] or row["tier"]
+            level = row["enhancement_level"] if row["enhancement_level"] else row["level"]
+            result.append(EquipmentItem(
+                row["item_id"], Slot(slot), row["set_id"], tier, level,
+                bool(row["locked"] or row["item_locked"]), bool(row["available"]), tuple(stats_list),
+            ))
         return result
 
     def load_hero(self, hero_id: str):
@@ -410,8 +620,12 @@ class EquipmentDatabase:
     def load_rules(self) -> dict[str, object]:
         result = {}
         for r in self.connection.execute("SELECT * FROM game_rules"):
-            if r["value_type"] == "number": result[r["rule_key"]] = float(r["rule_value"])
-            elif r["value_type"] == "boolean": result[r["rule_key"]] = r["rule_value"].lower() == "true"
-            elif r["value_type"] == "json": result[r["rule_key"]] = json.loads(r["rule_value"])
-            else: result[r["rule_key"]] = r["rule_value"].strip('"')
+            if r["value_type"] == "number":
+                result[r["rule_key"]] = float(r["rule_value"])
+            elif r["value_type"] == "boolean":
+                result[r["rule_key"]] = r["rule_value"].lower() == "true"
+            elif r["value_type"] == "json":
+                result[r["rule_key"]] = json.loads(r["rule_value"])
+            else:
+                result[r["rule_key"]] = r["rule_value"].strip('"')
         return result
