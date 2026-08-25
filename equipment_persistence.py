@@ -1,4 +1,4 @@
-"""Translate fine OCR records into the existing equipment SQLite schema."""
+"""Translate fine OCR records into normalized equipment database rows."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ from typing import Protocol
 
 
 class EquipmentFieldDictionary(Protocol):
-    """Future dictionary hook for canonicalizing and validating OCR field names."""
+    """Dictionary hook for canonicalizing and validating OCR field names."""
 
     def validate(self, record: dict) -> None: ...
 
@@ -25,6 +25,8 @@ def normalize_attribute(raw_text: str) -> str:
 
 
 def _field_value(field: object) -> float | None:
+    if isinstance(field, (int, float)):
+        return float(field)
     if not isinstance(field, dict):
         return None
     value = field.get("value")
@@ -33,9 +35,8 @@ def _field_value(field: object) -> float | None:
 
 def is_upgrade_of(previous: dict, current: dict) -> bool:
     """Return whether current is the same equipment with upgraded values."""
-    for key in ("profile",):
-        if previous.get(key) != current.get(key):
-            return False
+    if previous.get("profile") != current.get("profile"):
+        return False
     for key in ("slot", "set_name"):
         if normalize_attribute(_text(previous.get(key))) != normalize_attribute(_text(current.get(key))):
             return False
@@ -71,7 +72,6 @@ def _text(field: object) -> str:
 
 
 def _attribute_name(field: object) -> str | None:
-    """Extract the stat name from an OCR field's raw text."""
     text = _text(field)
     if not text:
         return None
@@ -80,13 +80,12 @@ def _attribute_name(field: object) -> str | None:
 
 
 def _attribute_value(field: object) -> float | None:
-    """Return a known numeric OCR value; negative values represent locked fields."""
     value = _field_value(field)
     return value if value is not None and value >= 0 else None
 
 
 def _recognition_attributes(raw_result: str) -> tuple:
-    """Parse the denormalized recognition columns from the persisted raw JSON."""
+    """Parse denormalized recognition columns from persisted raw JSON."""
     try:
         record = json.loads(raw_result)
     except (TypeError, json.JSONDecodeError):
@@ -106,9 +105,8 @@ def _recognition_attributes(raw_result: str) -> tuple:
 
 
 def _slot(raw: str) -> str:
-    terms = (("武器", "weapon"), ("护甲", "armor"), ("铠甲", "armor"),
-             ("手镯", "bracelet"), ("手环", "bracelet"), ("项链", "necklace"),
-             ("戒指", "ring"))
+    terms = (("武器", "weapon"), ("护甲", "armor"), ("铠甲", "armor"), ("防具", "armor"),
+             ("手镯", "bracelet"), ("手环", "bracelet"), ("项链", "necklace"), ("戒指", "ring"))
     for name, value in terms:
         if name in raw:
             return value
@@ -121,10 +119,7 @@ def _set_id(name: str) -> str:
 
 
 def _stat_type(raw: str) -> str | None:
-    if "攻击" in raw and ("%" in raw or "加成" in raw):
-        return "ATK_PCT"
-    if "攻击" in raw:
-        return "ATK_FLAT"
+    """Map an OCR stat label to a stable database stat identifier."""
     if "暴击率" in raw:
         return "CRIT_RATE"
     if "暴击伤害" in raw:
@@ -133,10 +128,46 @@ def _stat_type(raw: str) -> str | None:
         return "ATK_SPEED"
     if "怒气" in raw or "能量回复" in raw:
         return "RAGE_REGEN"
+    if "治疗效果" in raw or "治疗加成" in raw:
+        return "HEALING_EFFECT"
+    if "生命加成" in raw:
+        return "HP_PCT"
+    if "生命值" in raw or raw.strip().startswith("生命"):
+        return "HP_FLAT"
+    if "防御加成" in raw:
+        return "DEF_PCT"
+    if "防御" in raw:
+        return "DEF_FLAT"
+    if "攻击" in raw and ("%" in raw or "加成" in raw):
+        return "ATK_PCT"
+    if "攻击" in raw:
+        return "ATK_FLAT"
     return None
 
 
+_PERCENT_STAT_TYPES = {"ATK_PCT", "HP_PCT", "DEF_PCT", "CRIT_RATE", "CRIT_DMG", "RAGE_REGEN"}
+
+
+def _normalized_stat_value(raw: str, stat_type: str, value: float) -> float:
+    """Convert displayed percentage-point values to decimal storage.
+
+    OCR occasionally drops the percent glyph (notably on crit-damage rolls), so
+    percentage stats with values greater than 1 are also interpreted as display
+    percentage points. Already-normalized values in [0, 1] remain unchanged.
+    """
+    numeric = float(value)
+    if stat_type in _PERCENT_STAT_TYPES and ("%" in raw or numeric > 1.0):
+        return numeric / 100.0
+    return numeric
+
+
 def build_database_rows(record: dict, *, source_screenshot: str | Path | None = None) -> tuple[tuple, list[tuple], tuple]:
+    """Build equipment, indexed stat, and recognition rows from one OCR record.
+
+    Stat rows use ``(item_id, stat_index, stat_source, stat_type, stat_value)``.
+    Main stat index is 0 and sub-stat indices retain the OCR slot index (1..4),
+    so repeated stat types are not collapsed.
+    """
     item_id = str(record["item_id"])
     slot_text = _text(record.get("slot"))
     set_name = _text(record.get("set_name")) or "未识别套装"
@@ -146,23 +177,29 @@ def build_database_rows(record: dict, *, source_screenshot: str | Path | None = 
     enhancement_value = _attribute_value(enhancement)
     item = (item_id, _slot(slot_text), _set_id(set_name), quality or None,
             int(enhancement_value) if enhancement_value is not None else None)
+
     stats: list[tuple] = []
-    candidates = [("main", primary)] + [("sub", value) for value in record.get("sub_attributes", [])]
-    seen: set[tuple[str, str]] = set()
-    for source, field in candidates:
+    candidates: list[tuple[int, str, object]] = [(0, "main", primary)]
+    for fallback_index, field in enumerate(record.get("sub_attributes", []), 1):
+        index = int(field.get("index", fallback_index)) if isinstance(field, dict) else fallback_index
+        candidates.append((index, "sub", field))
+    seen_indices: set[int] = set()
+    for stat_index, source, field in candidates:
+        if stat_index in seen_indices:
+            continue
         raw = _text(field)
-        value = field.get("value") if isinstance(field, dict) else None
+        value = _field_value(field)
         stat_type = _stat_type(raw)
-        if stat_type is None or value is None or float(value) < 0:
+        if stat_type is None or value is None or value < 0:
             continue
-        key = (source, stat_type)
-        if key in seen:  # Existing schema keys stats by source and type.
-            continue
-        seen.add(key)
-        stats.append((item_id, source, stat_type, float(value)))
+        seen_indices.add(stat_index)
+        stats.append((item_id, stat_index, source, stat_type, _normalized_stat_value(raw, stat_type, value)))
+
     raw_result = json.dumps(record, ensure_ascii=False, sort_keys=True)
     parsed_attributes = _recognition_attributes(raw_result)
-    recognition = (item_id, str(record.get("profile", "general")), int(not bool(record.get("fully_unlocked") is False)),
-                   quality, slot_text, _text(primary), *parsed_attributes, set_name, raw_result,
-                   str(Path(source_screenshot).resolve()) if source_screenshot else None)
+    recognition = (
+        item_id, str(record.get("profile", "general")), int(record.get("fully_unlocked") is not False),
+        quality, slot_text, _text(primary), *parsed_attributes, set_name, raw_result,
+        str(Path(source_screenshot).resolve()) if source_screenshot else None,
+    )
     return item, stats, recognition

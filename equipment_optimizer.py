@@ -110,7 +110,10 @@ class EquipmentOptimizer:
         if any(not by_slot[slot] for slot in by_slot):
             raise InsufficientEquipmentError("At least one available item is required for every equipment slot")
         left = product(by_slot["weapon"], by_slot["armor"])
-        right = product(by_slot["bracelet"], by_slot["necklace"], by_slot["ring"])
+        # ``itertools.product`` is an iterator. Materialize the right-side
+        # combinations once so every left pair is evaluated against all right
+        # triples instead of exhausting the iterator after the first left pair.
+        right = tuple(product(by_slot["bracelet"], by_slot["necklace"], by_slot["ring"]))
         heap: list[_ScoredBuild] = []
         for left_items in left:
             for right_items in right:
