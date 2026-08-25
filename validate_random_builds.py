@@ -1,7 +1,9 @@
 """Deterministic randomized equipment validation for the EAIA exact Top-K search.
 
 Official basic-attack coefficients/target caps are read from official_skill_catalog.
-Hero base stats are normalized test values, not claimed game stats.
+Hero base stats are normalized test values, not claimed game stats. The validation
+runs every official basic attack that is numerically usable, then compares EAIA's
+Top-K result with an independent exhaustive enumeration of all five-slot builds.
 """
 
 from __future__ import annotations
@@ -19,8 +21,8 @@ from equipment_optimizer import EquipmentOptimizer
 from official_hero_data import load_optimizer_usable_official_basics, seed_official_hero_catalog
 
 SLOTS = ("weapon", "armor", "bracelet", "necklace", "ring")
-# ATK_SPEED is intentionally excluded: official public skill text exposes attack-speed
-# buffs but not the global panel-points -> attack-interval conversion formula.
+# ATK_SPEED is intentionally excluded: public official skill pages expose attack-speed
+# buffs but do not publish a global panel-points -> attack-interval formula.
 RANDOM_STATS = (
     ("ATK_FLAT", 30.0, 220.0),
     ("ATK_PCT", 0.03, 0.35),
@@ -29,11 +31,13 @@ RANDOM_STATS = (
     ("HP_PCT", 0.03, 0.30),
     ("DEF_PCT", 0.03, 0.30),
 )
+PHYSICAL_HERO_KEYS = {"SILAS"}
 
 
 def _insert_context(db: EquipmentDatabase, official_basic) -> str:
     hero_id = f"VAL_{official_basic['hero_key']}"
-    damage_type = "physical" if official_basic["hero_key"] == "SILAS" else "magic"
+    damage_type = "physical" if official_basic["hero_key"] in PHYSICAL_HERO_KEYS else "magic"
+    target_cap = int(official_basic["target_cap"])
     db.connection.execute(
         """INSERT OR REPLACE INTO heroes(
            hero_id,hero_name,atk_base,crit_rate_base,crit_dmg_base,atk_speed_base,
@@ -43,7 +47,7 @@ def _insert_context(db: EquipmentDatabase, official_basic) -> str:
         (
             hero_id, f"{official_basic['hero_name']}·官方技能验证夹具",
             1000.0, 0.05, 1.50, 0.0, 1.0, 0.0, 0.0, damage_type,
-            "aoe" if int(official_basic["target_cap"]) > 1 else "single",
+            "aoe" if target_cap > 1 else "single",
             10000.0, 500.0, 0.0, 0.0,
             "NORMALIZED TEST BASE STATS; coefficient/target cap only are official.",
         ),
@@ -58,7 +62,7 @@ def _insert_context(db: EquipmentDatabase, official_basic) -> str:
         ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)""",
         (
             hero_id, "BASIC", official_basic["skill_name"], "basic", "ATK",
-            float(official_basic["coefficient"]), 1, str(official_basic["target_cap"]), 1,
+            float(official_basic["coefficient"]), 1, str(target_cap), 1,
             None, 0.0, 0.0, 0.0, None, 0.0, 1.0, 0, 1, 0.0, 0,
             "always", 0.0, 1, f"Official source: {official_basic['source_url']}",
         ),
@@ -101,12 +105,15 @@ def _generate_random_equipment(db: EquipmentDatabase, rng: random.Random, items_
     return items_per_slot * len(SLOTS)
 
 
-def _exhaustive(db, optimizer, hero_id: str, top_k: int):
+def _validation_equipment(db):
     equipment = db.load_equipment()
-    by_slot = {
+    return {
         slot: [item for item in equipment if item.item_id.startswith("VAL_") and item.slot.value == slot]
         for slot in SLOTS
     }
+
+
+def _exhaustive(optimizer, hero_id: str, by_slot, top_k: int):
     scored = []
     for combo in itertools.product(*(by_slot[slot] for slot in SLOTS)):
         ids = [item.item_id for item in combo]
@@ -115,7 +122,7 @@ def _exhaustive(db, optimizer, hero_id: str, top_k: int):
         )
         scored.append((result.dps, tuple(ids)))
     scored.sort(key=lambda row: (-row[0], row[1]))
-    return scored[:top_k], by_slot
+    return scored[:top_k]
 
 
 def _replace_index4(db, item_id: str, stat_type: str, value: float):
@@ -164,6 +171,43 @@ def _monotonic_checks(db, optimizer, hero_id: str, by_slot) -> dict[str, bool]:
     }
 
 
+def _validate_one(db, optimizer, official, by_slot, top_k: int) -> dict:
+    hero_id = _insert_context(db, official)
+    actual = optimizer.search(hero_id, mode="single", enemy_count=1, top_k=top_k)
+    expected = _exhaustive(optimizer, hero_id, by_slot, top_k)
+    actual_pairs = [(round(row.dps, 10), tuple(row.item_ids)) for row in actual]
+    expected_pairs = [(round(dps, 10), ids) for dps, ids in expected]
+    top_k_match = actual_pairs == expected_pairs
+
+    best_ids = list(actual[0].item_ids)
+    single = optimizer.simulate_build(
+        hero_id, best_ids, BattleConfig(mode="single", enemy_count=1, target_def=0.0)
+    )
+    aoe = optimizer.simulate_build(
+        hero_id, best_ids, BattleConfig(mode="aoe", enemy_count=3, target_def=0.0)
+    )
+    target_cap = int(official["target_cap"])
+    expected_ratio = float(min(3, target_cap))
+    aoe_ratio = aoe.dps / single.dps if single.dps else 0.0
+    monotonic = _monotonic_checks(db, optimizer, hero_id, by_slot)
+    all_ok = top_k_match and abs(aoe_ratio - expected_ratio) < 1e-9 and all(monotonic.values())
+    return {
+        "hero_key": official["hero_key"],
+        "hero_name": official["hero_name"],
+        "official_basic_coefficient": float(official["coefficient"]),
+        "official_target_cap": target_cap,
+        "source_url": official["source_url"],
+        "top_k_exact_match": top_k_match,
+        "best_build": best_ids,
+        "best_dps_normalized": actual[0].dps,
+        "aoe_ratio": aoe_ratio,
+        "aoe_ratio_expected": expected_ratio,
+        "aoe_target_scaling_ok": abs(aoe_ratio - expected_ratio) < 1e-9,
+        "monotonic_checks": monotonic,
+        "all_checks_passed": all_ok,
+    }
+
+
 def validate_random_builds(seed: int = 20260825, items_per_slot: int = 4, top_k: int = 10) -> dict:
     if items_per_slot < 2:
         raise ValueError("items_per_slot must be >= 2")
@@ -171,53 +215,44 @@ def validate_random_builds(seed: int = 20260825, items_per_slot: int = 4, top_k:
         db = EquipmentDatabase(Path(directory) / "validation.db")
         try:
             db.initialize()
-            seed_official_hero_catalog(db.connection)
-            basics = load_optimizer_usable_official_basics(db.connection)
-            official = next((row for row in basics if row["hero_key"] == "MORRIGAN"), None)
-            if official is None:
-                raise RuntimeError("Morrigan official numeric basic attack was not seeded")
-            hero_id = _insert_context(db, official)
+            catalog_counts = seed_official_hero_catalog(db.connection)
+            basics = list(load_optimizer_usable_official_basics(db.connection))
+            if not basics:
+                raise RuntimeError("No optimizer-usable official numeric basic attacks were seeded")
+            # Context rows are inserted before the equipment because equipment references VAL_NONE.
+            for official in basics:
+                _insert_context(db, official)
             item_count = _generate_random_equipment(db, random.Random(seed), items_per_slot)
             optimizer = EquipmentOptimizer(db)
-
-            actual = optimizer.search(hero_id, mode="single", enemy_count=1, top_k=top_k)
-            expected, by_slot = _exhaustive(db, optimizer, hero_id, top_k)
-            actual_pairs = [(round(row.dps, 10), tuple(row.item_ids)) for row in actual]
-            expected_pairs = [(round(dps, 10), ids) for dps, ids in expected]
-            top_k_match = actual_pairs == expected_pairs
-
-            best_ids = list(actual[0].item_ids)
-            single = optimizer.simulate_build(
-                hero_id, best_ids, BattleConfig(mode="single", enemy_count=1, target_def=0.0)
-            )
-            aoe = optimizer.simulate_build(
-                hero_id, best_ids, BattleConfig(mode="aoe", enemy_count=3, target_def=0.0)
-            )
-            target_cap = int(official["target_cap"])
-            expected_ratio = float(min(3, target_cap))
-            aoe_ratio = aoe.dps / single.dps if single.dps else 0.0
-            monotonic = _monotonic_checks(db, optimizer, hero_id, by_slot)
-            all_ok = (
-                top_k_match
-                and abs(aoe_ratio - expected_ratio) < 1e-9
-                and all(monotonic.values())
-            )
+            by_slot = _validation_equipment(db)
+            results = [_validate_one(db, optimizer, official, by_slot, top_k) for official in basics]
+            all_ok = all(row["all_checks_passed"] for row in results)
+            primary = next((row for row in results if row["hero_key"] == "MORRIGAN"), results[0])
             return {
                 "seed": seed,
-                "official_validation_hero": official["hero_name"],
-                "official_basic_coefficient": official["coefficient"],
-                "official_target_cap": target_cap,
+                "official_catalog_counts": catalog_counts,
+                "official_validation_heroes": len(results),
+                "validated_heroes": results,
                 "items_per_slot": items_per_slot,
                 "random_items": item_count,
-                "combinations": items_per_slot ** len(SLOTS),
+                "combinations_per_hero": items_per_slot ** len(SLOTS),
+                "total_scored_combinations": len(results) * (items_per_slot ** len(SLOTS)),
                 "top_k": top_k,
-                "top_k_exact_match": top_k_match,
-                "best_build": best_ids,
-                "best_dps_normalized": actual[0].dps,
-                "aoe_ratio": aoe_ratio,
-                "aoe_ratio_expected": expected_ratio,
-                "aoe_target_scaling_ok": abs(aoe_ratio - expected_ratio) < 1e-9,
-                "monotonic_checks": monotonic,
+                # Backward-compatible top-level fields use Morrigan when available.
+                "official_validation_hero": primary["hero_name"],
+                "official_basic_coefficient": primary["official_basic_coefficient"],
+                "official_target_cap": primary["official_target_cap"],
+                "combinations": items_per_slot ** len(SLOTS),
+                "top_k_exact_match": all(row["top_k_exact_match"] for row in results),
+                "best_build": primary["best_build"],
+                "best_dps_normalized": primary["best_dps_normalized"],
+                "aoe_ratio": primary["aoe_ratio"],
+                "aoe_ratio_expected": primary["aoe_ratio_expected"],
+                "aoe_target_scaling_ok": all(row["aoe_target_scaling_ok"] for row in results),
+                "monotonic_checks": {
+                    key: all(row["monotonic_checks"][key] for row in results)
+                    for key in primary["monotonic_checks"]
+                },
                 "attack_speed_formula_calibrated": False,
                 "attack_speed_validation_note": (
                     "Official public text exposes attack-speed buffs but not the global "
