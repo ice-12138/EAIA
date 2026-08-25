@@ -1,4 +1,4 @@
-"""Create an empty local equipment database for manual or CSV imports."""
+"""Initialize the local equipment database and seed official reference data."""
 
 from __future__ import annotations
 
@@ -6,6 +6,7 @@ import argparse
 from pathlib import Path
 
 from equipment_db import EquipmentDatabase
+from official_hero_data import seed_official_hero_catalog
 
 
 def main() -> int:
@@ -15,9 +16,11 @@ def main() -> int:
     database = EquipmentDatabase(args.database)
     try:
         database.initialize()
+        official_counts = seed_official_hero_catalog(database.connection)
     finally:
         database.close()
-    print(f"DATABASE_INITIALIZED path={args.database.resolve()}")
+    summary = " ".join(f"{key}={value}" for key, value in sorted(official_counts.items()))
+    print(f"DATABASE_INITIALIZED path={args.database.resolve()} {summary}")
     return 0
 
 
