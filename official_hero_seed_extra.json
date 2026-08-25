@@ -1,0 +1,17 @@
+{
+  "version": "CN-2026-08-25-extra-1",
+  "heroes": [
+    ["ELOWYN", "艾洛温", "绿茵圣者", "秘法会", "医师", "numeric_partial", "群体治疗、驱散、持续治疗与全场回怒。", "https://www.taptap.cn/app/550307/strategy/entity-collection/359858", "official_skill_showcase", "2024-10-05"],
+    ["ARES", "艾瑞斯", "鎏金苍隼", null, "战士", "identity_only", "官方英雄技能展示已公开；公开索引未完整暴露可直接建模的技能数值。", "https://www.taptap.cn/app/550307/strategy/entity-collection/386153", "official_skill_showcase", "2025-04-03"],
+    ["RIVER_CAPTAIN", "里弗船长", "冥海皇帝", "诅咒神教", "守护者", "numeric_partial", "魔法普攻；终结技使攻击转为范围伤害并附加眩晕；同时具有减速、自疗和额外金币收益。", "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "official_skill_showcase", "2024-11-05"],
+    ["SOLCADENS", "索尔卡登斯", "魔焰君王", "炼狱爆破", "领主", "mechanic_only", "炼狱爆破领主；官方公开说明可通过炼狱集火强化单体爆发，并造成灼烧、提高目标受到的灼烧伤害。", "https://www.taptap.cn/app/550307/strategy/entity-collection/359834", "official_skill_showcase", "2025-01-15"]
+  ],
+  "skills": [
+    ["RIVER_CAPTAIN", "basic_magic", "魔法攻击", "basic", "攻击1个敌人造成100%伤害。", 1.0, "1", null, 1, 1, "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "2024-11-05", null],
+    ["RIVER_CAPTAIN", "ultimate_deep_sea_rage", "深海之怒", "ultimate", "终结技开启后，攻击对周围多个敌人造成200%范围伤害并附加眩晕，持续20秒。公开索引未给明确目标上限与眩晕时长。", 2.0, null, 20, 1, 0, "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "2024-11-05", {"attack_replacement": true, "stun": true}],
+    ["RIVER_CAPTAIN", "passive_drowning_pact", "溺亡之契", "passive", "对范围内5个敌人附加减速。", null, "5", null, 0, 0, "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "2024-11-05", {"applies_slow": true}],
+    ["RIVER_CAPTAIN", "passive_abyss_emissary", "深渊使者", "passive", "攻击受到控制的敌人时，回复最大生命值3%。", null, "1", null, 0, 0, "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "2024-11-05", {"self_heal_max_hp_ratio": 0.03, "condition": "target_controlled"}],
+    ["RIVER_CAPTAIN", "passive_coin_specialization", "金币专精", "passive", "战斗结束获得6%额外战斗金币奖励；自身在编队中生效。", null, null, null, 0, 0, "https://www.taptap.cn/app/550307/strategy/entity-collection/391964", "2024-11-05", {"battle_coin_bonus": 0.06}],
+    ["SOLCADENS", "mechanic_infernal_focus", "炼狱集火", "mechanic", "官方公开说明该领主机制可使炼狱爆破小队对单体敌人打出爆发伤害；公开索引未给完整数值。", null, "1", null, 0, 0, "https://www.taptap.cn/app/550307/strategy/entity-collection/359834", "2025-01-15", {"burn_synergy": true}]
+  ]
+}
