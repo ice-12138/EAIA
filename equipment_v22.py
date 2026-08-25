@@ -158,18 +158,23 @@ def seed_v22_defaults(connection: sqlite3.Connection, data_path: str | Path | No
         "set_evolutions": data.get("set_evolutions", []), "special_effect_definitions": data.get("special_effect_definitions", []),
     }
     for table, rows in tables.items():
-        for row in rows:
-            available = {info[1] for info in connection.execute(f"PRAGMA table_info({table})")}
-            row = {key: value for key, value in row.items() if key in available}
+        available = {info[1] for info in connection.execute(f"PRAGMA table_info({table})")}
+        for source_row in rows:
+            row = {key: value for key, value in source_row.items() if key in available}
             if not row:
                 continue
             if table == "main_stat_max_values":
-                row.setdefault("updated_at", "2026-08-25")
-                row.setdefault("data_source", "dictionary_v22")
+                if "updated_at" in available:
+                    row.setdefault("updated_at", "2026-08-25")
+                if "data_source" in available:
+                    row.setdefault("data_source", "dictionary_v22")
             if table == "stat_value_ranges":
-                row.setdefault("updated_at", "2026-08-25")
-                row.setdefault("range_status", "unknown")
-                row.setdefault("data_source", "pending_measurement")
+                if "updated_at" in available:
+                    row.setdefault("updated_at", "2026-08-25")
+                if "range_status" in available:
+                    row.setdefault("range_status", "unknown")
+                if "data_source" in available:
+                    row.setdefault("data_source", "pending_measurement")
             columns = list(row)
             values = [None if value in ("", "NULL", "null") else value for value in row.values()]
             placeholders = ",".join("?" for _ in columns)
