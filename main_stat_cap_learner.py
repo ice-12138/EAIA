@@ -49,14 +49,17 @@ class MainStatCapLearner:
             (quality_id, scope, stat_type),
         ).fetchone()
         if row is None:
-            result = (quality_id, scope, stat_type, None, value, 1, "provisional", None, data_source, now)
+            result = (quality_id, scope, stat_type, enhancement_level, None, value, 1, "provisional", None, data_source, now)
         elif row["value_status"] in {"verified", "conflict"} and row["max_value_at_level_cap"] is not None \
                 and abs(value - row["max_value_at_level_cap"]) > self.tolerance:
-            result = (quality_id, scope, stat_type, row["max_value_at_level_cap"], row["observed_value"],
-                      row["confirmation_count"], "conflict", value, row["data_source"], now)
+            result = (
+                quality_id, scope, stat_type, row["max_enhancement_level"] or enhancement_level,
+                row["max_value_at_level_cap"], row["observed_value"], row["confirmation_count"],
+                "conflict", value, row["data_source"], now,
+            )
         else:
             same = row["observed_value"] is not None and abs(value - row["observed_value"]) <= self.tolerance
-            count = row["confirmation_count"] + (1 if same else 1)
+            count = row["confirmation_count"] + 1
             observed = row["observed_value"] if same else value
             verified = row["max_value_at_level_cap"]
             status = row["value_status"]
@@ -64,19 +67,25 @@ class MainStatCapLearner:
                 verified, status = value, "verified"
             elif not same and status == "provisional":
                 status = "conflict"
-            result = (quality_id, scope, stat_type, verified, observed, count, status, None, data_source, now)
+            result = (
+                quality_id, scope, stat_type, row["max_enhancement_level"] or enhancement_level,
+                verified, observed, count, status, None, data_source, now,
+            )
         self.connection.execute(
             """INSERT INTO main_stat_max_values
-               (quality_id,slot_scope,stat_type,max_value_at_level_cap,observed_value,
-                confirmation_count,value_status,conflict_value,data_source,updated_at)
-               VALUES (?,?,?,?,?,?,?,?,?,?)
+               (quality_id,slot_scope,stat_type,max_enhancement_level,max_value_at_level_cap,
+                observed_value,confirmation_count,value_status,conflict_value,data_source,updated_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,?)
                ON CONFLICT(quality_id,slot_scope,stat_type) DO UPDATE SET
+                 max_enhancement_level=excluded.max_enhancement_level,
                  max_value_at_level_cap=excluded.max_value_at_level_cap,
                  observed_value=excluded.observed_value, confirmation_count=excluded.confirmation_count,
                  value_status=excluded.value_status, conflict_value=excluded.conflict_value,
-                 data_source=excluded.data_source, updated_at=excluded.updated_at""", result)
+                 data_source=excluded.data_source, updated_at=excluded.updated_at""",
+            result,
+        )
         self.connection.commit()
-        return MainStatLearningResult(result[6], result[5], result[3], result[7])
+        return MainStatLearningResult(result[7], result[6], result[4], result[8])
 
     def get_cap(self, *, slot: str, stat_type: str, quality_id: str = "mythic_red") -> float | None:
         row = self.connection.execute(
