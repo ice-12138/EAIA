@@ -114,6 +114,8 @@ class FastEquipmentScanTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             screenshot = root / "screen.jpg"
+            output_dir = root / "out"
+            output_dir.mkdir(parents=True, exist_ok=True)
             Image.new("RGB", (40, 40), "black").save(screenshot)
             main_thread_id = threading.get_ident()
             ocr_thread_ids = []
@@ -124,7 +126,7 @@ class FastEquipmentScanTests(unittest.TestCase):
                 click=lambda *_: None,
                 ocr=DummyOcr(),
                 detail_region=Region(0, 0, 39, 39),
-                output_dir=root / "out",
+                output_dir=output_dir,
                 fine_recognizer=DummyFineRecognizer(ocr_thread_ids),
                 persistence=lambda record, path: persistence_thread_ids.append(
                     threading.get_ident()
