@@ -19,3 +19,13 @@ jobs:
         run: python -m unittest discover -s tests -v
       - name: Run deterministic random equipment validation
         run: python validate_random_builds.py --seed 20260825 --items-per-slot 4 --top-k 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Build Vue frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
