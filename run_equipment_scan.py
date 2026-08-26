@@ -10,7 +10,7 @@ from equipment_fast_scan import (
     build_fast_hdc_scanner,
 )
 from equipment_regions import FineEquipmentRecognizer, load_fine_regions
-from equipment_workflow import PaddleOcrV5Mobile, build_hdc_scanner
+from equipment_workflow import PaddleOcrV5Mobile, WorkflowError, build_hdc_scanner
 
 
 HDC = r"D:\DEVECO~2\sdk\default\OPENHA~1\TOOLCH~1\hdc.exe"
@@ -77,10 +77,9 @@ def main() -> int:
         try:
             scanner = _build_fast_scanner(database)
             mode = "fast"
-        except Exception as exc:
+        except WorkflowError as exc:
             # Keep the existing implementation available on older local
-            # PaddleOCR installations. The reason is printed so the fast-path
-            # compatibility issue can be diagnosed instead of silently hidden.
+            # PaddleOCR installations. Programming/data errors remain visible.
             print(f"FAST_SCAN_UNAVAILABLE reason={exc}", flush=True)
             scanner = _build_legacy_scanner(database)
             mode = "legacy"
