@@ -43,6 +43,14 @@ const STAT_LABELS = {
 const PCT_STATS = new Set(['ATK_PCT','HP_PCT','DEF_PCT','CRIT_RATE','CRIT_DMG','RAGE_REGEN'])
 const SLOTS = ['weapon','armor','bracelet','necklace','ring']
 const SLOT_LABELS = { weapon:'武器', armor:'护甲', bracelet:'手镯', necklace:'项链', ring:'戒指' }
+const EQUIPMENT_TYPE_LABELS = { output:'输出', defense:'防御', healing:'恢复', buff:'辅助' }
+const EQUIPMENT_OVERVIEW_COLUMNS = [
+  '序号', '装备品质', '装备等级', '套装名称', '装备部位',
+  '主词条', '主词条数值',
+  '副词条1', '副词条1数值', '副词条2', '副词条2数值',
+  '副词条3', '副词条3数值', '副词条4', '副词条4数值',
+  '装备类型'
+]
 
 function factionList(value) {
   return String(value || '').split(/[\/、,，]/).map(x => x.trim()).filter(Boolean)
@@ -110,8 +118,40 @@ const dictionaryTables = computed(() => Object.entries(db.value || {}).filter(([
 const selectedDictionary = computed(() => dictionaryTables.value.find(x => x.name === dictionaryTable.value) || dictionaryTables.value[0] || { name:'', rows:[] })
 const dictionaryColumns = computed(() => [...new Set(selectedDictionary.value.rows.flatMap(row => Object.keys(row)))].slice(0, 10))
 const equipmentTableLabels = { v_equipment_full:'装备总览', equipment:'装备主记录', equipment_stats:'装备属性', equipment_recognition:'OCR 识别记录' }
-const activeEquipmentRows = computed(() => equipmentRecords.value?.[equipmentTable.value] || [])
-const equipmentColumns = computed(() => [...new Set(activeEquipmentRows.value.flatMap(row => Object.keys(row)))].slice(0, 12))
+const equipmentOverviewRows = computed(() => {
+  const qualityNames = new Map((db.value?.gear_qualities || []).map(row => [row.quality_id, String(row.quality_name || row.quality_id).replace(/品质$/, '')]))
+  const slotNames = new Map((db.value?.equipment_slots || []).map(row => [row.slot_id, row.slot_name || row.slot_id]))
+  const setCategoryByName = new Map((db.value?.sets || []).filter(row => row.set_name && row.category_id).map(row => [row.set_name, row.category_id]))
+  const unique = new Map()
+  for (const row of equipmentRecords.value?.v_equipment_full || []) {
+    if (!row.item_id || unique.has(row.item_id)) continue
+    const categoryId = row.category_id || setCategoryByName.get(row.set_name)
+    unique.set(row.item_id, {
+      '装备品质': qualityNames.get(row.quality_id) || row.quality_id || '—',
+      '装备等级': row.enhancement_level ?? row.level ?? '—',
+      '套装名称': row.set_name || '—',
+      '装备部位': slotNames.get(row.slot_id) || SLOT_LABELS[row.slot_id] || row.slot_id || '—',
+      '主词条': row.main_stat_name || '—',
+      '主词条数值': row.main_stat_value ?? '—',
+      '副词条1': row.sub_stat_1_name || '—',
+      '副词条1数值': row.sub_stat_1_value ?? '—',
+      '副词条2': row.sub_stat_2_name || '—',
+      '副词条2数值': row.sub_stat_2_value ?? '—',
+      '副词条3': row.sub_stat_3_name || '—',
+      '副词条3数值': row.sub_stat_3_value ?? '—',
+      '副词条4': row.sub_stat_4_name || '—',
+      '副词条4数值': row.sub_stat_4_value ?? '—',
+      '装备类型': EQUIPMENT_TYPE_LABELS[categoryId] || categoryId || '—'
+    })
+  }
+  return [...unique.values()].map((row, index) => ({ '序号': index + 1, ...row }))
+})
+const activeEquipmentRows = computed(() => equipmentTable.value === 'v_equipment_full'
+  ? equipmentOverviewRows.value
+  : (equipmentRecords.value?.[equipmentTable.value] || []))
+const equipmentColumns = computed(() => equipmentTable.value === 'v_equipment_full'
+  ? EQUIPMENT_OVERVIEW_COLUMNS
+  : [...new Set(activeEquipmentRows.value.flatMap(row => Object.keys(row)))].slice(0, 12))
 
 function completenessLabel(value) {
   return ({ numeric_complete:'数值完整', numeric_partial:'部分数值', mechanic_only:'机制资料', identity_only:'档案资料' })[value] || value || '—'
