@@ -78,6 +78,21 @@ class EquipmentPersistenceTests(unittest.TestCase):
             finally:
                 database.close()
 
+    def test_inline_stat_value_is_removed_from_name(self):
+        record = fine_record("inline_value")
+        record["primary"]["raw_text"] = "攻击加成66%"
+        record["primary"]["value"] = 66
+        record["sub_attributes"][0]["raw_text"] = "暴击率22%"
+        record["sub_attributes"][0]["value"] = 22
+        item, stats, recognition = build_database_rows(record)
+        self.assertEqual(item[1], "weapon")
+        self.assertEqual(recognition[6], "攻击加成")
+        self.assertEqual(recognition[8], "暴击率")
+        self.assertAlmostEqual(recognition[7], 66)
+        self.assertAlmostEqual(recognition[9], 22)
+        self.assertAlmostEqual(stats[0][4], 0.66)
+        self.assertAlmostEqual(stats[1][4], 0.22)
+
     def test_dictionary_hook_is_defined_but_not_used_by_default(self):
         record = {
             "item_id": "x",
