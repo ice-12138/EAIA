@@ -56,11 +56,40 @@ print(f"recognized: {len(records)}")
 
 默认流程不会对点击前的旧详情面板再次执行 OCR，而是使用详情区域图像差异确认切换成功，再对新面板执行 OCR。这样每件装备少一次完整模型推理。当前 EAIA 环境的 Paddle 3.3.1 与 PP-OCRv5 Mobile 组合不兼容 oneDNN，因此保持关闭以避免底层运行时错误。需要旧面板 OCR 做严格对比时，可在 `build_hdc_scanner(..., verify_baseline_ocr=True)` 中显式开启。
 
+## 监督式快速扫描
+
+`equipment_fast_scan.py` 提供面向“画面稳定且有人监督”场景的快速路径，`run_equipment_scan.py` 默认优先使用该模式。优化点包括：
+
+- 复用扫描器已经取得的当前截图，不再为每件装备额外获取一次点击前基线图；
+- 如果目标格已经处于选中状态，直接复用当前详情帧，不再重复点击并等待超时；
+- 普通装备点击后默认等待 0.20 秒，只取一张后续帧确认详情区域发生变化；首帧过早时只额外补取一帧；
+- 细粒度字段坐标已经由人工标注，因此正常路径只加载 `PP-OCRv5_mobile_rec`，直接对 ROI 做内存批量文本识别，不再对每个固定 ROI 重复执行文本检测；
+- 正常路径不把每个字段裁剪图写入磁盘；只有低置信度或字段违反简单领域约束时才懒加载原 `PaddleOcrV5Mobile` 做 detector+recognizer 回退并保存对应 fallback 裁剪图；
+- OCR 仍由单工作线程与截图/点击生产流程重叠，避免同一 Paddle 模型被多线程并发调用。
+
+运行：
+
+```powershell
+conda activate EAIA
+python run_equipment_scan.py
+```
+
+正常启用快速模式时会输出：
+
+```text
+SCAN_MODE=fast
+SCAN_COMPLETE mode=fast records=... elapsed_s=... items_per_s=...
+```
+
+如果本地 PaddleOCR 版本无法初始化 `TextRecognition`，入口会打印 `FAST_SCAN_UNAVAILABLE` 并自动回退原 `PaddleOcrV5Mobile` 扫描器。数据标注缺失、数据库错误等非兼容性问题不会被自动隐藏。
+
+当前快速实现仍保留 HDC `snapshot_display + file recv` 作为帧来源，以保证与现有环境直接兼容；但截图调用次数已显著减少。仓库目前没有 HOScrcpy 解码后视频帧的 Python 导出接口，因此尚未把帧来源强行绑定到某个未验证的 HOScrcpy 内部 API。后续如果提供稳定的视频帧回调，可直接替换 `capture` 后端，而 OCR 和扫描快速路径无需重新设计。
+
 ## 细化装备信息
 
 `equipment_regions.py` 会读取 `captures/exclusive` 和 `captures/general` 中的红框标注，自动映射回原始屏幕坐标。流程先识别 `专属标识`：OCR 含有“专属”时使用专属区域，否则使用通用区域。细化结果包含品质、部位、主词条、套装名称和最多 4 条副词条；缺少的副词条保留为空，包含“解锁”的副词条记录 `value=-1`，并将 `fully_unlocked` 设为 `false`。
 
-批量入口会在每件装备的粗 OCR 完成后追加 `fine_detail` 字段，细化裁剪图保存在 `fine_ocr_results`，原始完整记录保存在 `ocr_results_run5/ocr_results.jsonl`。
+原始兼容流程会把细化裁剪图保存在 `fine_ocr_results`。快速模式的正常识别在内存中完成，只有回退或显式调试时才保存字段裁剪图；完整结果仍写入 `ocr_results_fast/ocr_results.jsonl` 并持久化到装备数据库。
 
 ## 装备数据库与 V1.1 配装算法
 
