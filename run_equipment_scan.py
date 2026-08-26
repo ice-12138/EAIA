@@ -1,36 +1,100 @@
-"""Run the approved full equipment click-and-OCR scan."""
+"""Run the equipment click-and-OCR scan with the supervised fast path."""
 
 from pathlib import Path
+from time import perf_counter
 
 from equipment_db import EquipmentDatabase
+from equipment_fast_scan import (
+    FastFineEquipmentRecognizer,
+    PaddleTextRecognitionV5Mobile,
+    build_fast_hdc_scanner,
+)
 from equipment_regions import FineEquipmentRecognizer, load_fine_regions
 from equipment_workflow import PaddleOcrV5Mobile, build_hdc_scanner
 
 
-def main() -> int:
-    database = EquipmentDatabase(Path("data/equipment.db"))
-    database.initialize()
-    ocr = PaddleOcrV5Mobile(cache_dir=Path(".paddle_home"))
+HDC = r"D:\DEVECO~2\sdk\default\OPENHA~1\TOOLCH~1\hdc.exe"
+SERIAL = "FMR0223A30001935"
+CACHE_DIR = Path(".paddle_home")
+
+
+def _persistence(database: EquipmentDatabase):
+    return lambda record, screenshot: database.upsert_recognized_equipment(
+        record, source_screenshot=screenshot
+    )
+
+
+def _build_fast_scanner(database: EquipmentDatabase):
+    regions = load_fine_regions(Path("captures"))
+    recognition_ocr = PaddleTextRecognitionV5Mobile(cache_dir=CACHE_DIR)
+    fine = FastFineEquipmentRecognizer(
+        ocr=recognition_ocr,
+        regions=regions,
+        output_dir=Path("fine_ocr_results"),
+        # Only construct the original detector+recognizer if a field is low
+        # confidence or violates simple game-domain constraints.
+        fallback_factory=lambda: PaddleOcrV5Mobile(cache_dir=CACHE_DIR),
+        min_confidence=0.55,
+        save_debug_crops=False,
+    )
+    return build_fast_hdc_scanner(
+        hdc=HDC,
+        serial=SERIAL,
+        screen_dir=Path("captures/scan_fast"),
+        ocr=recognition_ocr,
+        output_dir=Path("ocr_results_fast"),
+        fine_recognizer=fine,
+        persistence=_persistence(database),
+        settle_delay=0.20,
+        recovery_delay=0.12,
+        scroll_settle_delay=0.25,
+    )
+
+
+def _build_legacy_scanner(database: EquipmentDatabase):
+    ocr = PaddleOcrV5Mobile(cache_dir=CACHE_DIR)
     fine = FineEquipmentRecognizer(
         ocr=ocr,
         regions=load_fine_regions(Path("captures")),
         output_dir=Path("fine_ocr_results"),
     )
+    return build_hdc_scanner(
+        hdc=HDC,
+        serial=SERIAL,
+        screen_dir=Path("captures/scan_run5"),
+        ocr=ocr,
+        output_dir=Path("ocr_results_run5"),
+        fine_recognizer=fine,
+        persistence=_persistence(database),
+        enable_coarse_ocr=False,
+    )
+
+
+def main() -> int:
+    database = EquipmentDatabase(Path("data/equipment.db"))
+    database.initialize()
     try:
-        scanner = build_hdc_scanner(
-            hdc=r"D:\DEVECO~2\sdk\default\OPENHA~1\TOOLCH~1\hdc.exe",
-            serial="FMR0223A30001935",
-            screen_dir=Path("captures/scan_run5"),
-            ocr=ocr,
-            output_dir=Path("ocr_results_run5"),
-            fine_recognizer=fine,
-            persistence=lambda record, screenshot: database.upsert_recognized_equipment(
-                record, source_screenshot=screenshot
-            ),
-            enable_coarse_ocr=False,
-        )
+        try:
+            scanner = _build_fast_scanner(database)
+            mode = "fast"
+        except Exception as exc:
+            # Keep the existing implementation available on older local
+            # PaddleOCR installations. The reason is printed so the fast-path
+            # compatibility issue can be diagnosed instead of silently hidden.
+            print(f"FAST_SCAN_UNAVAILABLE reason={exc}", flush=True)
+            scanner = _build_legacy_scanner(database)
+            mode = "legacy"
+
+        print(f"SCAN_MODE={mode}", flush=True)
+        started = perf_counter()
         records = scanner.scan_until_bottom()
-        print(f"SCAN_COMPLETE records={len(records)}", flush=True)
+        elapsed = perf_counter() - started
+        rate = len(records) / elapsed if elapsed > 0 else 0.0
+        print(
+            f"SCAN_COMPLETE mode={mode} records={len(records)} "
+            f"elapsed_s={elapsed:.3f} items_per_s={rate:.3f}",
+            flush=True,
+        )
         return 0
     finally:
         database.close()
