@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import sqlite3
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -32,6 +33,57 @@ CATALOG_TABLES = (
 )
 EQUIPMENT_TABLES = ("v_equipment_full", "equipment", "equipment_stats", "equipment_recognition")
 
+_PERCENT_STAT_NAMES = {"攻击加成", "生命加成", "防御加成", "暴击率", "暴击伤害", "怒气回复", "治疗效果", "治疗加成"}
+
+
+def _display_stat_name(value: object) -> object:
+    """Remove OCR'd numeric values/units from equipment stat labels."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    if not text:
+        return None
+    text = re.sub(r"[+-]?\d+(?:\.\d+)?", "", text)
+    text = text.replace("%", "")
+    text = "".join(text.split())
+    return text or None
+
+
+def _display_stat_value(name: object, value: object) -> object:
+    """Format overview values with the unit implied by the stat label."""
+    if value is None or value == "":
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return value
+    label = str(name or "").strip()
+    if label in _PERCENT_STAT_NAMES:
+        if number.is_integer():
+            return f"{int(number)}%"
+        return f"{number:g}%"
+    if number.is_integer():
+        return str(int(number))
+    return f"{number:g}"
+
+
+def _format_equipment_overview(rows: list[dict]) -> list[dict]:
+    """Prepare the UI-facing overview without changing database value semantics."""
+    result = []
+    for row in rows:
+        row = dict(row)
+        for name_key, value_key in (
+            ("main_stat_name", "main_stat_value"),
+            ("sub_stat_1_name", "sub_stat_1_value"),
+            ("sub_stat_2_name", "sub_stat_2_value"),
+            ("sub_stat_3_name", "sub_stat_3_value"),
+            ("sub_stat_4_name", "sub_stat_4_value"),
+        ):
+            row[name_key] = _display_stat_name(row.get(name_key))
+            row[value_key] = _display_stat_value(row.get(name_key), row.get(value_key))
+        result.append(row)
+    return result
+
 
 def rows(connection: sqlite3.Connection, source: str) -> list[dict]:
     """Read an allowlisted table or view as JSON-compatible dictionaries."""
@@ -53,10 +105,12 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
                     skill["value_json"] = json.loads(skill["value_json"])
                 except json.JSONDecodeError:
                     pass
+        equipment = {table: rows(connection, table) for table in EQUIPMENT_TABLES}
+        equipment["v_equipment_full"] = _format_equipment_overview(equipment["v_equipment_full"])
         return (
             {"heroes": heroes, "skills": skills},
             {table: rows(connection, table) for table in CATALOG_TABLES},
-            {table: rows(connection, table) for table in EQUIPMENT_TABLES},
+            equipment,
         )
     finally:
         connection.close()
