@@ -356,15 +356,26 @@ class EquipmentScanner:
         split_gap = gaps[split_index] if gaps else 0.0
 
         if "item_level" not in calibration:
-            # The first visible row is the reference for this screenshot. Its natural
-            # brightness spread must not be mistaken for empty slots.
+            # Use the first row as a reference, but do not assume that every slot
+            # is occupied. A large gap separates item tiles from empty placeholders.
+            if split_gap >= max(12.0, span * 0.35):
+                boundary = (ordered[split_index] + ordered[split_index + 1]) / 2
+                occupied = [column for column, score in enumerate(scores, 1) if score > boundary]
+                occupied_scores = [score for score in scores if score > boundary]
+                calibration["item_level"] = sum(occupied_scores) / len(occupied_scores)
+                calibration["item_spread"] = max(occupied_scores) - min(occupied_scores)
+                calibration["brightness_gap"] = split_gap
+                return occupied
+
+            # With no clear split, retain the old all-occupied behavior for a
+            # uniformly filled row. Later rows can still be rejected as empty
+            # when their brightness is substantially below this reference.
             calibration["item_level"] = sum(scores) / len(scores)
             calibration["item_spread"] = span
             return list(range(1, len(scores) + 1))
 
-        # Establish the brightness difference from this screenshot, rather than using
-        # an absolute screen-brightness threshold.
-        if "brightness_gap" not in calibration and span > calibration["item_spread"] * 1.5 and span / max(calibration["item_level"], 1) >= 0.25:
+        # Establish a row-local split when the first row was uniformly filled.
+        if "brightness_gap" not in calibration and split_gap >= max(12.0, span * 0.35):
             empty_level = ordered[split_index]
             occupied_level = ordered[split_index + 1]
             calibration["empty_level"] = empty_level
@@ -376,7 +387,11 @@ class EquipmentScanner:
             boundary = calibration["item_level"] - calibration["brightness_gap"] / 2
             return [column for column, score in enumerate(scores, 1) if score > boundary]
 
-        # No current row split and no learned empty level: preserve darker valid tiles.
+        # A row with no split and uniformly low brightness is an empty row. This
+        # prevents background placeholders from being clicked as equipment.
+        empty_threshold = calibration["item_level"] - max(calibration["item_spread"], 12.0) * 1.5
+        if max(scores) < empty_threshold:
+            return []
         return list(range(1, len(scores) + 1))
 
     def _slot_selected(self, image: Image.Image, x: int, y: int) -> bool:

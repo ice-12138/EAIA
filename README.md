@@ -109,6 +109,19 @@ python init_equipment_db.py
 python init_equipment_db.py --database data/test-equipment.db
 ```
 
+### 网页与数据库 API
+
+网页通过 Python API 实时读取 SQLite，不再加载 `frontend/public` 或构建目录中的 JSON 导出文件。先构建前端，再启动 API 和静态文件服务：
+
+```powershell
+cd frontend
+npm run build
+cd ..
+conda run -n EAIA python web_api.py
+```
+
+服务地址为 `http://127.0.0.1:8000/`，接口包括 `/api/heroes`、`/api/catalog`、`/api/equipment` 和 `/api/health`。开发时可另开终端运行 `npm run dev`；Vite 已将 `/api` 代理到 8000 端口。
+
 当前实现覆盖数据库表结构、完整技能输入、静态面板、60 秒事件驱动直接伤害模拟、单体/多目标木桩和 Top-K 合法组合搜索。使用 `EquipmentOptimizer.search(hero_id, mode, enemy_count, top_k)` 获取 V1.1 结果，其中 `mode` 为 `single` 或 `aoe`，群体模式的 `enemy_count` 由调用方指定。`direct_damage=FALSE` 的 DoT 事件不计入伤害，并将结果标记为 `model_coverage=partial`。
 
 旧版 `HeroDamageProfile` 和 `search(hero_id, scenario_id, top_k=...)` 仍保留兼容读取，但不作为 V1.1 主排序模型。真实英雄、装备、技能和 GameRules 数据需要按方案文档录入；默认规则仅用于最小运行示例，不能视为已校准的游戏公式。

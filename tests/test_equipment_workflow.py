@@ -45,6 +45,24 @@ class EquipmentWorkflowTests(unittest.TestCase):
         ImageDraw.Draw(image2).rectangle((371, 491, 535, 696), fill=(130, 90, 90))
         self.assertEqual(scanner._row_occupied_columns(image2, 594, calibration), [1])
 
+    def test_grid_occupancy_detects_seven_items_and_empty_following_rows(self):
+        from equipment_workflow import EquipmentScanner
+
+        image = Image.new("RGB", (2720, 1260), (50, 50, 55))
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        draw = ImageDraw.Draw(image)
+        for x in scanner.grid.x_centers[:7]:
+            draw.rectangle((x - 82, 260, x + 82, 465), fill=(130, 90, 90))
+        calibration = {}
+
+        self.assertEqual(
+            scanner._row_occupied_columns(image, 363, calibration),
+            list(range(1, 8)),
+        )
+        self.assertEqual(scanner._row_occupied_columns(image, 594, calibration), [])
+        self.assertEqual(scanner._row_occupied_columns(image, 825, calibration), [])
+
     def test_selected_slot_is_detected_by_gold_highlight(self):
         from equipment_workflow import EquipmentScanner
 

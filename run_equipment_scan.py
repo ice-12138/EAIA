@@ -89,9 +89,11 @@ def main() -> int:
         records = scanner.scan_until_bottom()
         elapsed = perf_counter() - started
         rate = len(records) / elapsed if elapsed > 0 else 0.0
+        average_item_time = elapsed / len(records) if records else 0.0
         print(
             f"SCAN_COMPLETE mode={mode} records={len(records)} "
-            f"elapsed_s={elapsed:.3f} items_per_s={rate:.3f}",
+            f"elapsed_s={elapsed:.3f} items_per_s={rate:.3f} "
+            f"average_item_s={average_item_time:.3f}",
             flush=True,
         )
         return 0

@@ -1,11 +1,19 @@
 <script setup>
-import { computed, onMounted, ref, watch } from 'vue'
-import officialBase from '../../official_hero_seed.json'
-import officialExtra from '../../official_hero_seed_extra.json'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 
-const currentView = ref('heroes')
+const VIEWS = new Set(['dictionary', 'equipment', 'heroes', 'recommendation'])
+
+function viewFromHash() {
+  const value = window.location.hash.replace(/^#\/?/, '')
+  if (VIEWS.has(value)) return value
+  const saved = window.sessionStorage.getItem('eaia.currentView')
+  return VIEWS.has(saved) ? saved : 'heroes'
+}
+
+const currentView = ref(viewFromHash())
 const db = ref(null)
 const equipmentRecords = ref(null)
+const heroCatalog = ref(null)
 const loading = ref(true)
 
 const heroSearch = ref('')
@@ -28,8 +36,6 @@ const recRunning = ref(false)
 const dictionaryTable = ref('sets')
 const equipmentTable = ref('v_equipment_full')
 
-const HERO_FIELDS = ['hero_key','hero_name','title','faction','role','completeness','mechanic_summary','source_url','source_kind','source_date']
-const SKILL_FIELDS = ['hero_key','skill_key','skill_name','skill_type','description','coefficient','target_cap','duration','direct_damage','optimizer_usable','source_url','source_date','value_json']
 const STAT_LABELS = {
   ATK_FLAT:'攻击', ATK_PCT:'攻击加成', HP_FLAT:'生命', HP_PCT:'生命加成', DEF_FLAT:'防御', DEF_PCT:'防御加成',
   CRIT_RATE:'暴击率', CRIT_DMG:'暴击伤害', ATK_SPEED:'攻击速度', RAGE_REGEN:'怒气回复', HEALING_EFFECT:'治疗效果'
@@ -38,17 +44,6 @@ const PCT_STATS = new Set(['ATK_PCT','HP_PCT','DEF_PCT','CRIT_RATE','CRIT_DMG','
 const SLOTS = ['weapon','armor','bracelet','necklace','ring']
 const SLOT_LABELS = { weapon:'武器', armor:'护甲', bracelet:'手镯', necklace:'项链', ring:'戒指' }
 
-function rowToObject(row, fields) {
-  return Object.fromEntries(fields.map((key, index) => [key, row?.[index] ?? null]))
-}
-function mergeOfficialRows(baseRows, extraRows, fields, keyFn) {
-  const map = new Map()
-  for (const row of [...(baseRows || []), ...(extraRows || [])]) {
-    const item = rowToObject(row, fields)
-    map.set(keyFn(item), item)
-  }
-  return [...map.values()]
-}
 function factionList(value) {
   return String(value || '').split(/[\/、,，]/).map(x => x.trim()).filter(Boolean)
 }
@@ -57,8 +52,8 @@ function matchesFaction(hero, selected) {
 }
 
 const officialHeroes = computed(() => {
-  const heroes = mergeOfficialRows(officialBase.heroes, officialExtra.heroes, HERO_FIELDS, x => x.hero_key)
-  const skills = mergeOfficialRows(officialBase.skills, officialExtra.skills, SKILL_FIELDS, x => `${x.hero_key}:${x.skill_key}`)
+  const heroes = heroCatalog.value?.heroes || []
+  const skills = heroCatalog.value?.skills || []
   return heroes
     .map(hero => ({ ...hero, skills: skills.filter(skill => skill.hero_key === hero.hero_key) }))
     .sort((a, b) => String(a.hero_name || '').localeCompare(String(b.hero_name || ''), 'zh-CN'))
@@ -100,6 +95,16 @@ watch([recRole, recFaction], () => {
   recResults.value = []
   recMessage.value = ''
 })
+
+watch(currentView, view => {
+  const nextHash = `#/${view}`
+  window.sessionStorage.setItem('eaia.currentView', view)
+  if (window.location.hash !== nextHash) window.location.hash = nextHash
+})
+
+function restoreViewFromHash() {
+  currentView.value = viewFromHash()
+}
 
 const dictionaryTables = computed(() => Object.entries(db.value || {}).filter(([, value]) => Array.isArray(value)).map(([name, rows]) => ({ name, rows })))
 const selectedDictionary = computed(() => dictionaryTables.value.find(x => x.name === dictionaryTable.value) || dictionaryTables.value[0] || { name:'', rows:[] })
@@ -267,13 +272,18 @@ function formatStat(type, value) {
 }
 
 onMounted(async () => {
-  const responses = await Promise.allSettled([fetch('/equipment_v22_seed.json'), fetch('/equipment_records.json')])
+  window.addEventListener('hashchange', restoreViewFromHash)
+  if (window.location.hash !== `#/${currentView.value}`) window.location.hash = `#/${currentView.value}`
+  const responses = await Promise.allSettled([fetch('/api/catalog'), fetch('/api/equipment'), fetch('/api/heroes')])
   if (responses[0].status === 'fulfilled' && responses[0].value.ok) db.value = await responses[0].value.json()
   if (responses[1].status === 'fulfilled' && responses[1].value.ok) equipmentRecords.value = await responses[1].value.json()
+  if (responses[2].status === 'fulfilled' && responses[2].value.ok) heroCatalog.value = await responses[2].value.json()
   selectedHeroKey.value = officialHeroes.value[0]?.hero_key || null
   if (!numericHeroes.value.some(x => x.hero_key === recHeroKey.value)) recHeroKey.value = numericHeroes.value[0]?.hero_key || ''
   loading.value = false
 })
+
+onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
 </script>
 
 <template>
