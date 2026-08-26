@@ -37,14 +37,14 @@ _PERCENT_STAT_NAMES = {"攻击加成", "生命加成", "防御加成", "暴击�
 
 
 def _display_stat_name(value: object) -> object:
-    """Remove OCR'd numeric values/units from equipment stat labels."""
+    """Remove OCR'd numeric values/units and unlock markers from stat labels."""
     if value is None:
         return None
     text = str(value).strip()
     if not text:
         return None
     text = re.sub(r"[+-]?\d+(?:\.\d+)?", "", text)
-    text = text.replace("%", "")
+    text = text.replace("解锁", "").replace("%", "")
     text = "".join(text.split())
     return text or None
 
