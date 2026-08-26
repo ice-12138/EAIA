@@ -69,11 +69,17 @@ def _text(field: object) -> str:
 
 
 def _attribute_name(field: object) -> str | None:
+    """Return only the stat label, excluding OCR'd numeric values and units."""
     text = _text(field)
     if not text:
         return None
     lines = [line.strip() for line in re.split(r"[\r\n]+", text) if line.strip()]
-    return lines[0] if lines else None
+    if not lines:
+        return None
+    # Some OCR engines return label and value on the same line, e.g.
+    # ``攻击加成66%`` or ``暴击率22%``.  The name column must never contain
+    # the numeric value, regardless of whether OCR inserted a line break.
+    return normalize_attribute(lines[0]) or None
 
 
 def _attribute_value(field: object) -> float | None:
