@@ -10,7 +10,9 @@ fallbacks, but optimizes the normal path for the EAIA equipment screen:
 * run PP-OCRv5 Mobile recognition directly on fixed fine-grained ROIs in memory,
   avoiding text detection and PNG round-trips on the common path;
 * lazily fall back to the original detector+recognizer for low-confidence or
-  domain-invalid fields.
+  domain-invalid fields;
+* keep OCR on the worker thread while deferring SQLite persistence to the scanner
+  thread, preserving SQLite's default same-thread safety contract.
 """
 
 from __future__ import annotations
@@ -300,20 +302,35 @@ class FastFineEquipmentRecognizer(FineEquipmentRecognizer):
 
 
 class FastEquipmentWorkflow(EquipmentWorkflow):
-    """Optimistic supervised capture path with strict failure on missing UI change."""
+    """Optimistic supervised capture path with main-thread persistence."""
 
     def __init__(
         self,
         *args,
         settle_delay: float = 0.20,
         recovery_delay: float = 0.12,
+        persistence: Callable[[dict, Path], None] | None = None,
         **kwargs,
     ):
-        super().__init__(*args, **kwargs)
+        # The parent OCR routine may run in the worker thread. Never let it call
+        # the SQLite-backed persistence callback there; keep that callback here
+        # and invoke it only after the Future is collected by the scanner thread.
+        super().__init__(*args, persistence=None, **kwargs)
         if settle_delay < 0 or recovery_delay < 0:
             raise ValueError("settle delays must be non-negative")
         self.settle_delay = settle_delay
         self.recovery_delay = recovery_delay
+        self.main_thread_persistence = persistence
+
+    def persist_record(self, record: dict) -> None:
+        """Persist one completed OCR record on the caller/scanner thread."""
+        if self.main_thread_persistence is None:
+            return
+        fine_detail = record.get("fine_detail")
+        screenshot = record.get("screenshot")
+        if fine_detail is None or not screenshot:
+            return
+        self.main_thread_persistence(fine_detail, Path(screenshot))
 
     def capture_item(
         self,
@@ -390,6 +407,12 @@ class FastEquipmentScanner(EquipmentScanner):
         super().__init__(workflow, swipe, grid)
         self.scroll_settle_delay = scroll_settle_delay
 
+    def _collect_future(self, future: Future) -> dict:
+        """Collect OCR result and persist it on the scanner thread."""
+        record = future.result()
+        self.workflow.persist_record(record)
+        return record
+
     def _process_rows(self, logical_start: int, screen_rows: Sequence[int]) -> tuple[list[dict], bool]:
         records = []
         reached_empty_row = False
@@ -425,10 +448,10 @@ class FastEquipmentScanner(EquipmentScanner):
                     current = Image.open(current_path).convert("RGB")
                     pending.append(executor.submit(self.workflow.recognize_captured_item, captured))
                     if len(pending) >= 3:
-                        records.append(pending.pop(0).result())
+                        records.append(self._collect_future(pending.pop(0)))
         finally:
             for future in pending:
-                records.append(future.result())
+                records.append(self._collect_future(future))
             executor.shutdown(wait=True)
         return records, reached_empty_row
 
