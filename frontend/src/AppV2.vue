@@ -1,5 +1,6 @@
 <script setup>
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { bestAscensionState, setName as catalogSetName } from './equipmentAscension.js'
 
 const VIEWS = new Set(['dictionary', 'equipment', 'heroes', 'recommendation'])
 
@@ -175,6 +176,17 @@ function sourceHost(url) {
 function nullText(value) {
   return value === null || value === undefined || value === '' ? '—' : value
 }
+function displaySetName(setId) {
+  return catalogSetName(db.value, setId)
+}
+function ascensionForItem(result, itemId) {
+  return result.ascendedItems?.find(entry => entry.item_id === itemId) || null
+}
+function ascensionSummary(result) {
+  return (result.ascendedItems || [])
+    .map(entry => `${entry.item_id}（${entry.from_set_name} → ${entry.to_set_name}）`)
+    .join('；')
+}
 
 function normalizeStatValue(type, value) {
   const n = Number(value)
@@ -189,12 +201,20 @@ function inventoryItems() {
   for (const row of baseRows) {
     const slot = row.slot_id || row.slot
     if (!SLOTS.includes(slot) || row.available === 0) continue
-    map.set(row.item_id, { item_id:row.item_id, slot, set_id:row.set_id || 'NONE', set_name:row.set_name || row.set_id || '—', stats:[] })
+    map.set(row.item_id, {
+      item_id:row.item_id,
+      slot,
+      set_id:row.set_id || 'NONE',
+      set_name:displaySetName(row.set_id) || row.set_name || row.set_id || '—',
+      stats:[]
+    })
   }
   for (const row of statRows) {
     const item = map.get(row.item_id)
     if (!item || row.is_unlocked === 0) continue
-    item.stats.push({ type:row.stat_type, value:normalizeStatValue(row.stat_type, row.stat_value ?? row.estimate_override) })
+    const rawValue = row.stat_value ?? row.estimate_override
+    if (rawValue === null || rawValue === undefined) continue
+    item.stats.push({ type:row.stat_type, value:normalizeStatValue(row.stat_type, rawValue) })
   }
   return [...map.values()]
 }
@@ -235,36 +255,9 @@ function itemPotential(item) {
     if (stat.type === 'ATK_PCT') score += stat.value
     if (stat.type === 'CRIT_RATE') score += stat.value * 1.2
     if (stat.type === 'CRIT_DMG') score += stat.value * 0.45
+    if (stat.type === 'ATK_SPEED') score += stat.value / 250
   }
   return score
-}
-function activeSetEffects(items) {
-  const counts = new Map()
-  items.forEach(item => counts.set(item.set_id, (counts.get(item.set_id) || 0) + 1))
-  const setRows = db.value?.sets || []
-  const effectRows = db.value?.set_effects || []
-  const active = []
-  for (const [setId, count] of counts) {
-    const def = setRows.find(x => x.set_id === setId)
-    if (def && count >= Number(def.required_pieces || 99)) active.push(setId)
-  }
-  const effects = effectRows.filter(x => active.includes(x.set_id) && (x.trigger === 'always' || !x.trigger) && Number(x.enabled_in_optimizer ?? 1) !== 0)
-  return { active, effects }
-}
-function scoreBuild(items, basicSkill) {
-  const stats = Object.fromEntries(Object.keys(STAT_LABELS).map(k => [k, 0]))
-  items.forEach(item => item.stats.forEach(stat => { stats[stat.type] = (stats[stat.type] || 0) + stat.value }))
-  const { active, effects } = activeSetEffects(items)
-  const effectStat = type => effects.filter(x => (x.stat_type || x.effect_type) === type).reduce((sum, x) => sum + normalizeStatValue(type, x.value), 0)
-  const atk = (1000 + stats.ATK_FLAT) * (1 + stats.ATK_PCT + effectStat('ATK_PCT'))
-  const critRateRaw = 0.05 + stats.CRIT_RATE + effectStat('CRIT_RATE')
-  const critRate = Math.min(1, critRateRaw)
-  const critDmg = 1.5 + stats.CRIT_DMG + effectStat('CRIT_DMG')
-  const critFactor = (1 - critRate) + critRate * critDmg
-  const targetCap = basicSkill.target_cap === 'all' ? recEnemyCount.value : Number(basicSkill.target_cap || 1)
-  const targets = recMode.value === 'aoe' ? Math.min(Number(recEnemyCount.value), targetCap) : 1
-  const dps = atk * Number(basicSkill.coefficient) * critFactor * targets
-  return { dps, active, panel:{ atk, critRate, critOverflow:Math.max(0, critRateRaw - 1), critDmg } }
 }
 function runRecommendation() {
   recRunning.value = true
@@ -289,17 +282,25 @@ function runRecommendation() {
         for (const bracelet of bySlot.bracelet)
           for (const necklace of bySlot.necklace)
             for (const ring of bySlot.ring) {
-              const items = [weapon, armor, bracelet, necklace, ring]
-              results.push({ ...scoreBuild(items, basic), items })
+              const physicalItems = [weapon, armor, bracelet, necklace, ring]
+              const best = bestAscensionState(physicalItems, basic, db.value, {
+                enemyCount:recEnemyCount.value,
+                mode:recMode.value,
+                normalizeStatValue,
+              })
+              results.push(best)
             }
     results.sort((a,b) => b.dps - a.dps || a.items.map(x => x.item_id).join('|').localeCompare(b.items.map(x => x.item_id).join('|')))
-    const best = results[0]?.dps || 0
+    const bestScore = results[0]?.dps || 0
     recResults.value = results.slice(0, Number(recTopK.value)).map((row, index) => ({
-      ...row, rank:index + 1, delta:best ? (best - row.dps) / best : 0
+      ...row, rank:index + 1, delta:bestScore ? (bestScore - row.dps) / bestScore : 0
     }))
-    recMessage.value = recSource.value === 'validation'
-      ? `已使用固定随机种子生成 ${sourceItems.length} 件验证装备。结果为标准化基础攻击评分，不代表游戏实战 DPS。`
+    const evolvedCount = Number(db.value?.set_evolutions?.length || 0)
+    const recommendedAscensions = recResults.value.reduce((sum, row) => sum + (row.ascendedItems?.length || 0), 0)
+    const sourceText = recSource.value === 'validation'
+      ? `已使用固定随机种子生成 ${sourceItems.length} 件验证装备。`
       : `已从当前装备中选取每槽最多 8 件候选完成五槽组合排序。`
+    recMessage.value = `${sourceText} 已对 ${evolvedCount} 组可升华 T1→T2 套装同时计算当前特性与升华后特性；同一套实物装备只保留更优状态，分数相同时保留 T1。当前 Top-K 共建议 ${recommendedAscensions} 件按升华后计算。`
   } catch (error) {
     recMessage.value = error.message || String(error)
   } finally {
@@ -408,8 +409,8 @@ onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
 
     <main v-else-if="currentView==='recommendation'" class="page">
       <section class="intro">
-        <div><p class="eyebrow">RECOMMENDATION / BUILDS</p><h1>装备推荐</h1><p class="subtitle">先按职业与阵营缩小英雄范围，再选择英雄进行五槽组合排序。</p></div>
-        <div class="intro-stats"><div><strong>{{ numericHeroes.length }}</strong><span>可验证英雄</span></div><div><strong>{{ filteredNumericHeroes.length }}</strong><span>筛选后英雄</span></div><div><strong>{{ inventoryItems().length }}</strong><span>当前装备</span></div></div>
+        <div><p class="eyebrow">RECOMMENDATION / BUILDS</p><h1>装备推荐</h1><p class="subtitle">可升华的 T1 装备会同时按当前 T1 套装特性和可达 T2 套装特性计算；最终只保留同一套实物装备中更优的状态，并明确标记需要升华的装备。</p></div>
+        <div class="intro-stats"><div><strong>{{ numericHeroes.length }}</strong><span>可验证英雄</span></div><div><strong>{{ filteredNumericHeroes.length }}</strong><span>筛选后英雄</span></div><div><strong>{{ db?.set_evolutions?.length || 0 }}</strong><span>T1→T2 路径</span></div><div><strong>{{ inventoryItems().length }}</strong><span>当前装备</span></div></div>
       </section>
 
       <section class="recommend-shell">
@@ -424,7 +425,7 @@ onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
           <label><span>Top-K</span><select v-model.number="recTopK"><option :value="3">Top 3</option><option :value="5">Top 5</option><option :value="10">Top 10</option></select></label>
           <div class="source-switch"><span>装备来源</span><button :class="{selected:recSource==='inventory'}" @click="recSource='inventory'">当前装备</button><button :class="{selected:recSource==='validation'}" @click="recSource='validation'">随机验证装备</button></div>
           <button class="primary-button" :disabled="recRunning || !filteredNumericHeroes.length" @click="runRecommendation">{{ recRunning ? '计算中…' : '开始配装计算' }}</button>
-          <p class="model-note">网页端使用官方已确认普攻倍率 + 标准化基础面板作快速配装验证；完整实战模型仍由 Python 模拟器承担。</p>
+          <p class="model-note">网页端使用官方已确认普攻倍率 + 标准化基础面板作快速排序，并已纳入静态 T1/T2 套装、攻速和固定追加伤害。含暴击叠层、终结技叠层等动态套装时，以 Python 60 秒模拟器结果为精确依据。</p>
         </aside>
 
         <section class="recommend-results">
@@ -432,10 +433,19 @@ onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
           <div v-if="recMessage" class="result-message" :class="{warning:!recResults.length}">{{ recMessage }}</div>
           <div v-if="!recResults.length" class="recommend-empty"><strong>设置条件后开始计算</strong><p>可先用职业、阵营筛选英雄；若本地装备不全，可切换“随机验证装备”。</p></div>
           <article v-for="result in recResults" :key="result.items.map(x=>x.item_id).join('|')" class="build-card">
-            <div class="build-rank"><span>#{{ result.rank }}</span><div><strong>{{ result.dps.toFixed(2) }}</strong><small>标准化评分</small></div><em v-if="result.rank>1">-{{ (result.delta*100).toFixed(2) }}%</em><em v-else>BEST</em></div>
-            <div class="build-panel"><span>ATK <strong>{{ result.panel.atk.toFixed(0) }}</strong></span><span>暴击 <strong>{{ formatPercent(result.panel.critRate) }}</strong></span><span>暴伤 <strong>{{ formatPercent(result.panel.critDmg) }}</strong></span><span>暴击溢出 <strong>{{ formatPercent(result.panel.critOverflow) }}</strong></span></div>
-            <div class="gear-strip"><div v-for="item in result.items" :key="item.item_id" class="gear-chip"><span>{{ SLOT_LABELS[item.slot] }}</span><strong>{{ item.item_id }}</strong><small>{{ item.stats.map(s=>formatStat(s.type,s.value)).join(' · ') || '无可用词条' }}</small></div></div>
-            <div class="active-sets"><span>激活套装</span><strong>{{ result.active.length ? result.active.join(' / ') : '无' }}</strong></div>
+            <div class="build-rank"><span>#{{ result.rank }}</span><div><strong>{{ result.dps.toFixed(2) }}</strong><small>标准化评分</small></div><span v-if="result.ascendedItems?.length" class="optimizer-badge">含升华计算</span><em v-if="result.rank>1">-{{ (result.delta*100).toFixed(2) }}%</em><em v-else>BEST</em></div>
+            <div v-if="result.ascendedItems?.length" class="result-message"><strong>升华建议：</strong>{{ ascensionSummary(result) }}。这些装备在本条推荐中按升华后的 T2 套装特性计算，装备自身主/副词条保持不变。</div>
+            <div v-if="result.dynamicEffects?.length" class="result-message warning">该方案包含 {{ result.dynamicEffects.length }} 条需要战斗时间轴处理的动态套装效果；网页评分用于快速筛选，最终伤害请以 Python 60 秒模拟器精算结果为准。</div>
+            <div class="build-panel"><span>ATK <strong>{{ result.panel.atk.toFixed(0) }}</strong></span><span>暴击 <strong>{{ formatPercent(result.panel.critRate) }}</strong></span><span>暴伤 <strong>{{ formatPercent(result.panel.critDmg) }}</strong></span><span>攻速 <strong>{{ result.panel.attackSpeedPoints.toFixed(0) }}</strong></span><span>暴击溢出 <strong>{{ formatPercent(result.panel.critOverflow) }}</strong></span></div>
+            <div class="gear-strip">
+              <div v-for="item in result.items" :key="item.item_id" class="gear-chip">
+                <span>{{ SLOT_LABELS[item.slot] }}</span>
+                <strong>{{ item.item_id }} <em v-if="ascensionForItem(result,item.item_id)" class="optimizer-badge">升华后</em></strong>
+                <small v-if="ascensionForItem(result,item.item_id)">{{ ascensionForItem(result,item.item_id).from_set_name }} → {{ ascensionForItem(result,item.item_id).to_set_name }} · 按 T2 特性计算</small>
+                <small>{{ item.stats.map(s=>formatStat(s.type,s.value)).join(' · ') || '无可用词条' }}</small>
+              </div>
+            </div>
+            <div class="active-sets"><span>激活套装</span><strong>{{ result.active.length ? result.active.map(displaySetName).join(' / ') : '无' }}</strong></div>
           </article>
         </section>
       </section>
