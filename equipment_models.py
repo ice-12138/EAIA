@@ -48,8 +48,11 @@ class StatType(StrEnum):
 
 
 class EffectType(StrEnum):
+    ATK_FLAT = "ATK_FLAT"
     ATK_PCT = "ATK_PCT"
+    HP_FLAT = "HP_FLAT"
     HP_PCT = "HP_PCT"
+    DEF_FLAT = "DEF_FLAT"
     DEF_PCT = "DEF_PCT"
     CRIT_RATE = "CRIT_RATE"
     CRIT_DMG = "CRIT_DMG"
@@ -60,6 +63,9 @@ class EffectType(StrEnum):
     BASIC_DMG = "BASIC_DMG"
     SKILL_DMG = "SKILL_DMG"
     ULT_DMG = "ULT_DMG"
+    SINGLE_DMG = "SINGLE_DMG"
+    AOE_DMG = "AOE_DMG"
+    EXTRA_DAMAGE = "EXTRA_DAMAGE"
     PENETRATION = "PENETRATION"
 
 
@@ -127,6 +133,18 @@ class BattleConfig:
 
 
 @dataclass(frozen=True)
+class SetAscension:
+    """A physical item evaluated with its reachable T2 set identity."""
+
+    item_id: str
+    slot: str
+    from_set_id: str
+    to_set_id: str
+    from_set_name: str
+    to_set_name: str
+
+
+@dataclass(frozen=True)
 class SimulationResult:
     item_ids: tuple[str, ...]
     slots: tuple[str, ...]
@@ -143,6 +161,7 @@ class SimulationResult:
     set_uptime: dict[str, float]
     model_coverage: str
     delta_vs_rank1: float = 0.0
+    ascended_items: tuple[SetAscension, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -246,3 +265,4 @@ class BuildResult:
     dps: float
     source_damage: dict[str, float]
     delta_vs_rank1: float = 0.0
+    ascended_items: tuple[SetAscension, ...] = field(default_factory=tuple)
