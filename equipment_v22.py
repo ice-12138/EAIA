@@ -191,5 +191,6 @@ def seed_v22_defaults(connection: sqlite3.Connection, data_path: str | Path | No
         "INSERT OR IGNORE INTO game_rules(rule_key, rule_value, value_type, description, game_version, source) VALUES (?, ?, ?, ?, ?, ?)",
         [("max_hero_level", "60", "number", "当前英雄等级上限", "CN-2026-08", "manual"),
          ("hero_level_mode", "fixed_max", "string", "装备优化只计算满级英雄", "CN-2026-08", "manual"),
+         ("attack_speed_points_per_ratio", "100", "number", "攻击速度面板点数换算：100点按+1.0攻速比率计算，可在实测后调整", "CN-2026-08", "manual"),
          ("use_darkfall", "false", "boolean", "V2.2暂不计算暗陨宝石", "CN-2026-08", "manual")],
     )
