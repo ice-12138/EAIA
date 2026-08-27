@@ -72,6 +72,39 @@ class SetAscensionTests(unittest.TestCase):
         for result in variants:
             self.assertEqual(set(result.item_ids), expected_ids)
 
+    def test_every_configured_t1_t2_pair_can_be_simulated_in_both_full_set_states(self):
+        self.db.seed_full_fixture()
+        item_ids = ["W1", "A1", "B1", "N1", "R1"]
+        left = ["W1", "A1"]
+        right = ["B1", "N1", "R1"]
+        for source, target in EXPECTED_EVOLUTIONS.items():
+            source_definition = self.db.connection.execute(
+                "SELECT required_pieces,slot_group FROM sets WHERE set_id=?", (source,)
+            ).fetchone()
+            source_items = left if source_definition["slot_group"] == "left" else right
+            self.assertEqual(len(source_items), source_definition["required_pieces"])
+            self.db.connection.execute(
+                "UPDATE equipment SET set_id='SET_A' WHERE item_id IN ('W1','A1','B1','N1','R1')"
+            )
+            placeholders = ",".join("?" for _ in source_items)
+            self.db.connection.execute(
+                f"UPDATE equipment SET set_id=? WHERE item_id IN ({placeholders})",
+                (source, *source_items),
+            )
+            self.db.connection.commit()
+            optimizer = EquipmentOptimizer(self.db)
+            variants = optimizer.evaluate_build_variants(
+                "H1", item_ids, BattleConfig(mode="single", enemy_count=1)
+            )
+            current = next(result for result in variants if not result.ascended_items)
+            fully_ascended = next(
+                result for result in variants if len(result.ascended_items) == len(source_items)
+            )
+            self.assertIn(source, current.active_sets, source)
+            self.assertIn(target, fully_ascended.active_sets, target)
+            self.assertGreater(current.total_damage, 0, source)
+            self.assertGreater(fully_ascended.total_damage, 0, target)
+
     def test_search_keeps_one_physical_build_and_recommends_full_warlord_ascension(self):
         optimizer = self._seed_single_physical_build("set_calamity")
         results = optimizer.search("H1", "single", 1, 10)
