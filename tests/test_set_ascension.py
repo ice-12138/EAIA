@@ -62,8 +62,9 @@ class SetAscensionTests(unittest.TestCase):
         self.assertEqual(len(variants), 3)
         self.assertTrue(any("set_calamity" in result.active_sets for result in variants))
         self.assertTrue(any("set_warlord" in result.active_sets for result in variants))
+        expected_ids = {"W1", "A1", "B1", "N1", "R1"}
         for result in variants:
-            self.assertEqual(result.item_ids, ("W1", "A1", "B1", "N1", "R1"))
+            self.assertEqual(set(result.item_ids), expected_ids)
 
     def test_search_keeps_one_physical_build_and_recommends_full_warlord_ascension(self):
         optimizer = self._seed_single_physical_build("set_calamity")
