@@ -5,6 +5,7 @@ from pathlib import Path
 from equipment_db import EquipmentDatabase
 from equipment_models import BattleConfig, EffectType
 from equipment_optimizer import EquipmentOptimizer
+from equipment_rules import GameRules
 from equipment_set_variants import load_optimizer_set_effects, load_set_evolutions
 
 
@@ -30,6 +31,11 @@ class SetAscensionTests(unittest.TestCase):
 
     def test_packaged_dictionary_has_all_six_t1_to_t2_evolutions(self):
         self.assertEqual(load_set_evolutions(self.db), EXPECTED_EVOLUTIONS)
+
+    def test_attack_speed_points_are_not_interpreted_as_a_raw_multiplier(self):
+        rules = GameRules.from_mapping(self.db.load_rules())
+        self.assertEqual(rules.attack_speed_points_per_ratio, 100.0)
+        self.assertAlmostEqual(rules.attack_interval(1.0, 30.0), 1.0 / 1.3)
 
     def test_v22_set_effects_are_normalized_for_optimizer(self):
         effects = load_optimizer_set_effects(self.db)
