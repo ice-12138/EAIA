@@ -66,7 +66,9 @@ class HdcController:
         self._input("click", str(x), str(y))
 
     def swipe(self, start: tuple[int, int], end: tuple[int, int], velocity: int = 600) -> None:
-        self._input("swipe", str(start[0]), str(start[1]), str(end[0]), str(end[1]), str(velocity))
+        # HDC exposes drag as the explicit press-move-release gesture. The
+        # post-drag hold is handled by the scanner before result validation.
+        self._input("drag", str(start[0]), str(start[1]), str(end[0]), str(end[1]), str(velocity))
 
 
 def _small_gray(image: Image.Image, size: tuple[int, int] = (64, 64)) -> list[int]:
@@ -315,10 +317,14 @@ class GridConfig:
     row_spacing: int = 231
     columns: int = 8
     visible_rows: int = 3
-    overlap_rows: int = 1
+    # The device viewport exposes about 3.5 rows. Advance one row at a time
+    # and keep two full rows overlapped so half-rows at either edge are never
+    # treated as a new scan page.
+    overlap_rows: int = 2
     swipe_start: tuple[int, int] = (1200, 950)
-    swipe_end: tuple[int, int] = (1200, 488)
-    swipe_velocity: int = 600
+    # Calibrated on the device: one equipment row per drag.
+    swipe_end: tuple[int, int] = (1200, 755)
+    swipe_velocity: int = 200
     slot_width: int = 164
     slot_height: int = 205
 
@@ -346,6 +352,33 @@ class EquipmentScanner:
         crop = image.crop((x - half_width, y - half_height, x + half_width, y + half_height))
         mean = ImageStat.Stat(crop).mean
         return sum(mean) / 3
+
+    def _grid_snapshot(self, image: Image.Image) -> Image.Image:
+        """Build a comparison image from equipment tiles only.
+
+        The surrounding inventory background can animate while the list is
+        stationary, so it must not participate in drag-result validation.
+        """
+        snapshot = Image.new(
+            "RGB",
+            (
+                self.grid.slot_width * self.grid.columns,
+                self.grid.slot_height * self.grid.visible_rows,
+            ),
+        )
+        for row, y in enumerate(self.grid.y_centers):
+            for column, x in enumerate(self.grid.x_centers):
+                half_width = self.grid.slot_width // 2
+                half_height = self.grid.slot_height // 2
+                crop = image.crop(
+                    (x - half_width, y - half_height,
+                     x + half_width, y + half_height)
+                )
+                snapshot.paste(
+                    crop,
+                    (column * self.grid.slot_width, row * self.grid.slot_height),
+                )
+        return snapshot
 
     def _row_occupied_columns(self, image: Image.Image, y: int, calibration: dict) -> list[int]:
         scores = [self._slot_luma(image, x, y) for x in self.grid.x_centers]
@@ -407,6 +440,29 @@ class EquipmentScanner:
                     gold_pixels += 1
         return gold_pixels >= 40
 
+    def _normalize_occupied_rows(
+        self, occupied_by_row: dict[int, list[int]]
+    ) -> dict[int, list[int]]:
+        """Treat every row before the last occupied row as fully populated.
+
+        Equipment is filled left-to-right by row. A dim trailing tile in an
+        earlier row must not cause the scanner to skip it when a later row is
+        visibly occupied.
+        """
+        occupied_rows = [row for row, columns in occupied_by_row.items() if columns]
+        if not occupied_rows:
+            return occupied_by_row
+        last_occupied = max(occupied_rows)
+        all_columns = list(range(1, len(self.grid.x_centers) + 1))
+        for row in occupied_by_row:
+            if row <= last_occupied and any(
+                occupied_by_row[later_row]
+                for later_row in occupied_by_row
+                if later_row > row
+            ):
+                occupied_by_row[row] = all_columns.copy()
+        return occupied_by_row
+
     def _process_rows(self, logical_start: int, screen_rows: Sequence[int]) -> tuple[list[dict], bool]:
         records = []
         reached_empty_row = False
@@ -415,11 +471,19 @@ class EquipmentScanner:
         executor = ThreadPoolExecutor(max_workers=1) if threaded else None
         pending: list[Future] = []
         try:
+            initial_path = self.workflow.capture()
+            initial = Image.open(initial_path).convert("RGB")
+            occupied_by_row = self._normalize_occupied_rows({
+                screen_row: self._row_occupied_columns(
+                    initial, self.grid.y_centers[screen_row], calibration
+                )
+                for screen_row in screen_rows
+            })
             for screen_row in screen_rows:
                 logical_row = logical_start + screen_row
                 current_path = self.workflow.capture()
                 current = Image.open(current_path).convert("RGB")
-                occupied_columns = self._row_occupied_columns(current, self.grid.y_centers[screen_row], calibration)
+                occupied_columns = occupied_by_row[screen_row]
                 if not occupied_columns:
                     reached_empty_row = True
                     break
@@ -449,18 +513,18 @@ class EquipmentScanner:
 
     def _list_changed_after_swipe(self, before: Image.Image) -> bool:
         """Wait for the list to settle before deciding whether the swipe reached a new page."""
-        list_region = Region(250, 190, 1980, 1120)
+        before_grid = self._grid_snapshot(before)
         previous = None
         deadline = time.monotonic() + self.workflow.timeout
         while time.monotonic() < deadline:
             current_path = self.workflow.capture()
             current = Image.open(current_path).convert("RGB")
-            current_list = list_region.crop(current)
-            if previous is not None and stable(previous, current_list):
-                return changed(list_region.crop(before), current_list)
-            previous = current_list
+            current_grid = self._grid_snapshot(current)
+            if previous is not None and stable(previous, current_grid):
+                return changed(before_grid, current_grid)
+            previous = current_grid
             time.sleep(self.workflow.poll_interval)
-        return changed(list_region.crop(before), previous) if previous is not None else False
+        return changed(before_grid, previous) if previous is not None else False
 
     def scan_until_bottom(self, max_scrolls: int = 100) -> list[dict]:
         if self.grid.overlap_rows >= self.grid.visible_rows:

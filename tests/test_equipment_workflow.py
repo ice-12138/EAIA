@@ -28,6 +28,9 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(grid.x_centers[0], 453)
         self.assertEqual(grid.x_centers[-1], 1843)
         self.assertEqual(grid.y_centers, (363, 594, 825))
+        self.assertEqual(grid.overlap_rows, 2)
+        self.assertEqual(grid.swipe_end, (1200, 755))
+        self.assertEqual(grid.swipe_velocity, 200)
 
     def test_grid_occupancy_uses_brightness_difference_from_current_image(self):
         from equipment_workflow import EquipmentScanner
@@ -63,6 +66,19 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(scanner._row_occupied_columns(image, 594, calibration), [])
         self.assertEqual(scanner._row_occupied_columns(image, 825, calibration), [])
 
+    def test_later_occupied_row_fills_previous_row_to_eight_columns(self):
+        from equipment_workflow import EquipmentScanner
+
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        occupied = {0: [1, 2, 3, 4, 5, 6], 1: [1], 2: []}
+
+        normalized = scanner._normalize_occupied_rows(occupied)
+
+        self.assertEqual(normalized[0], list(range(1, 9)))
+        self.assertEqual(normalized[1], [1])
+        self.assertEqual(normalized[2], [])
+
     def test_selected_slot_is_detected_by_gold_highlight(self):
         from equipment_workflow import EquipmentScanner
 
@@ -73,6 +89,29 @@ class EquipmentWorkflowTests(unittest.TestCase):
         ImageDraw.Draw(image).rectangle((371, 260, 535, 465), fill=(130, 90, 90))
         ImageDraw.Draw(image).rectangle((371, 260, 535, 267), fill=(220, 180, 50))
         self.assertTrue(scanner._slot_selected(image, 453, 363))
+
+    def test_grid_snapshot_excludes_inventory_background(self):
+        from equipment_workflow import EquipmentScanner
+
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        first = Image.new("RGB", (2720, 1260), (50, 50, 55))
+        second = Image.new("RGB", (2720, 1260), (90, 90, 95))
+        for image in (first, second):
+            draw = ImageDraw.Draw(image)
+            for y in scanner.grid.y_centers:
+                for x in scanner.grid.x_centers:
+                    draw.rectangle(
+                        (
+                            x - scanner.grid.slot_width // 2,
+                            y - scanner.grid.slot_height // 2,
+                            x + scanner.grid.slot_width // 2,
+                            y + scanner.grid.slot_height // 2,
+                        ),
+                        fill=(130, 90, 90),
+                    )
+
+        self.assertTrue(stable(scanner._grid_snapshot(first), scanner._grid_snapshot(second)))
 
     def test_scan_stops_without_swiping_when_visible_rows_end(self):
         from equipment_workflow import EquipmentScanner

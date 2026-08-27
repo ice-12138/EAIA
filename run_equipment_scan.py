@@ -47,7 +47,9 @@ def _build_fast_scanner(database: EquipmentDatabase):
         persistence=_persistence(database),
         settle_delay=0.20,
         recovery_delay=0.12,
-        scroll_settle_delay=0.25,
+        # The device calibration is stable without an extra post-drag pause.
+        # Validation still captures the list immediately after the drag.
+        scroll_settle_delay=0.0,
     )
 
 

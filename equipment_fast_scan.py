@@ -422,11 +422,15 @@ class FastEquipmentScanner(EquipmentScanner):
         current_path = self.workflow.capture()
         current = Image.open(current_path).convert("RGB")
         try:
-            for screen_row in screen_rows:
-                logical_row = logical_start + screen_row
-                occupied_columns = self._row_occupied_columns(
+            occupied_by_row = self._normalize_occupied_rows({
+                screen_row: self._row_occupied_columns(
                     current, self.grid.y_centers[screen_row], calibration
                 )
+                for screen_row in screen_rows
+            })
+            for screen_row in screen_rows:
+                logical_row = logical_start + screen_row
+                occupied_columns = occupied_by_row[screen_row]
                 if not occupied_columns:
                     reached_empty_row = True
                     break
@@ -456,12 +460,13 @@ class FastEquipmentScanner(EquipmentScanner):
         return records, reached_empty_row
 
     def _list_changed_after_swipe(self, before: Image.Image) -> bool:
-        list_region = Region(250, 190, 1980, 1120)
+        before_grid = self._grid_snapshot(before)
         if self.scroll_settle_delay:
             time.sleep(self.scroll_settle_delay)
         current_path = self.workflow.capture()
         current = Image.open(current_path).convert("RGB")
-        if changed(list_region.crop(before), list_region.crop(current)):
+        current_grid = self._grid_snapshot(current)
+        if changed(before_grid, current_grid):
             return True
         # One recovery sample avoids declaring bottom-of-list just because the first
         # post-swipe frame arrived too early.
@@ -469,7 +474,7 @@ class FastEquipmentScanner(EquipmentScanner):
             time.sleep(self.workflow.poll_interval)
         retry_path = self.workflow.capture()
         retry = Image.open(retry_path).convert("RGB")
-        return changed(list_region.crop(before), list_region.crop(retry))
+        return changed(before_grid, self._grid_snapshot(retry))
 
 
 def build_fast_hdc_scanner(
