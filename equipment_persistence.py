@@ -68,6 +68,14 @@ def _text(field: object) -> str:
     return str(field or "").strip()
 
 
+def normalize_set_name(raw_text: object) -> str:
+    """Remove OCR-only decoration while preserving the recognized name."""
+    text = _text(raw_text)
+    text = re.sub(r"^[\[\]（）(){}<>【】]+|[\[\]（）(){}<>【】]+$", "", text)
+    text = "".join(text.split())
+    return re.sub(r"套装$", "", text).strip()
+
+
 def _attribute_name(field: object) -> str | None:
     """Return only the stat label, excluding OCR'd numeric values and units."""
     text = _text(field)
@@ -176,7 +184,7 @@ def build_database_rows(record: dict, *, source_screenshot: str | Path | None = 
     """
     item_id = str(record["item_id"])
     slot_text = _text(record.get("slot"))
-    set_name = _text(record.get("set_name")) or "未识别套装"
+    set_name = normalize_set_name(record.get("set_name")) or "未识别"
     primary = record.get("primary") or {}
     quality = _text(record.get("quality"))
     enhancement = record.get("enhancement_level") or {}

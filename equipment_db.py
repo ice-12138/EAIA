@@ -7,6 +7,7 @@ import sqlite3
 from pathlib import Path
 
 from equipment_models import DamageProfile, DamageType, EffectType, EquipmentItem, EquipmentStat, MainOutput, SetDefinition, SetEffect, Skill, Slot, SourceType, StatType
+from equipment_persistence import normalize_set_name
 
 STAT_TYPES = tuple(stat.value for stat in StatType)
 STAT_TYPE_SQL = ",".join(f"'{value}'" for value in STAT_TYPES)
@@ -51,6 +52,38 @@ def _quality_id(field: object) -> str | None:
     for aliases, canonical in mapping:
         if any(alias in raw for alias in aliases): return canonical
     return None
+
+
+def _set_name_key(value: object) -> str:
+    return normalize_set_name(value).casefold()
+
+
+def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object) -> tuple[str | None, str, list[str]]:
+    """Resolve OCR set text without guessing when multiple sets are plausible."""
+    cleaned = normalize_set_name(raw_name) or "未识别"
+    key = _set_name_key(cleaned)
+    definitions = connection.execute("SELECT set_id, set_name FROM sets WHERE set_id NOT LIKE 'OCR_%'").fetchall()
+    exact = [row for row in definitions if _set_name_key(row[1]) == key]
+    if len(exact) == 1:
+        return exact[0][0], exact[0][1], []
+
+    aliases = connection.execute(
+        "SELECT entity_key, canonical_text, alias_text, normalized_alias FROM ocr_aliases "
+        "WHERE entity_type='set' AND active=1"
+    ).fetchall()
+    alias_matches = [row for row in aliases if _set_name_key(row[3] or row[2]) == key]
+    alias_ids = {row[0] for row in alias_matches}
+    alias_definitions = [row for row in definitions if row[0] in alias_ids]
+    if len(alias_definitions) == 1:
+        return alias_definitions[0][0], alias_definitions[0][1], []
+
+    # Prefix/substring matching is useful for truncated OCR, but is unsafe
+    # when more than one canonical name contains the recognized fragment.
+    candidates = [row for row in definitions if key and (key in _set_name_key(row[1]) or _set_name_key(row[1]) in key)]
+    candidate_names = sorted({row[1] for row in candidates})
+    if len(candidates) == 1:
+        return candidates[0][0], candidates[0][1], []
+    return None, cleaned, candidate_names
 
 
 EQUIPMENT_STATS_SCHEMA = f"""
@@ -162,7 +195,13 @@ class EquipmentDatabase:
         ).fetchone() is not None
         matched_item_id = self.find_upgrade_match(record); stored_record = dict(record)
         if matched_item_id is not None: stored_record["item_id"] = matched_item_id
-        item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot); set_name = recognition[16]
+        item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot)
+        resolved_set_id, set_name, candidates = _resolve_ocr_set_name(self.connection, recognition[16])
+        if resolved_set_id is None and candidates:
+            set_name = f"待确认：{set_name}"
+        if resolved_set_id is not None:
+            item = (*item[:2], resolved_set_id, *item[3:])
+            recognition = (*recognition[:16], set_name, *recognition[17:])
         self.connection.execute("""INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0) ON CONFLICT(set_id) DO UPDATE SET set_name=excluded.set_name""", (item[2], set_name))
         quality_id = _quality_id(stored_record.get("quality")); enhancement_level = item[4] or 0
         self.connection.execute("""INSERT INTO equipment(item_id,slot,set_id,tier,level,locked,available,slot_id,quality_id,enhancement_level,item_locked,source,updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'ocr', datetime('now')) ON CONFLICT(item_id) DO UPDATE SET slot=excluded.slot,set_id=excluded.set_id,tier=excluded.tier,level=excluded.level,locked=excluded.locked,available=1,slot_id=excluded.slot_id,quality_id=COALESCE(excluded.quality_id,equipment.quality_id),enhancement_level=excluded.enhancement_level,item_locked=excluded.item_locked,source='ocr',updated_at=datetime('now')""", (*item[:5], 0, item[1], quality_id, enhancement_level, 0))
