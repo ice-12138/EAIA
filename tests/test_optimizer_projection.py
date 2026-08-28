@@ -98,6 +98,9 @@ class OptimizerProjectionTests(unittest.TestCase):
                 report = database.projection_reports["TARGET"]
                 self.assertEqual(report["current_level"], 8)
                 self.assertEqual(report["projected_level"], 16)
+                self.assertEqual(report["main_stat_level_used"], 16)
+                self.assertFalse(report["uses_current_main_fallback"])
+                self.assertTrue(report["projection_complete"])
                 self.assertEqual(report["stats"][0]["projection_source"], "main_stat_cap")
                 self.assertEqual(report["stats"][1]["projection_source"], "empirical_p90")
 
@@ -116,7 +119,7 @@ class OptimizerProjectionTests(unittest.TestCase):
             finally:
                 database.close()
 
-    def test_underlevel_item_without_known_main_cap_is_excluded_not_undervalued(self):
+    def test_underlevel_item_without_known_main_cap_uses_current_main_value(self):
         with tempfile.TemporaryDirectory() as directory:
             database = self._database(directory)
             try:
@@ -128,10 +131,46 @@ class OptimizerProjectionTests(unittest.TestCase):
                     main_type="DEF_PCT",
                     main_value=0.20,
                 )
-                self.assertNotIn("UNKNOWN_CAP", {item.item_id for item in database.load_equipment()})
-                self.assertIn("UNKNOWN_CAP", database.projection_exclusions)
-                with self.assertRaises(EquipmentProjectionError):
-                    database.load_equipment(["UNKNOWN_CAP"])
+
+                all_items = {item.item_id: item for item in database.load_equipment()}
+                self.assertIn("UNKNOWN_CAP", all_items)
+                main = next(stat for stat in all_items["UNKNOWN_CAP"].stats if stat.stat_index == 0)
+                self.assertAlmostEqual(main.stat_value, 0.20)
+                self.assertEqual(all_items["UNKNOWN_CAP"].level, 16)
+                self.assertNotIn("UNKNOWN_CAP", database.projection_exclusions)
+
+                report = database.projection_reports["UNKNOWN_CAP"]
+                self.assertEqual(report["current_level"], 8)
+                self.assertEqual(report["projected_level"], 16)
+                self.assertEqual(report["main_stat_level_used"], 8)
+                self.assertTrue(report["uses_current_main_fallback"])
+                self.assertFalse(report["projection_complete"])
+                self.assertEqual(
+                    report["stats"][0]["projection_source"],
+                    "current_level_main_fallback",
+                )
+                self.assertEqual(report["stats"][0]["value_level"], 8)
+                self.assertTrue(report["warnings"])
+
+                summary = database.projection_summary(["UNKNOWN_CAP"])
+                self.assertEqual(summary["current_main_fallback_item_count"], 1)
+                self.assertEqual(
+                    summary["main_stat_fallback_policy"],
+                    "use_current_observed_value_when_max_cap_unknown",
+                )
+
+                direct = database.load_equipment(["UNKNOWN_CAP"])[0]
+                direct_main = next(stat for stat in direct.stats if stat.stat_index == 0)
+                self.assertAlmostEqual(direct_main.stat_value, 0.20)
+
+                stored = database.connection.execute(
+                    "SELECT enhancement_level FROM equipment WHERE item_id='UNKNOWN_CAP'"
+                ).fetchone()[0]
+                stored_main = database.connection.execute(
+                    "SELECT stat_value FROM equipment_stats WHERE item_id='UNKNOWN_CAP' AND stat_index=0"
+                ).fetchone()[0]
+                self.assertEqual(stored, 8)
+                self.assertAlmostEqual(stored_main, 0.20)
             finally:
                 database.close()
 
@@ -155,6 +194,30 @@ class OptimizerProjectionTests(unittest.TestCase):
                     database.projection_reports["ALREADY_MAX"]["stats"][0]["projection_source"],
                     "actual_at_level_cap",
                 )
+                self.assertFalse(database.projection_reports["ALREADY_MAX"]["uses_current_main_fallback"])
+            finally:
+                database.close()
+
+    def test_missing_main_value_still_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = self._database(directory)
+            try:
+                self._insert_item(
+                    database,
+                    item_id="NO_MAIN_VALUE",
+                    slot="bracelet",
+                    level=8,
+                    main_type="DEF_PCT",
+                    main_value=0.20,
+                )
+                database.connection.execute(
+                    "UPDATE equipment_stats SET stat_value=NULL WHERE item_id='NO_MAIN_VALUE' AND stat_index=0"
+                )
+                database.connection.commit()
+                self.assertNotIn("NO_MAIN_VALUE", {item.item_id for item in database.load_equipment()})
+                self.assertIn("NO_MAIN_VALUE", database.projection_exclusions)
+                with self.assertRaises(EquipmentProjectionError):
+                    database.load_equipment(["NO_MAIN_VALUE"])
             finally:
                 database.close()
 
