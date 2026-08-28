@@ -1,10 +1,11 @@
 """Optimizer-only projection of inventory equipment to its final enhancement state.
 
-The inventory database keeps the equipment exactly as observed in game.  The
-recommendation engine, however, is a cultivation-value optimizer: Mythic gear
-must be compared at +16, and locked sub-stats must be assigned an explicit
-estimate instead of being silently omitted.  This module provides that view
-without mutating the stored equipment rows.
+The inventory database keeps equipment exactly as observed in game. The
+recommendation engine compares gear at its cultivation ceiling whenever that
+ceiling is known, and estimates locked sub-stats at P90. If a max-level main
+stat value is still unknown, the observed current-level main stat is retained
+as a conservative fallback instead of excluding the item from recommendation.
+The stored inventory rows are never mutated.
 """
 
 from __future__ import annotations
@@ -35,16 +36,20 @@ def _slot_scope(slot: str) -> str:
 class OptimizerEquipmentDatabase(EquipmentDatabase):
     """Read-only optimizer view using max enhancement and P90 locked sub-stats.
 
-    Stored inventory rows are never updated.  Main stats are replaced by the
-    known value at the quality enhancement cap.  Unlocked sub-stats keep their
-    observed value.  Locked sub-stats use an explicit override when present,
-    otherwise the empirical/canonical P90 estimate from :class:`SubStatEstimator`.
+    Main stats use the known value at the quality enhancement cap when one is
+    available. Unlocked sub-stats keep their observed value. Locked sub-stats
+    use an explicit override when present, otherwise the empirical/canonical
+    P90 estimate from :class:`SubStatEstimator`.
 
-    If an under-levelled item has no known main-stat cap, or a Mythic item does
-    not expose all four sub-stat identities, the item is excluded from broad
-    recommendation searches.  A direct request for that item raises an error.
-    This is intentionally strict: using the current partial value would make a
-    supposed +16 recommendation mathematically false.
+    When the max-level main-stat value is not yet known, an item with a known
+    current enhancement level and observed main-stat value remains usable. The
+    current observed main stat is used as a conservative fallback and the
+    projection report explicitly marks that item as partial. This lets, for
+    example, a known +8 main stat participate in recommendation until its +16
+    cap is measured, without pretending that the +8 value is the +16 value.
+
+    A Mythic item still needs all four sub-stat identities. Missing stat
+    identities or missing locked-substat estimates remain exclusion reasons.
     """
 
     def __init__(
@@ -118,13 +123,14 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             (item_id,),
         ).fetchall()
 
-        # Mythic recommendation is explicitly a +16 / all-four-substats view.
+        # Mythic recommendation is an all-four-substats view even if the main
+        # stat has to fall back to a known lower enhancement value.
         if quality_id == "mythic_red":
             indices = {int(stat["stat_index"]) for stat in stat_rows}
             if indices != {0, 1, 2, 3, 4}:
                 missing = sorted({0, 1, 2, 3, 4} - indices)
                 raise EquipmentProjectionError(
-                    f"{item_id}: Mythic +16 projection requires stat identities 0-4; missing {missing}"
+                    f"{item_id}: Mythic projection requires stat identities 0-4; missing {missing}"
                 )
 
         estimator = SubStatEstimator(
@@ -134,6 +140,9 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         )
         projected_stats: list[EquipmentStat] = []
         report_stats: list[dict[str, Any]] = []
+        report_warnings: list[str] = []
+        uses_current_main_fallback = False
+        main_stat_level_used: int | None = None
 
         for stat in stat_rows:
             stat_type_raw = str(stat["stat_type"]).upper()
@@ -143,6 +152,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             source = str(stat["stat_source"])
             projected: float | None
             projection_source: str
+            stat_level_used: int | None = None
 
             if source == "main":
                 cap = self._main_cap(
@@ -153,17 +163,40 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                 if cap is not None:
                     projected = cap
                     projection_source = "main_stat_cap"
-                elif target_level is not None and current_level is not None and current_level >= target_level and actual is not None:
+                    stat_level_used = target_level
+                elif (
+                    target_level is not None
+                    and current_level is not None
+                    and current_level >= target_level
+                    and actual is not None
+                ):
                     projected = actual
                     projection_source = "actual_at_level_cap"
+                    stat_level_used = current_level
+                elif actual is not None and current_level is not None:
+                    # Conservative fallback requested by the recommendation
+                    # semantics: keep a measured +8/+12/etc. main stat in the
+                    # calculation until its +16 cap becomes known.
+                    projected = actual
+                    projection_source = "current_level_main_fallback"
+                    stat_level_used = current_level
+                    uses_current_main_fallback = True
+                    target_text = f"+{target_level}" if target_level is not None else "max level"
+                    warning = (
+                        f"{item_id}: {stat_type_raw} {target_text} main-stat cap is unknown; "
+                        f"using observed +{current_level} value {actual:g} for recommendation"
+                    )
+                    report_warnings.append(warning)
                 elif actual is not None and target_level is None:
                     projected = actual
                     projection_source = "actual_unknown_quality_cap"
+                    stat_level_used = current_level
                 else:
                     raise EquipmentProjectionError(
-                        f"{item_id}: no verified max-level main-stat value for {stat_type_raw} "
+                        f"{item_id}: no usable main-stat value for {stat_type_raw} "
                         f"({quality_id or 'unknown quality'}, {slot.value})"
                     )
+                main_stat_level_used = stat_level_used
             else:
                 unlocked = bool(stat["is_unlocked"])
                 override = stat["estimate_override"]
@@ -174,13 +207,16 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                         )
                     projected = actual
                     projection_source = "actual"
+                    stat_level_used = current_level
                 elif override is not None:
                     projected = float(override)
                     projection_source = "override"
+                    stat_level_used = target_level
                 else:
                     estimate = estimator.estimate(stat_type_raw, stat["roll_grade_id"])
                     projected = estimate.expected
                     projection_source = estimate.source
+                    stat_level_used = target_level
                     if projected is None:
                         grade = stat["roll_grade_id"] or "all-grades"
                         raise EquipmentProjectionError(
@@ -204,6 +240,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                 "actual_value": actual,
                 "projected_value": float(projected),
                 "projection_source": projection_source,
+                "value_level": stat_level_used,
                 "is_unlocked": bool(stat["is_unlocked"]),
                 "roll_grade_id": stat["roll_grade_id"],
             })
@@ -215,6 +252,10 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             "slot": slot.value,
             "current_level": current_level,
             "projected_level": projected_level,
+            "main_stat_level_used": main_stat_level_used,
+            "uses_current_main_fallback": uses_current_main_fallback,
+            "projection_complete": not uses_current_main_fallback,
+            "warnings": report_warnings,
             "percentile": self.percentile,
             "stats": report_stats,
         }
@@ -252,14 +293,18 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
 
     def projection_summary(self, item_ids: list[str] | tuple[str, ...] | None = None) -> dict[str, Any]:
         selected = set(item_ids or self.projection_reports)
+        reports = [
+            self.projection_reports[item_id]
+            for item_id in sorted(selected)
+            if item_id in self.projection_reports
+        ]
+        fallback_items = [report for report in reports if report.get("uses_current_main_fallback")]
         return {
             "mode": "max_enhancement_p90",
             "locked_substat_percentile": self.percentile,
-            "items": [
-                self.projection_reports[item_id]
-                for item_id in sorted(selected)
-                if item_id in self.projection_reports
-            ],
+            "main_stat_fallback_policy": "use_current_observed_value_when_max_cap_unknown",
+            "current_main_fallback_item_count": len(fallback_items),
+            "items": reports,
             "excluded_item_count": len(self.projection_exclusions),
             "excluded_items": dict(sorted(self.projection_exclusions.items())),
         }
