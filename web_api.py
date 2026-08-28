@@ -1,8 +1,8 @@
-"""Small read-only HTTP API for the EAIA web application.
+"""Small HTTP API for the EAIA web application.
 
-The browser receives JSON responses, but every response is assembled from the
-SQLite database at request time.  This keeps the frontend independent from
-generated JSON exports and makes OCR updates visible after a page refresh.
+The browser receives JSON responses assembled from SQLite at request time.
+HeroCore simulation endpoints use the same database snapshot for equipment
+stats while hero-specific combat mechanics stay in declarative core files.
 """
 
 from __future__ import annotations
@@ -17,9 +17,11 @@ import uuid
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from equipment_db import EquipmentDatabase
+from hero_core_engine import HeroCoreError
+from hero_core_service import hero_core_catalog, hero_core_detail, simulate_hero_core
 from official_hero_data import seed_official_hero_catalog
 from screen_capture import CaptureError, choose_target, find_hdc, list_targets
 
@@ -51,6 +53,7 @@ def scan_status() -> dict:
 def _set_scan_state(**values: object) -> None:
     with _scan_lock:
         _scan_state.update(values)
+
 
 CATALOG_TABLES = (
     "equipment_categories", "equipment_slots", "set_tiers", "gear_qualities",
@@ -126,7 +129,6 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
     try:
         heroes = rows(connection, "official_hero_catalog")
         skills = rows(connection, "official_skill_catalog")
-        # Keep value_json structured for API consumers while preserving NULL.
         for skill in skills:
             if skill["value_json"]:
                 try:
@@ -162,12 +164,21 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_json(self) -> dict:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+        payload = json.loads(self.rfile.read(length) or b"{}")
+        if not isinstance(payload, dict):
+            raise ValueError("JSON request body must be an object")
+        return payload
+
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path.startswith("/api/"):
             try:
                 if path == "/api/health":
-                    self._send_json({"status": "ok", "database": str(self.database)})
+                    self._send_json({"status": "ok", "database": str(self.database), "hero_core": True})
                 elif path == "/api/device/check":
                     hdc = find_hdc(HDC)
                     targets = list_targets(hdc)
@@ -175,6 +186,11 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     self._send_json({"connected": True, "serial": target, "targets": targets})
                 elif path == "/api/scan/status":
                     self._send_json(scan_status())
+                elif path == "/api/hero-cores":
+                    self._send_json(hero_core_catalog())
+                elif path.startswith("/api/hero-cores/"):
+                    core_id = unquote(path.removeprefix("/api/hero-cores/"))
+                    self._send_json(hero_core_detail(core_id))
                 else:
                     hero_data, catalog_data, equipment_data = database_payload(self.database)
                     payloads = {
@@ -186,6 +202,8 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                         self._send_json(payloads[path])
                     else:
                         self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+            except HeroCoreError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.NOT_FOUND)
             except (sqlite3.Error, OSError, CaptureError) as error:
                 self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -196,12 +214,21 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
 
     def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/api/hero-core/simulate":
+            try:
+                payload = self._read_json()
+                self._send_json(simulate_hero_core(self.database, payload))
+            except (HeroCoreError, TypeError, ValueError, json.JSONDecodeError) as error:
+                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+            except (sqlite3.Error, OSError) as error:
+                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+            return
+
         if path != "/api/scan/start":
             self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
             return
         try:
-            length = int(self.headers.get("Content-Length", "0"))
-            payload = json.loads(self.rfile.read(length) or b"{}") if length else {}
+            payload = self._read_json()
             resume_row = int(payload.get("resume_row", 1))
             resume_column = int(payload.get("resume_column", 0))
             if resume_row < 1 or resume_column < 0 or resume_column > 8:
