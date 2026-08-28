@@ -367,7 +367,8 @@ class FastEquipmentWorkflow(EquipmentWorkflow):
                 "fast_path": "reuse_selected",
             }
 
-        self.click(x, y)
+        click_y = y
+        self.click(x, click_y)
         if self.settle_delay:
             time.sleep(self.settle_delay)
         final_path = self.capture()
@@ -378,15 +379,34 @@ class FastEquipmentWorkflow(EquipmentWorkflow):
             recovery_path = self.capture()
             recovery = Image.open(recovery_path).convert("RGB")
             if not changed(self.detail_region.crop(before), self.detail_region.crop(recovery)):
-                raise WorkflowError(
-                    f"Detail panel did not change after clicking row={row}, column={column}"
-                )
-            final_path = recovery_path
+                # The last visible row can sit close to the bottom gesture area.
+                # Retry inside the same tile, above its center, where the touch
+                # is less likely to be consumed by the device navigation area.
+                retry_y = max(0, y - 48)
+                if retry_y != y:
+                    click_y = retry_y
+                    self.click(x, click_y)
+                    if self.recovery_delay:
+                        time.sleep(self.recovery_delay)
+                    retry_path = self.capture()
+                    retry = Image.open(retry_path).convert("RGB")
+                    if changed(self.detail_region.crop(before), self.detail_region.crop(retry)):
+                        final_path = retry_path
+                    else:
+                        raise WorkflowError(
+                            f"Detail panel did not change after clicking row={row}, column={column}"
+                        )
+                else:
+                    raise WorkflowError(
+                        f"Detail panel did not change after clicking row={row}, column={column}"
+                    )
+            else:
+                final_path = recovery_path
 
         return {
             "row": row,
             "column": column,
-            "click": {"x": x, "y": y},
+            "click": {"x": x, "y": click_y},
             "final_path": final_path,
             "baseline_result": None,
             "stem": stem,

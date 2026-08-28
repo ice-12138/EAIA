@@ -110,6 +110,38 @@ class FastEquipmentScanTests(unittest.TestCase):
             self.assertEqual(len(captures), 1)
             self.assertEqual(clicks, [(20, 20)])
 
+    def test_unchanged_detail_retries_click_above_bottom_row_center(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            before = root / "before.jpg"
+            unchanged = root / "unchanged.jpg"
+            after = root / "after.jpg"
+            Image.new("RGB", (40, 40), "black").save(before)
+            Image.new("RGB", (40, 40), "black").save(unchanged)
+            Image.new("RGB", (40, 40), "white").save(after)
+            captures = iter([unchanged, unchanged, after])
+            clicks = []
+            workflow = FastEquipmentWorkflow(
+                capture=lambda: next(captures),
+                click=lambda x, y: clicks.append((x, y)),
+                ocr=DummyOcr(),
+                detail_region=Region(0, 0, 39, 39),
+                output_dir=root / "out",
+                poll_interval=0,
+                settle_delay=0,
+                recovery_delay=0,
+                verify_baseline_ocr=False,
+                enable_coarse_ocr=False,
+            )
+            captured = workflow.capture_item(
+                113, 1, 453, 1056,
+                before_path=before,
+                before_image=Image.open(before).convert("RGB"),
+            )
+            self.assertEqual(captured["final_path"], after)
+            self.assertEqual(captured["click"], {"x": 453, "y": 1008})
+            self.assertEqual(clicks, [(453, 1056), (453, 1008)])
+
     def test_ocr_runs_in_worker_but_persistence_runs_on_caller_thread(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
