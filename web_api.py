@@ -27,7 +27,14 @@ from data_manager import (
 )
 from equipment_db import EquipmentDatabase
 from hero_core_engine import HeroCoreError
-from hero_core_service import hero_core_catalog, hero_core_detail, simulate_hero_core
+from hero_core_service import (
+    hero_core_catalog,
+    hero_core_codex_payload,
+    hero_core_detail,
+    import_hero_core,
+    recommend_hero_core,
+    simulate_hero_core,
+)
 from official_hero_data import seed_official_hero_catalog
 from screen_capture import CaptureError, choose_target, find_hdc, list_targets
 
@@ -124,6 +131,22 @@ def rows(connection: sqlite3.Connection, source: str) -> list[dict]:
     return [dict(row) for row in result.fetchall()]
 
 
+def _merge_hero_core_codex(heroes: list[dict], skills: list[dict]) -> tuple[list[dict], list[dict]]:
+    core_payload = hero_core_codex_payload()
+    hero_map = {str(row["hero_key"]): dict(row) for row in heroes}
+    for row in core_payload["heroes"]:
+        key = str(row["hero_key"])
+        hero_map[key] = {**hero_map.get(key, {}), **row}
+    skill_map = {(str(row["hero_key"]), str(row["skill_key"])): dict(row) for row in skills}
+    for row in core_payload["skills"]:
+        key = (str(row["hero_key"]), str(row["skill_key"]))
+        skill_map[key] = {**skill_map.get(key, {}), **row}
+    return (
+        sorted(hero_map.values(), key=lambda row: str(row.get("hero_name") or row.get("hero_key"))),
+        sorted(skill_map.values(), key=lambda row: (str(row.get("hero_key")), str(row.get("skill_key")))),
+    )
+
+
 def database_payload(database: Path) -> tuple[dict, dict, dict]:
     connection = sqlite3.connect(database)
     connection.row_factory = sqlite3.Row
@@ -131,11 +154,12 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
         heroes = rows(connection, "official_hero_catalog")
         skills = rows(connection, "official_skill_catalog")
         for skill in skills:
-            if skill["value_json"]:
+            if skill.get("value_json"):
                 try:
                     skill["value_json"] = json.loads(skill["value_json"])
                 except json.JSONDecodeError:
                     pass
+        heroes, skills = _merge_hero_core_codex(heroes, skills)
         equipment = {table: rows(connection, table) for table in EQUIPMENT_TABLES}
         equipment["v_equipment_full"] = _format_equipment_overview(equipment["v_equipment_full"])
         return (
@@ -240,6 +264,12 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         try:
             if path == "/api/hero-core/simulate":
                 self._send_json(simulate_hero_core(self.database, self._read_json()))
+                return
+            if path == "/api/hero-core/recommend":
+                self._send_json(recommend_hero_core(self.database, self._read_json()))
+                return
+            if path in {"/api/hero-core/import", "/api/hero-cores/import"}:
+                self._send_json(import_hero_core(self._read_json()), HTTPStatus.CREATED)
                 return
             if path == "/api/manage/equipment":
                 payload = self._read_json()
