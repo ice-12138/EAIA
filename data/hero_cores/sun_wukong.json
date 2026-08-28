@@ -1,14 +1,19 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.0.0",
+  "core_version": "1.1.0",
   "game_version": "CN-2026-08-28",
   "hero": {
     "id": "SUN_WUKONG",
     "name": "孙悟空",
+    "title": "",
+    "faction": "",
     "role": "战士",
     "damage_type": "physical",
+    "mechanic_summary": "围绕当头一棒、破势、身外化身和大圣幻象形成持续输出循环；HeroCore 同时建模怒气、召唤物、攻击增益和破防窗口。",
     "base_stats": {
       "atk": 6498.0,
+      "hp": null,
+      "def": null,
       "crit_rate": 0.05,
       "crit_dmg": 1.5,
       "atk_speed": 0.0,
@@ -23,11 +28,75 @@
       "auto_per_second": 13.0
     }
   },
+  "codex": {
+    "mechanic_summary": "普通攻击有概率转化为当头一棒并积累破势；5层破势释放终结技时获得无视防御窗口；普攻次数还会驱动大圣幻象和攻击力增益。",
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "攻击1名敌人，造成115%攻击力的物理伤害。",
+        "coefficient": 1.15,
+        "target_cap": 1,
+        "direct_damage": true,
+        "notes": "按用户提供的当前技能截图录入。"
+      },
+      {
+        "id": "ultimate",
+        "name": "身外化身",
+        "type": "ultimate",
+        "description": "释放终结技，在约4.5秒内进行18次攻击，每次造成100%攻击力的物理伤害；当前怒气上限按700建模。",
+        "coefficient": 1.0,
+        "target_cap": 1,
+        "duration": 4.5,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 18,
+          "hit_interval": 0.25,
+          "rage_cost": 700
+        }
+      },
+      {
+        "id": "cudgel_proc",
+        "name": "当头一棒",
+        "type": "passive",
+        "description": "普通攻击有25%概率触发当头一棒，按200%攻击力造成伤害并获得1层破势；目标免疫眩晕时额外追加一次200%攻击力伤害。",
+        "coefficient": 2.0,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "proc_chance": 0.25,
+          "immune_extra_coefficient": 2.0,
+          "sunder_gain": 1
+        }
+      },
+      {
+        "id": "fire_eyes",
+        "name": "火眼金睛",
+        "type": "passive",
+        "description": "破势达到5层后释放终结技会消耗破势，并获得11秒的60%无视防御效果。",
+        "coefficient": null,
+        "target_cap": 1,
+        "duration": 11.0,
+        "direct_damage": false,
+        "values": {
+          "required_sunder": 5,
+          "defense_ignore": 0.6
+        }
+      }
+    ],
+    "talents": [
+      {
+        "id": "great_sage_clone",
+        "name": "大圣幻象",
+        "description": "每第3次普通攻击召唤1个大圣幻象，最多3个；幻象按40%攻击力进行攻击。幻象达到3个后，每第3次普通攻击改为刷新15秒20%攻击力增益。"
+      }
+    ]
+  },
   "state": {
     "basic_count": {"initial": 0, "min": 0},
     "sunder": {"initial": 0, "min": 0, "max": 5},
-    "clone_count": {"initial": 0, "min": 0, "max": 3},
-    "enlightenment": {"initial": 0, "min": 0, "max": 5}
+    "clone_count": {"initial": 0, "min": 0, "max": 3}
   },
   "buffs": {
     "wukong_atk_boost": {"duration": 15.0, "modifiers": {"atk_pct": 0.2}},
@@ -75,21 +144,6 @@
     }
   },
   "triggers": [
-    {
-      "id": "enlightenment_clock_start",
-      "event": "BATTLE_START",
-      "priority": 10,
-      "actions": [{"type": "schedule_event", "event": "ENLIGHTENMENT_TICK", "delay": 30.0}]
-    },
-    {
-      "id": "enlightenment_tick",
-      "event": "ENLIGHTENMENT_TICK",
-      "priority": 10,
-      "actions": [
-        {"type": "add_state", "state": "enlightenment", "value": 1},
-        {"type": "schedule_event", "event": "ENLIGHTENMENT_TICK", "delay": 30.0}
-      ]
-    },
     {
       "id": "cudgel_proc",
       "event": "BASIC_ATTACK_BEFORE_DAMAGE",
@@ -143,14 +197,8 @@
     }
   ],
   "policies": {
-    "immediate": {
-      "label": "怒气满立即释放",
-      "ultimate_when": "resource.rage >= 700"
-    },
-    "wait_sunder_5": {
-      "label": "优先5层破势释放",
-      "ultimate_when": "resource.rage >= 700 and state.sunder >= 5"
-    }
+    "immediate": {"label": "怒气满立即释放", "ultimate_when": "resource.rage >= 700"},
+    "wait_sunder_5": {"label": "优先5层破势释放", "ultimate_when": "resource.rage >= 700 and state.sunder >= 5"}
   },
   "default_policy": "immediate",
   "assumptions": [
