@@ -1,0 +1,171 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.0.0",
+  "game_version": "CN-2026-08-28",
+  "hero": {
+    "id": "SUN_WUKONG",
+    "name": "孙悟空",
+    "role": "战士",
+    "damage_type": "physical",
+    "base_stats": {
+      "atk": 6498.0,
+      "crit_rate": 0.05,
+      "crit_dmg": 1.5,
+      "atk_speed": 0.0,
+      "rage_regen": 0.0,
+      "attack_interval": 2.6
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 400.0,
+      "max": 700.0,
+      "auto_per_second": 13.0
+    }
+  },
+  "state": {
+    "basic_count": {"initial": 0, "min": 0},
+    "sunder": {"initial": 0, "min": 0, "max": 5},
+    "clone_count": {"initial": 0, "min": 0, "max": 3},
+    "enlightenment": {"initial": 0, "min": 0, "max": 5}
+  },
+  "buffs": {
+    "wukong_atk_boost": {"duration": 15.0, "modifiers": {"atk_pct": 0.2}},
+    "fire_eyes_def_ignore": {"duration": 11.0, "modifiers": {"defense_ignore": 0.6}}
+  },
+  "summons": {
+    "great_sage_clone": {
+      "max_count": 3,
+      "inherit": {"atk": 1.0, "crit_rate": 1.0, "crit_dmg": 1.0, "atk_speed": 1.0},
+      "attack": {
+        "coefficient": 0.4,
+        "hit_count": 1,
+        "can_crit": true,
+        "speed_multiplier": 1.0,
+        "first_attack_delay_mode": "interval",
+        "tags": ["summon", "physical", "direct_damage"]
+      }
+    }
+  },
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 1.15,
+      "hit_count": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0.0,
+      "resource_gain": {"resource": "rage", "value": 10.0, "scale_with_regen": true},
+      "tags": ["basic_attack", "physical", "direct_damage"]
+    },
+    "ultimate": {
+      "id": "ultimate",
+      "name": "身外化身",
+      "kind": "ultimate",
+      "coefficient": 1.0,
+      "hit_count": 18,
+      "hit_interval": 0.25,
+      "duration": 4.5,
+      "can_crit": true,
+      "blocks_basic_attack": true,
+      "resource": {"name": "rage", "cost": 700.0},
+      "tags": ["ultimate", "skill", "physical", "direct_damage"]
+    }
+  },
+  "triggers": [
+    {
+      "id": "enlightenment_clock_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [{"type": "schedule_event", "event": "ENLIGHTENMENT_TICK", "delay": 30.0}]
+    },
+    {
+      "id": "enlightenment_tick",
+      "event": "ENLIGHTENMENT_TICK",
+      "priority": 10,
+      "actions": [
+        {"type": "add_state", "state": "enlightenment", "value": 1},
+        {"type": "schedule_event", "event": "ENLIGHTENMENT_TICK", "delay": 30.0}
+      ]
+    },
+    {
+      "id": "cudgel_proc",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 10,
+      "chance": 0.25,
+      "actions": [
+        {"type": "set_event_coefficient", "value": 2.0},
+        {
+          "type": "deal_damage",
+          "coefficient": 2.0,
+          "source": "followup",
+          "can_crit": true,
+          "tags": ["basic_attack", "physical", "direct_damage", "cudgel_extra"],
+          "condition": "target.control_immune == true"
+        },
+        {"type": "add_state", "state": "sunder", "value": 1}
+      ]
+    },
+    {
+      "id": "basic_counter",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 10,
+      "actions": [{"type": "add_state", "state": "basic_count", "value": 1}]
+    },
+    {
+      "id": "full_clone_attack_buff",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 20,
+      "condition": "state.basic_count % 3 == 0 and state.clone_count >= 3",
+      "actions": [{"type": "apply_buff", "buff": "wukong_atk_boost"}]
+    },
+    {
+      "id": "summon_clone",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 30,
+      "condition": "state.basic_count % 3 == 0 and state.clone_count < 3",
+      "actions": [
+        {"type": "summon", "entity": "great_sage_clone", "count": 1},
+        {"type": "add_state", "state": "clone_count", "value": 1}
+      ]
+    },
+    {
+      "id": "fire_eyes",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "condition": "state.sunder >= 5",
+      "actions": [
+        {"type": "reset_state", "state": "sunder"},
+        {"type": "apply_buff", "buff": "fire_eyes_def_ignore"}
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 700"
+    },
+    "wait_sunder_5": {
+      "label": "优先5层破势释放",
+      "ultimate_when": "resource.rage >= 700 and state.sunder >= 5"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "暴击采用数学期望，不对每个伤害实例随机采样，以降低装备比较方差。",
+    "当头一棒按25%概率建模；触发时主击倍率按界面显示200%，木桩免控时再追加一次200%伤害。",
+    "身外化身按18次100%攻击力伤害、4.5秒施法和0.25秒命中间隔建模。",
+    "火眼金睛在5层破势释放终结技时消耗破势，并提供11秒60%无视防御。",
+    "大圣幻象按每第3次普攻召唤，最多3个；满3个后每第3次普攻刷新15秒20%攻击力增益。",
+    "幻象按40%攻击力、继承主人当前攻击/暴击/攻速的动态属性模型计算。"
+  ],
+  "validation_required": [
+    "技能升级行是否已经计入界面顶部显示的115%/100%/200%倍率；当前核心按顶部显示值直接使用。",
+    "孙悟空2.6秒基础攻击间隔、自动怒气13/s和普攻回怒10需要用游戏内录像/数值再次标定。",
+    "终结技4.5秒期间是否完全阻塞普通攻击，以及18段伤害的真实时间戳需要录像校准。",
+    "幻象首次攻击延迟、是否动态继承20%攻击Buff及装备特殊效果继承范围需要实测。",
+    "木桩实际DEF和游戏精确防御公式未公开；目标DEF应通过木桩实测标定。"
+  ]
+}
