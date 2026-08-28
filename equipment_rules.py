@@ -11,8 +11,8 @@ class GameRules:
     defense_constant: float = 100.0
     attack_interval_base: float = 1.0
     # Equipment/sets expose attack speed as panel points (e.g. +30), not a
-    # multiplicative ratio.  Keep the conversion configurable until a more
-    # precise game formula is measured; 100 points == +1.0 ratio by default.
+    # multiplicative ratio. Keep the conversion configurable until the exact
+    # game curve is measured; 100 bonus points == +1.0 ratio by default.
     attack_speed_points_per_ratio: float = 100.0
 
     @classmethod
@@ -30,10 +30,34 @@ class GameRules:
     def crit(self, raw_rate: float) -> tuple[float, float]:
         return min(raw_rate, self.crit_rate_cap), max(0.0, raw_rate - self.crit_rate_cap)
 
-    def attack_interval(self, base_interval: float | None, attack_speed: float) -> float:
+    def attack_interval(
+        self,
+        base_interval: float | None,
+        attack_speed: float,
+        *,
+        base_attack_speed: float | None = None,
+    ) -> float:
+        """Convert attack-speed panel points into an effective interval.
+
+        HeroCore stores the game's white-panel values verbatim. When
+        ``base_attack_speed`` is provided, ``attack_speed`` is therefore the
+        current panel value and only the delta from the hero's white-panel
+        baseline changes ``base_interval``. Calls that omit the baseline keep
+        the legacy behaviour where ``attack_speed`` already means bonus points.
+
+        The curve itself remains configurable/provisional; this method fixes
+        the data semantics without pretending the exact hidden game formula is
+        already known.
+        """
+
         base = base_interval or self.attack_interval_base
         scale = max(1e-9, self.attack_speed_points_per_ratio)
-        return base / max(0.01, 1.0 + attack_speed / scale)
+        bonus_points = (
+            attack_speed
+            if base_attack_speed is None
+            else attack_speed - base_attack_speed
+        )
+        return base / max(0.01, 1.0 + bonus_points / scale)
 
     def defense_multiplier(self, defense: float) -> float:
         return 1.0 if defense <= 0 else self.defense_constant / (self.defense_constant + defense)
