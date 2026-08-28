@@ -1,6 +1,6 @@
 import unittest
 
-from hero_core_engine import HeroCoreError, SafeExpression, load_core, simulate_average
+from hero_core_engine import HeroCoreError, HeroCoreSimulator, SafeExpression, load_core, simulate_average
 
 
 class HeroCoreEngineTests(unittest.TestCase):
@@ -58,6 +58,15 @@ class HeroCoreEngineTests(unittest.TestCase):
         result = simulate_average(core, trials=1, warmup=120.0, measurement=1200.0, seed=1)
         self.assertAlmostEqual(result["equivalent_60s"]["mean"], 500.0, places=6)
         self.assertEqual(result["actual_60s"]["mean"], 0.0)
+
+    def test_white_panel_attack_speed_does_not_accelerate_naked_wukong(self):
+        core = load_core("SUN_WUKONG")
+        self.assertEqual(core["hero"]["base_stats"]["atk_speed"], 100.0)
+        self.assertEqual(core["hero"]["base_stats"]["crit_rate"], 0.0)
+        simulator = HeroCoreSimulator(core, warmup=0.0, measurement=5.0)
+        self.assertEqual(simulator.panel["atk_speed_base"], 100.0)
+        self.assertEqual(simulator.panel["atk_speed"], 100.0)
+        self.assertAlmostEqual(simulator._attack_interval(), 2.6, places=9)
 
     def test_sun_wukong_core_runs_without_hero_specific_engine_code(self):
         core = load_core("SUN_WUKONG")
