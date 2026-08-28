@@ -480,6 +480,9 @@ class FastEquipmentScanner(EquipmentScanner):
                         if column not in occupied_columns:
                             continue
                         y = self.grid.y_centers[screen_row]
+                        self._report_progress(
+                            status="scanning", row=logical_row, column=column
+                        )
                         allow_unchanged = self._slot_selected(current, x, y)
                         captured = self.workflow.capture_item(
                             logical_row, column, x, y,

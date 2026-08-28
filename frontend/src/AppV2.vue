@@ -11,7 +11,9 @@ function viewFromHash() {
   return VIEWS.has(saved) ? saved : 'heroes'
 }
 
+const props = defineProps({ embedded: { type: Boolean, default: false } })
 const currentView = ref(viewFromHash())
+const currentLanguage = ref(window.localStorage.getItem('eaia-language') || 'zh-CN')
 const db = ref(null)
 const equipmentRecords = ref(null)
 const heroCatalog = ref(null)
@@ -39,11 +41,10 @@ const equipmentTable = ref('v_equipment_full')
 const deviceState = ref({ status: 'unknown', connected: false, targets: [] })
 const scanState = ref({ status: 'idle', completed: 0, total: null, row: null, column: null, elapsed_seconds: 0, average_seconds: null, new_count: 0, duplicate_count: 0, updated_count: 0 })
 const deviceChecking = ref(false)
-const scanMode = ref('full')
-const resumeRow = ref(1)
-const resumeColumn = ref(0)
-const stopRow = ref(1)
-const stopColumn = ref(8)
+const startRow = ref(1)
+const startColumn = ref(1)
+const endRow = ref(0)
+const endColumn = ref(0)
 let scanPollTimer = null
 
 const STAT_LABELS = {
@@ -122,6 +123,11 @@ watch(currentView, view => {
 
 function restoreViewFromHash() {
   currentView.value = viewFromHash()
+}
+
+function toggleLanguage() {
+  currentLanguage.value = currentLanguage.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  window.localStorage.setItem('eaia-language', currentLanguage.value)
 }
 
 const dictionaryTables = computed(() => Object.entries(db.value || {}).filter(([, value]) => Array.isArray(value)).map(([name, rows]) => ({ name, rows })))
@@ -367,11 +373,10 @@ async function startEquipmentScan() {
   try {
     const response = await fetch('/api/scan/start', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(scanMode.value === 'resume'
-        ? { resume_row: Number(resumeRow.value), resume_column: Number(resumeColumn.value) }
-        : scanMode.value === 'range'
-          ? { resume_row: 1, resume_column: 0, stop_row: Number(stopRow.value), stop_column: Number(stopColumn.value) }
-          : { resume_row: 1, resume_column: 0 })
+      body: JSON.stringify({
+        start_row: Number(startRow.value), start_column: Number(startColumn.value),
+        end_row: Number(endRow.value), end_column: Number(endColumn.value),
+      })
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || '无法启动识别')
@@ -414,16 +419,16 @@ onUnmounted(() => {
 
 <template>
   <div class="app-shell">
-    <header class="topbar">
-      <div class="brand"><span class="brand-icon">E</span><span>EAIA <em>装备与英雄数据库</em></span></div>
-      <nav class="main-nav" aria-label="主导航">
-        <button class="nav-item" :class="{active:currentView==='dictionary'}" @click="currentView='dictionary'">游戏字典</button>
-        <button class="nav-item" :class="{active:currentView==='equipment'}" @click="currentView='equipment'">已有装备</button>
-        <button class="nav-item" :class="{active:currentView==='heroes'}" @click="currentView='heroes'">英雄图鉴</button>
-        <button class="nav-item" :class="{active:currentView==='recommendation'}" @click="currentView='recommendation'">装备推荐</button>
-        <button class="nav-item" :class="{active:currentView==='scanner'}" @click="currentView='scanner'; checkDevice()">识别装备</button>
+    <header v-if="!props.embedded" class="manager-topbar">
+      <button class="brand" @click="currentView='heroes'"><span>E</span><strong>EAIA</strong><small>装备与英雄数据库</small></button>
+      <nav aria-label="主导航">
+        <button :class="{active:currentView==='dictionary'}" @click="currentView='dictionary'">游戏数据</button>
+        <button :class="{active:currentView==='equipment'}" @click="currentView='equipment'">已有装备</button>
+        <button :class="{active:currentView==='heroes'}" @click="currentView='heroes'">英雄图鉴</button>
+        <button :class="{active:currentView==='recommendation'}" @click="currentView='recommendation'">装备推荐</button>
+        <button :class="{active:currentView==='scanner'}" @click="currentView='scanner'; checkDevice()">识别装备</button>
       </nav>
-      <div class="topbar-status"><span class="status-dot"></span> 本地数据 <span class="version">CN-2026-08</span></div>
+      <div class="local-pill"><i></i> 本地 SQLite <button class="language-toggle" @click="toggleLanguage">{{ currentLanguage === 'zh-CN' ? 'EN' : '中' }}</button></div>
     </header>
 
     <main v-if="currentView==='heroes'" class="page">
@@ -544,9 +549,7 @@ onUnmounted(() => {
           <p class="eyebrow">CONNECTION</p><h2>手机连接</h2>
           <div class="device-status" :class="deviceState.connected ? 'connected' : 'disconnected'"><span class="status-dot"></span><div><strong>{{ deviceState.connected ? '手机已连接' : (deviceState.status === 'checking' ? '正在检测连接' : '手机未连接') }}</strong><small>{{ deviceState.serial || deviceState.error || '请确认 HOScrcpy / HDC 已连接目标设备' }}</small></div></div>
           <button class="secondary-button" :disabled="deviceChecking || scanState.status==='scanning'" @click="checkDevice">{{ deviceChecking ? '检测中…' : '重新检测连接' }}</button>
-          <div class="scan-mode"><span>识别方式</span><button :class="{selected:scanMode==='full'}" @click="scanMode='full'">从头识别</button><button :class="{selected:scanMode==='range'}" @click="scanMode='range'">从头到指定位置</button><button :class="{selected:scanMode==='resume'}" @click="scanMode='resume'">继续识别</button></div>
-          <div v-if="scanMode==='resume'" class="resume-fields"><label><span>上次识别行</span><input v-model.number="resumeRow" type="number" min="1" /></label><label><span>上次识别列</span><input v-model.number="resumeColumn" type="number" min="0" max="8" /></label><p>请手动将该行调整为手机画面的第三行；第 1、2 行会自动按实际可见位置处理。</p></div>
-          <div v-else-if="scanMode==='range'" class="resume-fields"><label><span>终止行</span><input v-model.number="stopRow" type="number" min="1" /></label><label><span>终止列</span><input v-model.number="stopColumn" type="number" min="1" max="8" /></label><p>从第 1 行第 1 个开始识别，识别到该位置后自动停止。</p></div>
+          <div class="resume-fields"><label><span>开始行</span><input v-model.number="startRow" type="number" min="1" /></label><label><span>开始列</span><input v-model.number="startColumn" type="number" min="1" max="8" /></label><label><span>终止行</span><input v-model.number="endRow" type="number" min="0" /></label><label><span>终止列</span><input v-model.number="endColumn" type="number" min="0" max="8" /></label><p>开始位置和终止位置均包含。终止位置为 0 行 0 列时识别到列表末尾；继续识别时请手动将开始行放到手机画面的第三行。</p></div>
           <button v-if="!['starting','scanning','stopping'].includes(scanState.status)" class="primary-button" :disabled="!deviceState.connected" @click="startEquipmentScan">开始识别</button>
           <button v-else class="stop-button" :disabled="scanState.status==='stopping'" @click="stopEquipmentScan">{{ scanState.status==='stopping' ? '正在停止…' : '停止识别' }}</button>
           <p class="model-note">开始前请将手机停留在游戏装备背包页面。识别过程中不要手动操作手机。</p>

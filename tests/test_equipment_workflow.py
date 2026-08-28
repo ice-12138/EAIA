@@ -94,7 +94,11 @@ class EquipmentWorkflowTests(unittest.TestCase):
         from PIL import ImageDraw
         ImageDraw.Draw(image).rectangle((371, 260, 535, 465), fill=(130, 90, 90))
         ImageDraw.Draw(image).rectangle((371, 260, 535, 267), fill=(220, 180, 50))
+        ImageDraw.Draw(image).rectangle((371, 260, 378, 465), fill=(220, 180, 50))
         self.assertTrue(scanner._slot_selected(image, 453, 363))
+
+        ImageDraw.Draw(image).rectangle((371, 260, 378, 465), fill=(130, 90, 90))
+        self.assertFalse(scanner._slot_selected(image, 453, 363))
 
     def test_grid_snapshot_excludes_inventory_background(self):
         from equipment_workflow import EquipmentScanner

@@ -1,6 +1,8 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
 
+const props = defineProps({ embedded: { type: Boolean, default: false } })
+
 const SLOTS = ['weapon', 'armor', 'bracelet', 'necklace', 'ring']
 const SLOT_LABELS = { weapon:'武器', armor:'护甲', bracelet:'手镯', necklace:'项链', ring:'戒指' }
 const STAT_LABELS = {
@@ -22,6 +24,7 @@ const trials = ref(64)
 const warmup = ref(120)
 const measurement = ref(600)
 const loading = ref(true)
+const currentLanguage = ref(window.localStorage.getItem('eaia-language') || 'zh-CN')
 const running = ref(false)
 const error = ref('')
 const result = ref(null)
@@ -54,6 +57,12 @@ const sourceRows = computed(() => Object.entries(result.value?.source_damage_equ
 const eventRows = computed(() => Object.entries(result.value?.event_rate_per_60s || {}).filter(([key]) => ['BASIC_ATTACK_READY','ULT_HIT','ultimate_cast','SUMMON_ATTACK','SKILL_HIT'].includes(key)).sort((a,b) => b[1] - a[1]))
 const selectedItemCount = computed(() => Object.values(selectedItems.value).filter(Boolean).length)
 
+function go(view) { window.location.hash = `#/${view}` }
+function toggleLanguage() {
+  currentLanguage.value = currentLanguage.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  window.localStorage.setItem('eaia-language', currentLanguage.value)
+}
+
 function itemLabel(item) {
   const setName = setNames.value.get(item.set_id) || item.set_name || item.set_id || '无套装'
   return `${item.item_id} · ${setName}`
@@ -81,8 +90,6 @@ function percent(value) {
   const n = Number(value)
   return Number.isFinite(n) ? `${(n * 100).toFixed(1)}%` : '—'
 }
-function back() { window.location.hash = '#/recommendation' }
-
 async function loadCore() {
   if (!selectedCore.value) return
   error.value = ''
@@ -154,8 +161,19 @@ onMounted(async () => {
 
 <template>
   <main class="sim-page">
+    <header v-if="!props.embedded" class="manager-topbar">
+      <button class="brand" type="button" @click="go('heroes')"><span>E</span><strong>EAIA</strong><small>装备与英雄数据库</small></button>
+      <nav aria-label="主导航">
+        <button @click="go('dictionary')">游戏数据</button>
+        <button @click="go('equipment')">已有装备</button>
+        <button @click="go('heroes')">英雄图鉴</button>
+        <button @click="go('recommendation')">装备推荐</button>
+        <button @click="go('scanner')">识别装备</button>
+        <button class="active" @click="go('simulation')">战斗仿真</button>
+      </nav>
+      <div class="local-pill"><i></i> 本地 SQLite <button class="language-toggle" type="button" @click="toggleLanguage">{{ currentLanguage === 'zh-CN' ? 'EN' : '中' }}</button></div>
+    </header>
     <header class="sim-topbar">
-      <button class="back-btn" type="button" @click="back">← 返回装备推荐</button>
       <div>
         <p class="eyebrow">HEROCORE / EVENT SIMULATION</p>
         <h1>战斗伤害仿真</h1>
@@ -291,6 +309,10 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.manager-topbar{height:68px;display:flex;align-items:center;gap:22px;padding:0 clamp(20px,5vw,72px);position:sticky;top:0;z-index:30;border-bottom:1px solid #dce5e8;background:rgba(255,255,255,.96);color:#1c2a33}
+.manager-topbar .brand{display:flex;align-items:center;gap:9px;padding:0;border:0;background:transparent;color:#1c2a33;cursor:pointer}.manager-topbar .brand>span{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:#1c2a33;color:#fff;font-weight:900}.manager-topbar .brand strong{font-size:18px;letter-spacing:.06em}.manager-topbar .brand small{color:#73838d;font-size:12px}
+.manager-topbar nav{display:flex;flex:1;gap:2px;height:100%;align-items:center}.manager-topbar nav button{height:100%;padding:0 13px;border:0;border-bottom:2px solid transparent;background:transparent;color:#73838d;font-size:12px}.manager-topbar nav button:hover,.manager-topbar nav button.active{color:#1c2a33}.manager-topbar nav button.active{border-bottom-color:#238b80}
+.manager-topbar .local-pill{display:flex;align-items:center;gap:7px;color:#73838d;font-size:11px;white-space:nowrap}.manager-topbar .local-pill i{width:7px;height:7px;border-radius:50%;background:#42aa7f}.language-toggle{padding:5px 8px;margin-left:5px;border:1px solid #cbd9dc;border-radius:4px;background:#fff;color:#176b64;font-size:11px}
 .sim-page { min-height:100vh; padding:28px clamp(18px,3vw,48px) 60px; color:#dceaf4; background:radial-gradient(circle at 85% 5%,rgba(34,111,150,.22),transparent 32%),#07121c; }
 .sim-topbar { max-width:1480px; margin:0 auto 22px; display:grid; grid-template-columns:220px 1fr auto; align-items:center; gap:20px; }
 .sim-topbar h1,.panel-card h2 { margin:3px 0 0; color:#f5fbff; }
@@ -347,4 +369,20 @@ onMounted(async () => {
 .validation-card > p strong { color:#58c8f3; }.validation-card details { margin-top:14px; color:#8eacbb; font-size:12px; }.validation-card li { margin:7px 0; line-height:1.55; }
 @media (max-width:980px) { .sim-topbar { grid-template-columns:1fr auto; }.sim-topbar > div:nth-child(2){grid-column:1/-1;grid-row:1}.back-btn{grid-row:2}.sim-layout{grid-template-columns:1fr}.controls{position:static}.panel-grid{grid-template-columns:repeat(2,1fr)} }
 @media (max-width:600px) { .sim-page{padding:18px 12px 40px}.engine-chip{display:none}.sim-topbar{display:flex;flex-direction:column;align-items:flex-start}.input-grid,.damage-hero,.metric-strip{grid-template-columns:1fr}.panel-grid{grid-template-columns:1fr 1fr}.gear-row{grid-template-columns:42px 1fr} }
+
+/* Simulation uses the same restrained data-workspace language as DataManager. */
+.sim-page{padding:0 0 60px;color:#1c2a33;background:#f4f7f8}
+.sim-topbar{max-width:none;margin:0 0 42px;padding:0 clamp(20px,5vw,72px);height:68px;display:grid;grid-template-columns:1fr auto;gap:22px;border-bottom:1px solid #dce5e8;background:rgba(255,255,255,.96);box-shadow:0 1px 0 rgba(31,55,65,.02)}
+.sim-topbar h1,.panel-card h2{color:#1c2a33}.sim-topbar h1{font-size:22px}.sim-topbar .eyebrow{color:#72838d}.engine-chip{border:1px solid #dce5e8;border-radius:4px;background:#f7fafb;color:#73838d;padding:9px 12px;font-size:11px}
+.sim-layout{max-width:1460px;padding:0 clamp(20px,5vw,72px);grid-template-columns:minmax(340px,420px) minmax(0,1fr);gap:16px}
+.panel-card{padding:22px;border:1px solid #dce5e8;border-radius:0;background:#fff;box-shadow:0 10px 30px rgba(31,55,65,.06)}.controls{top:84px}.output-column{gap:16px}.section-title{margin-bottom:18px}.section-title>span{color:#73838d;font-size:11px}.eyebrow{color:#72838d;font-size:10px}
+.field{color:#73838d;font-size:11px}.field select,.field input,.gear-row select{border:1px solid #dce5e8;border-radius:4px;background:#f7fafb;color:#1c2a33;padding:10px 11px}.field select:focus,.field input:focus,.gear-row select:focus{border-color:#6eb8af;outline:2px solid #dff2ef;outline-offset:0}
+.equipment-block{border-color:#e5edef}.subheading small{color:#82919a}.slot-name{color:#536873}.gear-stats span,.event-list span,.active-sets span{border:1px solid #cfe3df;border-radius:4px;background:#eaf6f3;color:#237d70}
+.check-field{color:#536873}.run-btn{border-radius:4px;background:#1c2a33;color:#fff}.run-btn:hover{background:#29434e}.method-note{color:#82919a}.notice,.error-box,.warning-box{margin:0 auto 16px;border:1px solid #c8e4dc;border-radius:0;background:#eef8f5;color:#247a6d}.error-box,.warning-box{border-color:#ecd1cb;background:#fff7f5;color:#a34f47}
+.metric-strip,.panel-grid{gap:8px}.metric-strip>div,.panel-grid>div{border:1px solid #e5edef;border-radius:0;background:#f7fafb}.metric-strip small,.panel-grid span,.damage-hero small{color:#82919a}.metric-strip strong,.panel-grid strong{color:#1c2a33}.skill-chip{border-radius:4px;background:#eaf6f3}.skill-chip span{color:#6c8988}
+.damage-primary,.damage-secondary{border:1px solid #cfe3df;border-radius:4px;background:#eef8f5}.damage-primary strong{color:#1f8176}.damage-secondary strong{color:#1c2a33}.damage-primary span,.damage-secondary span{color:#73838d}
+.result-card h3{color:#536873}.data-table{border-color:#e5edef}.data-row{border-color:#edf1f3}.data-row span{color:#536873}.data-row small{color:#238b80}.active-sets strong{color:#536873}.coverage.full{color:#237d70}.coverage.partial{color:#a06e16}
+.validation-card>p{border-radius:4px;background:#f7fafb;color:#536873}.validation-card>p strong{color:#238b80}.validation-card details{color:#73838d}
+@media (max-width:980px){.sim-topbar{grid-template-columns:1fr auto}.sim-topbar>div:nth-child(2){grid-column:auto;grid-row:auto}.sim-layout{padding-left:20px;padding-right:20px}}
+@media (max-width:600px){.sim-page{padding-left:0;padding-right:0}.sim-topbar{height:auto;min-height:68px;padding:10px 4vw;margin-bottom:30px}.sim-layout{padding-left:4vw;padding-right:4vw}.engine-chip{display:none}}
 </style>

@@ -487,16 +487,22 @@ class EquipmentScanner:
         half_height = self.grid.slot_height // 2
         top = y - half_height
         left = x - half_width
-        gold_pixels = 0
+        top_gold_pixels = 0
+        left_gold_pixels = 0
         for yy in range(top, min(top + 8, image.height)):
             for xx in range(left, min(left + self.grid.slot_width, image.width)):
                 red, green, blue = image.getpixel((xx, yy))
                 if red > 160 and green > 120 and blue < 130:
-                    gold_pixels += 1
+                    top_gold_pixels += 1
+        for yy in range(top, min(top + self.grid.slot_height, image.height)):
+            for xx in range(left, min(left + 8, image.width)):
+                red, green, blue = image.getpixel((xx, yy))
+                if red > 160 and green > 120 and blue < 130:
+                    left_gold_pixels += 1
         # A few golden pixels can be part of the equipment artwork itself.
-        # The selected-state strip spans most of the tile width, so require a
-        # substantially larger contiguous-area signal before reusing a frame.
-        return gold_pixels >= 200
+        # The selected-state frame has both a broad top edge and a long left
+        # edge. The small "new" badge on every item only affects the top edge.
+        return top_gold_pixels >= 200 and left_gold_pixels >= 40
 
     def _normalize_occupied_rows(
         self, occupied_by_row: dict[int, list[int]]
@@ -601,27 +607,28 @@ class EquipmentScanner:
             time.sleep(self.workflow.poll_interval)
         return changed(before_grid, previous) if previous is not None else False
 
-    def scan_until_bottom(self, max_scrolls: int = 100, resume_row: int = 1, resume_column: int = 0, stop_row: int | None = None, stop_column: int | None = None) -> list[dict]:
-        if resume_row < 1 or resume_column < 0 or resume_column > self.grid.columns:
-            raise ValueError("resume position must be a valid 1-based row and 0-8 column")
-        if stop_row is not None and (stop_row < 1 or stop_column is None or stop_column < 1 or stop_column > self.grid.columns):
-            raise ValueError("stop position must be a valid 1-based row and 1-8 column")
-        if stop_row is not None and stop_row < resume_row:
-            raise ValueError("stop position must not precede resume position")
+    def scan_until_bottom(self, max_scrolls: int = 100, start_row: int = 1, start_column: int = 1, end_row: int | None = None, end_column: int | None = None) -> list[dict]:
+        if start_row < 1 or start_column < 1 or start_column > self.grid.columns:
+            raise ValueError("start position must be a valid 1-based row and 1-8 column")
+        if end_row is not None and (end_row < 1 or end_column is None or end_column < 1 or end_column > self.grid.columns):
+            raise ValueError("end position must be a valid 1-based row and 1-8 column")
+        start_index = (start_row - 1) * self.grid.columns + start_column
+        end_index = ((end_row - 1) * self.grid.columns + end_column) if end_row is not None else None
+        if end_index is not None and end_index < start_index:
+            raise ValueError("end position must not precede start position")
         if self.grid.overlap_rows >= self.grid.visible_rows:
             raise ValueError("overlap_rows must be smaller than visible_rows")
         first_path = self.workflow.capture()
         equipment_count = self._read_equipment_count(first_path)
         self.equipment_count = equipment_count
-        stop_count = ((stop_row - 1) * self.grid.columns + stop_column) if stop_row is not None else None
-        self.scan_limit = min(equipment_count, stop_count) if equipment_count is not None and stop_count is not None else (stop_count or equipment_count)
-        if resume_row == 1 and resume_column == 0:
-            screen_start, logical_start, first_column, skipped = 0, 1, 1, 0
-        else:
-            screen_start = min(self.grid.visible_rows - 1, resume_row - 1)
-            logical_start = resume_row - screen_start
-            first_column = resume_column + 1
-            skipped = (resume_row - 1) * self.grid.columns + resume_column
+        self.scan_limit = min(equipment_count, end_index) if equipment_count is not None and end_index is not None else (end_index or equipment_count)
+        # Continuation is prepared by placing the requested start row on the
+        # third visible row. Keep the first two rows as context for the swipe;
+        # for row 1/2, use the highest available row instead.
+        screen_start = min(self.grid.visible_rows - 2, start_row - 1)
+        logical_start = start_row - screen_start
+        first_column = start_column
+        skipped = start_index - 1
         remaining_count = max(0, self.scan_limit - skipped) if self.scan_limit is not None else None
         self._report_progress(status="scanning", completed=0, row=None, column=None, remaining_count=remaining_count)
         if self.scan_limit is not None and skipped >= self.scan_limit:

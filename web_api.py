@@ -262,20 +262,18 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             return
         try:
             payload = self._read_json()
-            resume_row = int(payload.get("resume_row", 1))
-            resume_column = int(payload.get("resume_column", 0))
-            stop_row = payload.get("stop_row")
-            stop_column = payload.get("stop_column")
-            stop_row = int(stop_row) if stop_row not in (None, "") else None
-            stop_column = int(stop_column) if stop_column not in (None, "") else None
-            if resume_row < 1 or resume_column < 0 or resume_column > 8:
+            start_row = int(payload.get("start_row", 1))
+            start_column = int(payload.get("start_column", 1))
+            end_row = int(payload.get("end_row", 0))
+            end_column = int(payload.get("end_column", 0))
+            if start_row < 1 or start_column < 1 or start_column > 8:
                 raise ValueError
-            if (stop_row is None) != (stop_column is None) or (stop_row is not None and (stop_row < 1 or stop_column < 1 or stop_column > 8)):
+            if (end_row == 0) != (end_column == 0) or (end_row < 0 or end_column < 0) or (end_row and (end_column < 1 or end_column > 8)):
                 raise ValueError
-            if stop_row is not None and (stop_row - 1) * 8 + stop_column < (resume_row - 1) * 8 + resume_column + 1:
+            if end_row and (end_row - 1) * 8 + end_column < (start_row - 1) * 8 + start_column:
                 raise ValueError
         except (TypeError, ValueError, json.JSONDecodeError):
-            self._send_json({"error": "识别位置必须是有效的行号和列号；终止列范围为 1-8"}, HTTPStatus.BAD_REQUEST)
+            self._send_json({"error": "开始位置必须为有效的行号和 1-8 列；终止位置为 0/0 或有效的行号和 1-8 列"}, HTTPStatus.BAD_REQUEST)
             return
         with _scan_lock:
             if _scan_state["status"] in {"starting", "scanning"}:
@@ -291,7 +289,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 "session_completed": 0,
                 "started_at": time.monotonic(),
             })
-        threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column, stop_row, stop_column, cancel_event), daemon=True).start()
+        threading.Thread(target=self._run_scan, args=(job_id, start_row, start_column, end_row or None, end_column or None, cancel_event), daemon=True).start()
         self._send_json(scan_status(), HTTPStatus.ACCEPTED)
 
     def do_PATCH(self) -> None:  # noqa: N802
@@ -331,14 +329,14 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         except (sqlite3.Error, OSError) as error:
             self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    def _run_scan(self, job_id: str, resume_row: int, resume_column: int, stop_row: int | None, stop_column: int | None, cancel_event: threading.Event) -> None:
+    def _run_scan(self, job_id: str, start_row: int, start_column: int, end_row: int | None, end_column: int | None, cancel_event: threading.Event) -> None:
         try:
             from run_equipment_scan import _build_fast_scanner, _build_legacy_scanner
 
             database = EquipmentDatabase(self.database)
             database.initialize()
             try:
-                skipped = (resume_row - 1) * 8 + resume_column
+                skipped = (start_row - 1) * 8 + start_column - 1
 
                 def progress(update: dict) -> None:
                     if cancel_event.is_set():
@@ -369,10 +367,10 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     scanner.progress_callback = progress
                 _set_scan_state(status="scanning")
                 records = scanner.scan_until_bottom(
-                    resume_row=resume_row, resume_column=resume_column,
-                    stop_row=stop_row, stop_column=stop_column,
+                    start_row=start_row, start_column=start_column,
+                    end_row=end_row, end_column=end_column,
                 )
-                skipped = (resume_row - 1) * scanner.grid.columns + resume_column
+                skipped = (start_row - 1) * scanner.grid.columns + start_column - 1
                 _set_scan_state(status="completed", completed=skipped + len(records),
                                 session_completed=len(records),
                                 total=scanner.scan_limit,

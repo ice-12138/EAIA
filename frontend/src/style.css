@@ -5,3 +5,28 @@
 .stop-button{width:100%;margin-top:9px;padding:11px 14px;border:1px solid #d49a91;background:#fff7f5;color:#a44f43;font-size:11px}.stop-button:disabled{opacity:.55}
 .scan-mode{grid-template-columns:repeat(3,1fr)}
 .scan-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:22px}.scan-mode>span{grid-column:1/-1;color:#7c8a95;font-size:10px;text-transform:uppercase;letter-spacing:.08em}.scan-mode button{padding:9px 6px;border:1px solid #dce4e9;background:#fff;color:#6c7b86;font-size:11px}.scan-mode button.selected{border-color:#77b7ae;background:#edf7f5;color:#22786f}.resume-fields{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.resume-fields label{display:grid;gap:6px}.resume-fields label span,.resume-fields p{color:#7c8a95;font-size:10px}.resume-fields input{width:100%;min-height:38px;border:1px solid #dce4e9;padding:0 9px}.resume-fields p{grid-column:1/-1;margin:2px 0 0;line-height:1.5}
+/* Unified workspace theme */
+:root{--ink:#1c2a33;--muted:#73838d;--line:#dce5e8;--surface:#fff;--teal:#238b80;--teal-dark:#176b64;--teal-soft:#eaf6f3;--shadow:0 10px 30px rgba(31,55,65,.06)}
+body{background:#f4f7f8;color:var(--ink)}
+.app-shell{background:#f4f7f8}
+.topbar{padding-left:clamp(20px,5vw,72px);padding-right:clamp(20px,5vw,72px);background:rgba(255,255,255,.96);border-color:var(--line)}
+.brand-icon{background:var(--ink)}
+.nav-item{border-bottom:2px solid transparent}.nav-item.active{border-bottom-color:var(--teal);box-shadow:none}
+.page{padding-left:clamp(20px,5vw,72px);padding-right:clamp(20px,5vw,72px)}
+.toolbar,.hero-card,.hero-detail,.recommend-controls,.recommend-results,.scanner-control,.scanner-progress,.data-panel,.dictionary-sidebar{border-color:var(--line);box-shadow:var(--shadow)}
+.primary-button{background:var(--ink)}.primary-button:hover{background:#29434e}
+.hero-card.selected{box-shadow:inset 3px 0 var(--teal),var(--shadow)}
+.hero-monogram{background:var(--teal-soft);color:var(--teal-dark)}
+.record-tabs button.selected{border-bottom-color:var(--teal);color:var(--teal)}.source-link,.skill-values{color:var(--teal)}
+.dictionary-sidebar button.selected,.dictionary-sidebar button:hover{border-left-color:var(--teal);background:var(--teal-soft)}
+@media(max-width:760px){.topbar{padding-left:4vw;padding-right:4vw}.page{padding-left:4vw;padding-right:4vw}}
+
+/* Shared application header used by data, inventory and analysis views. */
+.manager-topbar{height:68px;display:flex;align-items:center;gap:22px;padding:0 clamp(20px,5vw,72px);position:sticky;top:0;z-index:30;border-bottom:1px solid var(--line);background:rgba(255,255,255,.96)}
+.manager-topbar .brand{display:flex;align-items:center;gap:9px;padding:0;border:0;background:transparent;color:var(--ink);cursor:pointer}
+.manager-topbar .brand>span{width:30px;height:30px;display:grid;place-items:center;border-radius:7px;background:var(--ink);color:#fff;font-weight:900}
+.manager-topbar .brand strong{font-size:18px;letter-spacing:.06em}.manager-topbar .brand small{color:var(--muted);font-size:12px}
+.manager-topbar nav{display:flex;flex:1;gap:2px;height:100%;align-items:center}.manager-topbar nav button{height:100%;padding:0 13px;border:0;border-bottom:2px solid transparent;background:transparent;color:var(--muted);font-size:12px}.manager-topbar nav button:hover,.manager-topbar nav button.active{color:var(--ink)}.manager-topbar nav button.active{border-bottom-color:var(--teal)}
+.local-pill{display:flex;align-items:center;gap:7px;color:var(--muted);font-size:11px;white-space:nowrap}.local-pill i{width:7px;height:7px;border-radius:50%;background:#42aa7f}.local-pill .language-toggle{margin-left:5px}
+.language-toggle{padding:5px 8px;border:1px solid #cbd9dc;border-radius:4px;background:#fff;color:var(--teal-dark);font-size:11px}
+@media(max-width:760px){.manager-topbar{height:auto;min-height:68px;flex-wrap:wrap;padding:10px 4vw}.manager-topbar nav{order:3;width:100%;height:42px;overflow:auto}.manager-topbar nav button{height:42px;white-space:nowrap}.manager-topbar .brand small,.manager-topbar .local-pill{font-size:0}.manager-topbar .local-pill i,.manager-topbar .language-toggle{font-size:11px}.manager-topbar .language-toggle{margin-left:0}}

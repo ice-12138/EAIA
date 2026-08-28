@@ -1,10 +1,13 @@
 <script setup>
 import { computed, onMounted, ref, watch } from 'vue'
+import AppV2 from './AppV2.vue'
+import HeroSimulation from './HeroSimulation.vue'
 import './dataManager.css'
 
-const props = defineProps({ mode: { type: String, required: true } })
+const props = defineProps({ mode: { type: String, default: 'dictionary' } })
 
 const loading = ref(true)
+const currentLanguage = ref(window.localStorage.getItem('eaia-language') || 'zh-CN')
 const message = ref('')
 const error = ref('')
 const search = ref('')
@@ -29,6 +32,11 @@ const NAV = [
 ]
 
 function go(view) { window.location.hash = `#/${view}` }
+
+function toggleLanguage() {
+  currentLanguage.value = currentLanguage.value === 'zh-CN' ? 'en-US' : 'zh-CN'
+  window.localStorage.setItem('eaia-language', currentLanguage.value)
+}
 
 async function requestJson(url, options = {}) {
   const response = await fetch(url, options)
@@ -307,10 +315,10 @@ onMounted(async () => {
       <nav>
         <button v-for="item in NAV" :key="item[0]" :class="{active: item[0]===mode}" @click="go(item[0])">{{ item[1] }}</button>
       </nav>
-      <div class="local-pill"><i></i> 本地 SQLite</div>
+      <div class="local-pill"><i></i> 本地 SQLite <button class="language-toggle" @click="toggleLanguage">{{ currentLanguage === 'zh-CN' ? 'EN' : '中' }}</button></div>
     </header>
 
-    <main class="manager-page">
+    <main v-if="mode==='dictionary' || mode==='equipment'" class="manager-page">
       <section class="hero-titlebar">
         <div>
           <p>{{ mode === 'dictionary' ? 'DATA MANAGEMENT' : 'EQUIPMENT INVENTORY' }}</p>
@@ -397,6 +405,11 @@ onMounted(async () => {
         </section>
       </template>
     </main>
+
+    <div v-else class="manager-content-view">
+      <HeroSimulation v-if="mode==='simulation'" :embedded="true" />
+      <AppV2 v-else :embedded="true" />
+    </div>
 
     <div v-if="editor.open" class="modal-backdrop" @click.self="closeResourceEditor">
       <section class="editor-modal">
