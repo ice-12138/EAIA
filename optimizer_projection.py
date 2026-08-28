@@ -2,19 +2,21 @@
 
 The inventory database keeps equipment exactly as observed in game. The
 recommendation engine compares gear at its cultivation ceiling whenever that
-ceiling is known, and estimates locked sub-stats at P90. If a max-level main
-stat value is still unknown, the observed current-level main stat is retained
-as a conservative fallback instead of excluding the item from recommendation.
-The stored inventory rows are never mutated.
+ceiling is known, estimates locked sub-stats at P90, and exposes normalized set
+effects to HeroCore. If a max-level main stat value is still unknown, the
+observed current-level main stat is retained as a conservative fallback instead
+of excluding the item. Stored inventory rows are never mutated.
 """
 
 from __future__ import annotations
 
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 from equipment_db import EquipmentDatabase, STAT_TYPES
 from equipment_models import EquipmentItem, EquipmentStat, Slot, StatType
+from equipment_set_variants import load_optimizer_set_effects
 from sub_stat_estimator import SubStatEstimator
 
 
@@ -48,6 +50,12 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
     example, a known +8 main stat participate in recommendation until its +16
     cap is measured, without pretending that the +8 value is the +16 value.
 
+    HeroCore also reads set effects through this database. V2.2 semantic rows
+    such as ``stat_mod + atk_pct`` and ``damage_mult + damage_bonus`` are
+    normalized to the optimizer-facing EffectType representation before combat
+    simulation. Temporary T1 -> T2 set overrides are calculation-only and are
+    never persisted to SQLite.
+
     A Mythic item still needs all four sub-stat identities. Missing stat
     identities or missing locked-substat estimates remain exclusion reasons.
     """
@@ -66,6 +74,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         self.min_samples_for_percentile = int(min_samples_for_percentile)
         self.projection_reports: dict[str, dict[str, Any]] = {}
         self.projection_exclusions: dict[str, str] = {}
+        self._set_variant_overrides: dict[str, str] = {}
 
     def initialize(self) -> None:
         super().initialize()
@@ -74,6 +83,21 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             min_samples_for_estimation=self.min_samples_for_percentile,
             percentile=self.percentile,
         ).ensure_schema()
+
+    def load_set_effects(self):
+        """Return V2.2 set effects normalized for HeroCore/optimizer use."""
+        return load_optimizer_set_effects(self)
+
+    def set_variant_overrides(self, overrides: dict[str, str] | None = None) -> None:
+        """Apply calculation-only set identities for one ascension variant."""
+        self._set_variant_overrides = {
+            str(item_id): str(set_id)
+            for item_id, set_id in (overrides or {}).items()
+            if item_id and set_id
+        }
+
+    def clear_variant_overrides(self) -> None:
+        self._set_variant_overrides.clear()
 
     @staticmethod
     def _row_value(row, key: str, fallback: Any = None) -> Any:
@@ -174,9 +198,6 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                     projection_source = "actual_at_level_cap"
                     stat_level_used = current_level
                 elif actual is not None and current_level is not None:
-                    # Conservative fallback requested by the recommendation
-                    # semantics: keep a measured +8/+12/etc. main stat in the
-                    # calculation until its +16 cap becomes known.
                     projected = actual
                     projection_source = "current_level_main_fallback"
                     stat_level_used = current_level
@@ -283,7 +304,11 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         for row in rows:
             item_id = str(row["item_id"])
             try:
-                result.append(self._project_item(row))
+                item = self._project_item(row)
+                override = self._set_variant_overrides.get(item_id)
+                if override:
+                    item = replace(item, set_id=override)
+                result.append(item)
                 self.projection_exclusions.pop(item_id, None)
             except EquipmentProjectionError as error:
                 self.projection_exclusions[item_id] = str(error)
@@ -299,12 +324,18 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             if item_id in self.projection_reports
         ]
         fallback_items = [report for report in reports if report.get("uses_current_main_fallback")]
+        active_overrides = {
+            item_id: set_id
+            for item_id, set_id in sorted(self._set_variant_overrides.items())
+            if item_id in selected
+        }
         return {
             "mode": "max_enhancement_p90",
             "locked_substat_percentile": self.percentile,
             "main_stat_fallback_policy": "use_current_observed_value_when_max_cap_unknown",
             "current_main_fallback_item_count": len(fallback_items),
             "items": reports,
+            "set_variant_overrides": active_overrides,
             "excluded_item_count": len(self.projection_exclusions),
             "excluded_items": dict(sorted(self.projection_exclusions.items())),
         }
