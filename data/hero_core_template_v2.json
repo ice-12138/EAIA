@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.0.0",
+  "core_version": "1.1.0",
   "game_version": "CN-YYYY-MM-DD",
   "hero": {
     "id": "HERO_ID",
@@ -14,9 +14,10 @@
       "atk": 0,
       "hp": null,
       "def": null,
+      "mres": null,
       "crit_rate": 0.05,
       "crit_dmg": 1.5,
-      "atk_speed": 0,
+      "atk_speed": 100,
       "rage_regen": 0,
       "attack_interval": 2.0
     }
@@ -66,6 +67,9 @@
     }
   },
   "default_policy": "default",
-  "assumptions": [],
+  "assumptions": [
+    "base_stats 记录游戏属性页白字原始值；atk_speed 是白字面板攻击速度，不是相对100的额外攻速。",
+    "attack_interval 应与同一白字面板状态对应；装备和Buff攻速由引擎在运行时叠加。"
+  ],
   "validation_required": []
 }
