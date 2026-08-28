@@ -328,12 +328,14 @@ class HeroCoreSimulator:
         crit_rate, overflow = self.rules.crit(
             float(base.get("crit_rate", 0.0)) + stats[StatType.CRIT_RATE.value]
         )
+        base_attack_speed = float(base.get("atk_speed", 0.0))
         panel = {
             "atk": atk,
             "crit_rate": crit_rate,
             "crit_overflow": overflow,
             "crit_dmg": float(base.get("crit_dmg", 1.5)) + stats[StatType.CRIT_DMG.value],
-            "atk_speed": float(base.get("atk_speed", 0.0)) + stats[StatType.ATK_SPEED.value],
+            "atk_speed_base": base_attack_speed,
+            "atk_speed": base_attack_speed + stats[StatType.ATK_SPEED.value],
             "rage_regen": float(base.get("rage_regen", 0.0)) + stats[StatType.RAGE_REGEN.value],
             "attack_interval": float(base["attack_interval"]),
         }
@@ -522,6 +524,7 @@ class HeroCoreSimulator:
         return self.rules.attack_interval(
             self.panel["attack_interval"],
             speed,
+            base_attack_speed=self.panel["atk_speed_base"],
         ) / max(0.01, multiplier)
 
     def _create_summon(self, entity: str) -> None:
