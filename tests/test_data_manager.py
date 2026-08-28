@@ -36,7 +36,12 @@ class DataManagerTests(unittest.TestCase):
             set_id = connection.execute("SELECT set_id FROM sets LIMIT 1").fetchone()[0]
             slot_id = connection.execute("SELECT slot_id FROM equipment_slots LIMIT 1").fetchone()[0]
             quality_id = connection.execute("SELECT quality_id FROM gear_qualities LIMIT 1").fetchone()[0]
-            stat_type = connection.execute("SELECT stat_type FROM stat_definitions LIMIT 1").fetchone()[0]
+            # Choose a dictionary stat that is valid as an equipment main stat;
+            # the v2.2 dictionary also contains simulation-only stats.
+            stat_type = connection.execute(
+                "SELECT stat_type FROM stat_definitions WHERE can_main_stat=1 LIMIT 1"
+            ).fetchone()[0]
+        connection.close()
         values = {
             "item_id": "UI_TEST_ITEM", "slot_id": slot_id, "set_id": set_id, "quality_id": quality_id,
             "enhancement_level": 16, "available": True, "locked": False, "source": "unittest",

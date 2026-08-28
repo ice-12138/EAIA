@@ -39,11 +39,17 @@ HDC = r"D:\\DEVECO~2\\sdk\\default\\OPENHA~1\\TOOLCH~1\\hdc.exe"
 SERIAL = "FMR0223A30001935"
 
 _scan_lock = threading.Lock()
+_scan_cancel_event = None
 _scan_state = {
     "id": None, "status": "idle", "completed": 0, "total": None,
     "row": None, "column": None, "error": None, "started_at": None,
     "new_count": 0, "duplicate_count": 0, "updated_count": 0,
+    "session_completed": 0,
 }
+
+
+class ScanCancelled(Exception):
+    """Raised at a safe item boundary when the user stops a scan."""
 
 
 def scan_status() -> dict:
@@ -52,7 +58,7 @@ def scan_status() -> dict:
         started_at = _scan_state["started_at"]
         elapsed = (time.monotonic() - started_at) if started_at else 0.0
         state["elapsed_seconds"] = round(elapsed, 2)
-        state["average_seconds"] = round(elapsed / _scan_state["completed"], 2) if _scan_state["completed"] else None
+        state["average_seconds"] = round(elapsed / _scan_state["session_completed"], 2) if _scan_state["session_completed"] else None
         return state
 
 
@@ -221,7 +227,16 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def do_POST(self) -> None:  # noqa: N802
+        global _scan_cancel_event
         path = urlparse(self.path).path.rstrip("/") or "/"
+        if path == "/api/scan/stop":
+            with _scan_lock:
+                if _scan_state["status"] in {"starting", "scanning"}:
+                    _scan_state["status"] = "stopping"
+                    if _scan_cancel_event is not None:
+                        _scan_cancel_event.set()
+            self._send_json(scan_status())
+            return
         try:
             if path == "/api/hero-core/simulate":
                 self._send_json(simulate_hero_core(self.database, self._read_json()))
@@ -249,23 +264,34 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             payload = self._read_json()
             resume_row = int(payload.get("resume_row", 1))
             resume_column = int(payload.get("resume_column", 0))
+            stop_row = payload.get("stop_row")
+            stop_column = payload.get("stop_column")
+            stop_row = int(stop_row) if stop_row not in (None, "") else None
+            stop_column = int(stop_column) if stop_column not in (None, "") else None
             if resume_row < 1 or resume_column < 0 or resume_column > 8:
                 raise ValueError
+            if (stop_row is None) != (stop_column is None) or (stop_row is not None and (stop_row < 1 or stop_column < 1 or stop_column > 8)):
+                raise ValueError
+            if stop_row is not None and (stop_row - 1) * 8 + stop_column < (resume_row - 1) * 8 + resume_column + 1:
+                raise ValueError
         except (TypeError, ValueError, json.JSONDecodeError):
-            self._send_json({"error": "续扫位置必须是有效的行号和 0-8 列"}, HTTPStatus.BAD_REQUEST)
+            self._send_json({"error": "识别位置必须是有效的行号和列号；终止列范围为 1-8"}, HTTPStatus.BAD_REQUEST)
             return
         with _scan_lock:
             if _scan_state["status"] in {"starting", "scanning"}:
                 self._send_json({"error": "scan already running"}, HTTPStatus.CONFLICT)
                 return
             job_id = uuid.uuid4().hex
+            cancel_event = threading.Event()
+            _scan_cancel_event = cancel_event
             _scan_state.update({
                 "id": job_id, "status": "starting", "completed": 0, "total": None,
                 "row": None, "column": None, "error": None,
                 "new_count": 0, "duplicate_count": 0, "updated_count": 0,
+                "session_completed": 0,
                 "started_at": time.monotonic(),
             })
-        threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column), daemon=True).start()
+        threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column, stop_row, stop_column, cancel_event), daemon=True).start()
         self._send_json(scan_status(), HTTPStatus.ACCEPTED)
 
     def do_PATCH(self) -> None:  # noqa: N802
@@ -305,17 +331,28 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         except (sqlite3.Error, OSError) as error:
             self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    def _run_scan(self, job_id: str, resume_row: int, resume_column: int) -> None:
+    def _run_scan(self, job_id: str, resume_row: int, resume_column: int, stop_row: int | None, stop_column: int | None, cancel_event: threading.Event) -> None:
         try:
             from run_equipment_scan import _build_fast_scanner, _build_legacy_scanner
 
             database = EquipmentDatabase(self.database)
             database.initialize()
             try:
+                skipped = (resume_row - 1) * 8 + resume_column
+
                 def progress(update: dict) -> None:
+                    if cancel_event.is_set():
+                        raise ScanCancelled()
                     normalized = dict(update)
-                    if "equipment_count" in normalized:
-                        normalized["total"] = normalized.pop("equipment_count")
+                    equipment_count = normalized.pop("equipment_count", None)
+                    scan_limit = normalized.pop("scan_limit", None)
+                    if scan_limit is not None:
+                        normalized["total"] = scan_limit
+                    elif equipment_count is not None:
+                        normalized["total"] = equipment_count
+                    if "completed" in normalized:
+                        normalized["session_completed"] = int(normalized["completed"])
+                        normalized["completed"] = skipped + normalized["session_completed"]
                     _set_scan_state(id=job_id, **normalized)
 
                 def import_result(result: dict) -> None:
@@ -331,15 +368,19 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     scanner = _build_legacy_scanner(database, import_result)
                     scanner.progress_callback = progress
                 _set_scan_state(status="scanning")
-                records = scanner.scan_until_bottom(resume_row=resume_row, resume_column=resume_column)
-                skipped = (resume_row - 1) * scanner.grid.columns + resume_column
-                _set_scan_state(
-                    status="completed", completed=len(records),
-                    total=max(0, scanner.equipment_count - skipped) if scanner.equipment_count is not None else None,
-                    row=None, column=None, error=None,
+                records = scanner.scan_until_bottom(
+                    resume_row=resume_row, resume_column=resume_column,
+                    stop_row=stop_row, stop_column=stop_column,
                 )
+                skipped = (resume_row - 1) * scanner.grid.columns + resume_column
+                _set_scan_state(status="completed", completed=skipped + len(records),
+                                session_completed=len(records),
+                                total=scanner.scan_limit,
+                                row=None, column=None, error=None)
             finally:
                 database.close()
+        except ScanCancelled:
+            _set_scan_state(id=job_id, status="stopped", error=None)
         except Exception as error:
             _set_scan_state(id=job_id, status="failed", error=str(error))
 

@@ -435,10 +435,10 @@ class FastEquipmentScanner(EquipmentScanner):
             for screen_row in screen_rows:
                 logical_row = logical_start + screen_row
                 expected = None
-                if self.equipment_count is not None:
+                if self.scan_limit is not None:
                     expected = min(
                         self.grid.columns,
-                        max(0, self.equipment_count - (logical_row - 1) * self.grid.columns),
+                        max(0, self.scan_limit - (logical_row - 1) * self.grid.columns),
                     )
                     if screen_row == screen_rows[0]:
                         expected = max(0, expected - initial_column + 1)
@@ -446,8 +446,9 @@ class FastEquipmentScanner(EquipmentScanner):
                 while True:
                     attempt += 1
                     occupied_columns = occupied_by_row[screen_row]
-                    if expected == self.grid.columns:
-                        occupied_columns = list(range(1, self.grid.columns + 1))
+                    if expected is not None:
+                        first_column = initial_column if screen_row == screen_rows[0] else 1
+                        occupied_columns = list(range(first_column, first_column + expected))
                     if not occupied_columns:
                         reached_empty_row = True
                         break

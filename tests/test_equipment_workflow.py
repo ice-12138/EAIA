@@ -22,14 +22,14 @@ class EquipmentWorkflowTests(unittest.TestCase):
         result = PaddleOcrV5Mobile._result_data({"rec_texts": ["名称", "攻击 +60"]})
         self.assertEqual(result["rec_texts"], ["名称", "攻击 +60"])
 
-    def test_grid_calibration_has_eight_columns_and_three_rows(self):
+    def test_grid_calibration_has_eight_columns_and_four_rows(self):
         grid = GridConfig()
         self.assertEqual(len(grid.x_centers), 8)
         self.assertEqual(grid.x_centers[0], 453)
         self.assertEqual(grid.x_centers[-1], 1843)
-        self.assertEqual(grid.y_centers, (363, 594, 825))
-        self.assertEqual(grid.overlap_rows, 2)
-        self.assertEqual(grid.swipe_end, (1200, 755))
+        self.assertEqual(grid.y_centers, (363, 594, 825, 1056))
+        self.assertEqual(grid.overlap_rows, 3)
+        self.assertEqual(grid.swipe_end, (1200, 751))
         self.assertEqual(grid.swipe_velocity, 200)
 
     def test_equipment_count_parser_uses_m_from_m_over_n(self):

@@ -1,6 +1,7 @@
 """Allowlisted user-facing CRUD for EAIA SQLite data."""
 from __future__ import annotations
 import sqlite3
+from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Mapping
 
@@ -10,6 +11,10 @@ class DataManagerError(ValueError):
 def f(name, label, type="text", **kw): return {"name":name,"label":label,"type":type,**kw}
 def spec(title, group, description, fields): return {"title":title,"group":group,"description":description,"fields":fields}
 BOOL="boolean"; NUM="number"; TXT="textarea"
+EQUIPMENT_STAT_TYPES = (
+    "ATK_FLAT", "ATK_PCT", "HP_FLAT", "HP_PCT", "DEF_FLAT", "DEF_PCT",
+    "CRIT_RATE", "CRIT_DMG", "ATK_SPEED", "RAGE_REGEN", "HEALING_EFFECT",
+)
 RESOURCE_SPECS={
 "equipment_categories":spec("装备类型","装备字典","输出、防御、治疗、增益等装备大类。",[f("category_id","类型ID"),f("category_name","类型名称"),f("description","说明",TXT),f("sort_order","显示顺序",NUM)]),
 "equipment_slots":spec("装备部位","装备字典","武器、护甲、手镯、项链、戒指。",[f("slot_id","部位ID"),f("slot_name","部位名称"),f("slot_group","区域"),f("set_piece_group","套装计件组",NUM),f("sort_order","显示顺序",NUM),f("notes","备注",TXT)]),
@@ -30,8 +35,15 @@ RESOURCE_SPECS={
 }
 
 def resource_catalog(): return [{"id":k,**{x:v[x] for x in ("title","group","description")}} for k,v in RESOURCE_SPECS.items()]
+@contextmanager
 def _connect(db):
-    c=sqlite3.connect(db); c.row_factory=sqlite3.Row; c.execute("PRAGMA foreign_keys=ON"); return c
+    c=sqlite3.connect(db)
+    c.row_factory=sqlite3.Row
+    c.execute("PRAGMA foreign_keys=ON")
+    try:
+        yield c
+    finally:
+        c.close()
 def _spec(r):
     if r not in RESOURCE_SPECS: raise DataManagerError(f"不可管理的数据类型: {r}")
     return RESOURCE_SPECS[r]
@@ -106,12 +118,15 @@ def _equipment_values(p):
     return {"item_id":item,"slot":slot,"slot_id":slot,"set_id":set_id,"tier":quality or None,"quality_id":quality or None,"level":level,"enhancement_level":level,"locked":locked,"item_locked":locked,"available":int(bool(p.get("available",True))),"equipped_hero_id":p.get("equipped_hero_id") or None,"source":p.get("source") or "manual","notes":p.get("notes") or None,"is_ancient":int(bool(p.get("is_ancient",False)))}
 def _replace_stats(c,item,stats):
     c.execute("DELETE FROM equipment_stats WHERE item_id=?",(item,)); used=set()
+    canonical_stats = {value.casefold(): value for value in EQUIPMENT_STAT_TYPES}
     for pos,x in enumerate(stats[:5]):
         if x.get("stat_type") in (None,""): continue
         idx=int(x.get("stat_index",pos))
         if idx in used or not 0<=idx<=4: raise DataManagerError("装备词条位置必须为0-4且不能重复")
         used.add(idx); source=x.get("stat_source") or ("main" if idx==0 else "sub")
-        c.execute("INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(item,idx,source,x["stat_type"],x.get("stat_value"),int(x.get("unlock_level") or 0),int(bool(x.get("is_unlocked",True))),x.get("roll_grade_id") or None,x.get("estimate_override"),float(x.get("value_confidence",1.0)),x.get("notes") or None))
+        stat_type = str(x["stat_type"]).strip()
+        stat_type = canonical_stats.get(stat_type.casefold(), stat_type)
+        c.execute("INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(item,idx,source,stat_type,x.get("stat_value"),int(x.get("unlock_level") or 0),int(bool(x.get("is_unlocked",True))),x.get("roll_grade_id") or None,x.get("estimate_override"),float(x.get("value_confidence",1.0)),x.get("notes") or None))
 def save_equipment(db,payload,*,original_item_id=None):
     v=_equipment_values(payload); stats=list(payload.get("stats") or [])
     with _connect(db) as c:

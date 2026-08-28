@@ -42,6 +42,8 @@ const deviceChecking = ref(false)
 const scanMode = ref('full')
 const resumeRow = ref(1)
 const resumeColumn = ref(0)
+const stopRow = ref(1)
+const stopColumn = ref(8)
 let scanPollTimer = null
 
 const STAT_LABELS = {
@@ -320,7 +322,7 @@ function formatStat(type, value) {
 }
 
 function scanStatusLabel(status) {
-  return ({ idle:'尚未开始', checking:'连接检测中', starting:'准备启动', scanning:'检测中', completed:'检测完成', failed:'检测失败' })[status] || status || '未知'
+  return ({ idle:'尚未开始', checking:'连接检测中', starting:'准备启动', scanning:'检测中', stopping:'正在停止', stopped:'已停止', completed:'检测完成', failed:'检测失败' })[status] || status || '未知'
 }
 function formatSeconds(value) {
   if (value == null) return '—'
@@ -348,7 +350,7 @@ async function pollScanStatus() {
     const response = await fetch('/api/scan/status')
     if (!response.ok) return
     scanState.value = await response.json()
-    if (!['scanning', 'starting'].includes(scanState.value.status)) stopScanPolling()
+    if (!['scanning', 'starting', 'stopping'].includes(scanState.value.status)) stopScanPolling()
   } catch { /* the next poll will retry */ }
 }
 function startScanPolling() {
@@ -367,7 +369,9 @@ async function startEquipmentScan() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(scanMode.value === 'resume'
         ? { resume_row: Number(resumeRow.value), resume_column: Number(resumeColumn.value) }
-        : { resume_row: 1, resume_column: 0 })
+        : scanMode.value === 'range'
+          ? { resume_row: 1, resume_column: 0, stop_row: Number(stopRow.value), stop_column: Number(stopColumn.value) }
+          : { resume_row: 1, resume_column: 0 })
     })
     const data = await response.json()
     if (!response.ok) throw new Error(data.error || '无法启动识别')
@@ -375,6 +379,17 @@ async function startEquipmentScan() {
     startScanPolling()
   } catch (error) {
     scanState.value = { ...scanState.value, status: 'failed', error: error.message || String(error) }
+  }
+}
+async function stopEquipmentScan() {
+  if (!['starting', 'scanning'].includes(scanState.value.status)) return
+  try {
+    const response = await fetch('/api/scan/stop', { method: 'POST' })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || '无法停止识别')
+    scanState.value = data
+  } catch (error) {
+    scanState.value = { ...scanState.value, error: error.message || String(error) }
   }
 }
 
@@ -529,9 +544,11 @@ onUnmounted(() => {
           <p class="eyebrow">CONNECTION</p><h2>手机连接</h2>
           <div class="device-status" :class="deviceState.connected ? 'connected' : 'disconnected'"><span class="status-dot"></span><div><strong>{{ deviceState.connected ? '手机已连接' : (deviceState.status === 'checking' ? '正在检测连接' : '手机未连接') }}</strong><small>{{ deviceState.serial || deviceState.error || '请确认 HOScrcpy / HDC 已连接目标设备' }}</small></div></div>
           <button class="secondary-button" :disabled="deviceChecking || scanState.status==='scanning'" @click="checkDevice">{{ deviceChecking ? '检测中…' : '重新检测连接' }}</button>
-          <div class="scan-mode"><span>识别方式</span><button :class="{selected:scanMode==='full'}" @click="scanMode='full'">从头识别</button><button :class="{selected:scanMode==='resume'}" @click="scanMode='resume'">继续识别</button></div>
+          <div class="scan-mode"><span>识别方式</span><button :class="{selected:scanMode==='full'}" @click="scanMode='full'">从头识别</button><button :class="{selected:scanMode==='range'}" @click="scanMode='range'">从头到指定位置</button><button :class="{selected:scanMode==='resume'}" @click="scanMode='resume'">继续识别</button></div>
           <div v-if="scanMode==='resume'" class="resume-fields"><label><span>上次识别行</span><input v-model.number="resumeRow" type="number" min="1" /></label><label><span>上次识别列</span><input v-model.number="resumeColumn" type="number" min="0" max="8" /></label><p>请手动将该行调整为手机画面的第三行；第 1、2 行会自动按实际可见位置处理。</p></div>
-          <button class="primary-button" :disabled="!deviceState.connected || ['starting','scanning'].includes(scanState.status)" @click="startEquipmentScan">{{ ['starting','scanning'].includes(scanState.status) ? '识别进行中…' : '开始识别' }}</button>
+          <div v-else-if="scanMode==='range'" class="resume-fields"><label><span>终止行</span><input v-model.number="stopRow" type="number" min="1" /></label><label><span>终止列</span><input v-model.number="stopColumn" type="number" min="1" max="8" /></label><p>从第 1 行第 1 个开始识别，识别到该位置后自动停止。</p></div>
+          <button v-if="!['starting','scanning','stopping'].includes(scanState.status)" class="primary-button" :disabled="!deviceState.connected" @click="startEquipmentScan">开始识别</button>
+          <button v-else class="stop-button" :disabled="scanState.status==='stopping'" @click="stopEquipmentScan">{{ scanState.status==='stopping' ? '正在停止…' : '停止识别' }}</button>
           <p class="model-note">开始前请将手机停留在游戏装备背包页面。识别过程中不要手动操作手机。</p>
         </aside>
         <section class="scanner-progress">

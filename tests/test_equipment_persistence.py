@@ -27,6 +27,11 @@ def fine_record(item_id="item_test"):
 
 
 class EquipmentPersistenceTests(unittest.TestCase):
+    def test_chest_armor_ocr_slot_maps_to_armor(self):
+        from equipment_persistence import _slot
+
+        self.assertEqual(_slot("活力胸甲+"), "armor")
+
     def test_fine_ocr_record_is_written_and_is_idempotent(self):
         record = fine_record()
         with tempfile.TemporaryDirectory() as directory:

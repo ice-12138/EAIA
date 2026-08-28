@@ -103,7 +103,7 @@ def _recognition_attributes(raw_result: str) -> tuple:
 
 
 def _slot(raw: str) -> str:
-    terms = (("武器", "weapon"), ("护甲", "armor"), ("铠甲", "armor"), ("防具", "armor"), ("手镯", "bracelet"), ("手环", "bracelet"), ("项链", "necklace"), ("戒指", "ring"))
+    terms = (("武器", "weapon"), ("护甲", "armor"), ("铠甲", "armor"), ("防具", "armor"), ("胸甲", "armor"), ("手镯", "bracelet"), ("手环", "bracelet"), ("项链", "necklace"), ("戒指", "ring"))
     for name, value in terms:
         if name in raw:
             return value

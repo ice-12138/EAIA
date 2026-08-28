@@ -179,7 +179,7 @@ class EquipmentDatabase:
         from main_stat_cap_learner import MainStatCapLearner
         from sub_stat_estimator import SubStatEstimator
         quality = str(record.get("quality_id") or _quality_id(record.get("quality")) or "").lower(); slot = _field_raw_text(record.get("slot")).lower()
-        for label, canonical in {"武器":"weapon","护甲":"armor","铠甲":"armor","防具":"armor","手镯":"bracelet","手环":"bracelet","项链":"necklace","戒指":"ring"}.items():
+        for label, canonical in {"武器":"weapon","护甲":"armor","铠甲":"armor","防具":"armor","胸甲":"armor","手镯":"bracelet","手环":"bracelet","项链":"necklace","戒指":"ring"}.items():
             if label in slot: slot = canonical; break
         level = _field_numeric_value(record.get("enhancement_level", record.get("level"))); primary = record.get("primary") or {}; ptype = _record_stat_type(primary); pvalue = _field_numeric_value(primary)
         if quality == "mythic_red" and level is not None and ptype and pvalue is not None: MainStatCapLearner(self.connection).learn(item_id=item_id, quality_id=quality, slot=slot, stat_type=ptype, enhancement_level=int(level), value=float(pvalue))
