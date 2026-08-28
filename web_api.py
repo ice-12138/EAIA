@@ -9,6 +9,7 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -55,10 +56,9 @@ _scan_state = {
 }
 
 _recommend_lock = threading.Lock()
-_recommend_state = {
-    "id": None, "status": "idle", "phase": None, "completed": 0,
-    "total": None, "error": None, "result": None, "started_at": None,
-}
+_recommend_jobs: OrderedDict[str, dict] = OrderedDict()
+_recommend_queue: list[str] = []
+_recommend_worker: threading.Thread | None = None
 
 
 class ScanCancelled(Exception):
@@ -82,16 +82,76 @@ def _set_scan_state(**values: object) -> None:
 
 def recommend_status() -> dict:
     with _recommend_lock:
-        state = {key: value for key, value in _recommend_state.items() if key not in {"started_at", "result"}}
-        started_at = _recommend_state["started_at"]
-        state["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
-        state["result"] = _recommend_state["result"]
-        return state
+        jobs = []
+        for job in _recommend_jobs.values():
+            item = {key: value for key, value in job.items() if key not in {"payload", "result", "started_at"}}
+            started_at = job.get("started_at")
+            item["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
+            if job.get("status") in {"completed", "failed"}:
+                item["result"] = job.get("result")
+            jobs.append(item)
+        return {"jobs": jobs, "active_id": next((x for x in _recommend_queue if _recommend_jobs[x]["status"] in {"starting", "screening", "refining"}), None)}
 
 
-def _set_recommend_state(**values: object) -> None:
+def _set_recommend_state(job_id: str, **values: object) -> None:
     with _recommend_lock:
-        _recommend_state.update(values)
+        if job_id in _recommend_jobs:
+            _recommend_jobs[job_id].update(values)
+
+
+def _recommend_worker_loop() -> None:
+    while True:
+        with _recommend_lock:
+            job_id = next((x for x in _recommend_queue if _recommend_jobs[x]["status"] == "queued"), None)
+            if job_id is None:
+                return
+            job = _recommend_jobs[job_id]
+            job["status"] = "starting"
+            job["started_at"] = time.monotonic()
+            payload = dict(job["payload"])
+        try:
+            result = recommend_hero_core(EAIARequestHandler.database, payload,
+                                         progress_callback=lambda update: _set_recommend_state(
+                                             job_id, status=update.get("phase", "screening"), **update))
+            _set_recommend_state(job_id, status="completed", phase=None, error=None, result=result)
+        except Exception as error:
+            _set_recommend_state(job_id, status="failed", phase=None, error=str(error), result=None)
+        finally:
+            with _recommend_lock:
+                if job_id in _recommend_queue:
+                    _recommend_queue.remove(job_id)
+            # Continue with the next queued job without creating one thread per task.
+
+
+def _enqueue_recommendation(payload: dict) -> str:
+    global _recommend_worker
+    job_id = uuid.uuid4().hex
+    with _recommend_lock:
+        _recommend_jobs[job_id] = {
+            "id": job_id, "hero_name": str(payload.get("hero_name") or payload.get("hero_core_id") or "—"),
+            "status": "queued", "phase": "queued", "completed": 0, "total": None,
+            "overall_completed": 0, "overall_total": None, "error": None, "result": None,
+            "started_at": None, "queued_at": time.monotonic(), "payload": dict(payload),
+        }
+        _recommend_queue.append(job_id)
+        if _recommend_worker is None or not _recommend_worker.is_alive():
+            _recommend_worker = threading.Thread(target=_recommend_worker_loop, daemon=True)
+            _recommend_worker.start()
+    return job_id
+
+
+def cancel_recommendation(job_id: str) -> dict:
+    with _recommend_lock:
+        job = _recommend_jobs.get(job_id)
+        if job is None:
+            raise ValueError("recommendation job not found")
+        if job["status"] != "queued":
+            raise ValueError("only queued recommendation jobs can be deleted")
+        job["status"] = "cancelled"
+        job["phase"] = None
+        if job_id in _recommend_queue:
+            _recommend_queue.remove(job_id)
+        return {key: value for key, value in job.items() if key not in {"payload", "result", "started_at", "queued_at"}}
 
 
 CATALOG_TABLES = (
@@ -292,18 +352,12 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 return
             if path == "/api/hero-core/recommend/start":
                 payload = self._read_json()
-                with _recommend_lock:
-                    if _recommend_state["status"] in {"starting", "screening", "refining"}:
-                        self._send_json({"error": "recommendation already running"}, HTTPStatus.CONFLICT)
-                        return
-                    job_id = uuid.uuid4().hex
-                    _recommend_state.update({
-                        "id": job_id, "status": "starting", "phase": "screening",
-                        "completed": 0, "total": None, "error": None, "result": None,
-                        "started_at": time.monotonic(),
-                    })
-                threading.Thread(target=self._run_recommend, args=(job_id, payload), daemon=True).start()
-                self._send_json(recommend_status(), HTTPStatus.ACCEPTED)
+                job_id = _enqueue_recommendation(payload)
+                self._send_json({"id": job_id, "status": "queued"}, HTTPStatus.ACCEPTED)
+                return
+            if path == "/api/hero-core/recommend/cancel":
+                payload = self._read_json()
+                self._send_json(cancel_recommendation(str(payload.get("id") or "")))
                 return
             if path in {"/api/hero-core/import", "/api/hero-cores/import"}:
                 self._send_json(import_hero_core(self._read_json()), HTTPStatus.CREATED)
@@ -448,16 +502,6 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             _set_scan_state(id=job_id, status="stopped", error=None)
         except Exception as error:
             _set_scan_state(id=job_id, status="failed", error=str(error))
-
-    def _run_recommend(self, job_id: str, payload: dict) -> None:
-        def progress(update: dict) -> None:
-            _set_recommend_state(id=job_id, status=update.get("phase", "screening"), **update)
-
-        try:
-            result = recommend_hero_core(self.database, payload, progress_callback=progress)
-            _set_recommend_state(id=job_id, status="completed", phase=None, error=None, result=result)
-        except Exception as error:
-            _set_recommend_state(id=job_id, status="failed", phase=None, error=str(error), result=None)
 
     def log_message(self, format: str, *args: object) -> None:
         print(f"{self.address_string()} - {format % args}")

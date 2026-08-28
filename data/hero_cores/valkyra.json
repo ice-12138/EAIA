@@ -1,0 +1,448 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.0",
+  "game_version": "CN-2026-08-28",
+  "hero": {
+    "id": "VALKYRA",
+    "name": "瓦尔基拉",
+    "title": "",
+    "faction": "",
+    "role": "",
+    "damage_type": "magic",
+    "mechanic_summary": "基础攻击为最多8目标的范围魔法伤害；胜利之剑按时间永久叠加攻击力；冲锋之影提供持续30秒的造成伤害提升。护盾分支、魔法易伤和击杀联动因当前引擎/数值信息不足暂不执行。",
+    "base_stats": {
+      "atk": 4270,
+      "hp": 18020,
+      "def": 3327,
+      "mres": 1204,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2.5
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 500,
+      "max": 600,
+      "auto_per_second": 12
+    }
+  },
+  "codex": {
+    "mechanic_summary": "普攻、胜利之剑和冲锋之影为木桩输出核心；圣迹为复活机制，天赋还包含魔法易伤和范围内敌人死亡后的短时增伤。",
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 18020,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 4270,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 3327,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 1204,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.5,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 12,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 8,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "魔法攻击",
+        "type": "basic",
+        "description": "满级：对范围内最多8名敌人造成120%的范围魔法伤害。",
+        "coefficient": 1.2,
+        "target_cap": 8,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 10
+        }
+      },
+      {
+        "id": "ultimate_shadow_charge",
+        "name": "冲锋之影",
+        "type": "ultimate",
+        "description": "满级：造成伤害提高50%，持续30秒；若开启时拥有护盾则消耗护盾，攻击距离+1、攻击速度+100，并按护盾量获得额外伤害提升，最高100%。",
+        "coefficient": null,
+        "target_cap": null,
+        "duration": 30,
+        "direct_damage": false,
+        "values": {
+          "rage_cost": 600,
+          "initial_rage": 500
+        }
+      },
+      {
+        "id": "victory_sword",
+        "name": "胜利之剑",
+        "type": "auto",
+        "description": "满级：每14秒自身攻击力增加5%，最多8层，永久持续。",
+        "coefficient": null,
+        "target_cap": null,
+        "direct_damage": false,
+        "values": {
+          "interval": 14,
+          "atk_pct_per_stack": 0.05,
+          "max_stacks": 8
+        }
+      },
+      {
+        "id": "miracle",
+        "name": "圣迹",
+        "type": "passive",
+        "description": "满级：以100%生命复活攻击范围内1名友方单位，每次上场1次，不能复活自己。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      }
+    ],
+    "talents": [
+      {
+        "id": "magic_vulnerability",
+        "name": "天赋",
+        "description": "对进入攻击范围的敌人附加魔法易伤；范围内敌人死亡时自身造成伤害提高15%，持续5秒。"
+      }
+    ]
+  },
+  "state": {
+    "victory_sword_stacks": {
+      "initial": 0,
+      "min": 0,
+      "max": 8
+    }
+  },
+  "buffs": {
+    "valkyra_ultimate_base": {
+      "duration": 30,
+      "modifiers": {
+        "damage_pct": 0.5
+      }
+    },
+    "victory_sword_stack_1": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_2": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_3": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_4": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_5": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_6": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_7": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    },
+    "victory_sword_stack_8": {
+      "duration": 999999,
+      "modifiers": {
+        "atk_pct": 0.05
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "魔法攻击",
+      "kind": "basic",
+      "coefficient": 1.2,
+      "hit_count": 1,
+      "target_cap": 8,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "magic",
+        "direct_damage",
+        "aoe"
+      ]
+    },
+    "ultimate_shadow_charge": {
+      "id": "ultimate_shadow_charge",
+      "name": "冲锋之影",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "duration": 30,
+      "can_crit": false,
+      "blocks_basic_attack": false,
+      "resource": {
+        "name": "rage",
+        "cost": 600
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "ultimate_activate",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "valkyra_ultimate_base"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "VICTORY_SWORD_TICK",
+          "delay": 14
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_add_state",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 10,
+      "condition": "state.victory_sword_stacks < 8",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "victory_sword_stacks",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_1",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 1",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_1"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_2",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 2",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_2"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_3",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 3",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_3"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_4",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 4",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_4"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_5",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 5",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_5"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_6",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 6",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_6"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_7",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 7",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_7"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_apply_8",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 20,
+      "condition": "state.victory_sword_stacks == 8",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "victory_sword_stack_8"
+        }
+      ]
+    },
+    {
+      "id": "victory_sword_reschedule",
+      "event": "VICTORY_SWORD_TICK",
+      "priority": 30,
+      "condition": "state.victory_sword_stacks < 8",
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "VICTORY_SWORD_TICK",
+          "delay": 14
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 600"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "基础属性仅录入截图白字：生命18020、攻击4270、防御3327、魔抗1204、攻击间隔2.5秒、攻击速度100、暴击率0%、暴击伤害150%；绿色+200生命、+50攻击和再部署时间-5不计入。",
+    "技能统一按截图升级项推导到满级：普攻120%/最多8目标；冲锋之影+50%造成伤害/30秒/初始怒气500/消耗600；胜利之剑每14秒攻击+5%/最多8层。",
+    "冲锋之影作为0直伤终结技，ULT_CAST_START时施加30秒damage_pct+0.50增益；终结技持续期间不阻塞普通攻击。",
+    "胜利之剑通过BATTLE_START后每14秒调度一次VICTORY_SWORD_TICK，并用8个永久5%攻击Buff表达最多8层叠加。",
+    "标准木桩无外部护盾，故冲锋之影护盾分支默认不触发。",
+    "魔法易伤具体数值未知，且当前引擎无目标易伤modifier；范围内敌人死亡增伤和圣迹也不属于不死亡木桩机制，因此仅保留在codex。",
+    "受击回怒8仅保留白字资料；当前木桩模型不模拟敌人攻击时不产生该怒气。"
+  ],
+  "validation_required": [
+    "补充魔法易伤的精确数值后，需要扩展引擎支持目标侧易伤/伤害承受倍率。",
+    "补充护盾量到额外伤害提升的映射后，需要扩展引擎支持护盾状态与条件分支。",
+    "当前HeroCore引擎尚未把target_cap/enemy_count用于伤害倍乘，群体木桩总伤害需引擎层补充目标数语义。",
+    "截图中最右侧紫色已满级技能未提供详情，当前未执行该技能机制。"
+  ]
+}
