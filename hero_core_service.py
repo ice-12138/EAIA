@@ -5,12 +5,14 @@ from __future__ import annotations
 import heapq
 import json
 import re
+from collections import Counter, defaultdict
 from itertools import product
 from pathlib import Path
 from typing import Any, Callable
 
 from equipment_db import EquipmentDatabase
-from equipment_models import StatType
+from equipment_models import EffectType, EquipmentItem, SetAscension, StatType
+from equipment_set_variants import iter_ascension_variants, load_set_evolutions, load_set_names
 from hero_core_engine import (
     DEFAULT_CORE_DIR,
     HeroCoreError,
@@ -25,6 +27,8 @@ from optimizer_projection import OptimizerEquipmentDatabase
 
 _SAFE_CORE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 _SLOTS = ("weapon", "armor", "bracelet", "necklace", "ring")
+_LEFT_SLOTS = {"weapon", "armor"}
+_RIGHT_SLOTS = {"bracelet", "necklace", "ring"}
 
 
 def hero_core_catalog(core_dir: str | Path = DEFAULT_CORE_DIR) -> dict[str, Any]:
@@ -195,8 +199,8 @@ def simulate_hero_core(database_path: str | Path, payload: dict[str, Any]) -> di
         database.close()
 
 
-def _item_potential(item) -> float:
-    """Only a candidate-pruning heuristic; final ranking always uses HeroCore."""
+def _item_potential(item: EquipmentItem) -> float:
+    """Candidate-pruning heuristic; final ranking always uses HeroCore."""
 
     score = 0.0
     for stat in item.stats:
@@ -217,12 +221,253 @@ def _item_potential(item) -> float:
     return score
 
 
+def _effect_potential(effect) -> float:
+    """Translate a set effect into pruning-only offensive potential units."""
+
+    value = float(effect.value)
+    weights = {
+        EffectType.ATK_PCT: 8.0,
+        EffectType.ATK_FLAT: 1.0 / 900.0,
+        EffectType.CRIT_RATE: 7.0,
+        EffectType.CRIT_DMG: 3.2,
+        EffectType.ATK_SPEED: 1.0 / 85.0,
+        EffectType.RAGE_REGEN: 2.2,
+        EffectType.DAMAGE_PCT: 8.0,
+        EffectType.BASIC_DMG: 6.0,
+        EffectType.SKILL_DMG: 5.0,
+        EffectType.ULT_DMG: 5.0,
+        EffectType.SINGLE_DMG: 4.0,
+        EffectType.AOE_DMG: 4.0,
+        EffectType.EXTRA_DAMAGE: 2.0,
+        EffectType.PENETRATION: 3.0,
+    }
+    return max(0.0, value * weights.get(effect.effect_type, 0.0))
+
+
+def _eligible_slots(slot_group: str | None) -> set[str]:
+    if slot_group == "left":
+        return set(_LEFT_SLOTS)
+    if slot_group == "right":
+        return set(_RIGHT_SLOTS)
+    return set(_SLOTS)
+
+
+def _set_candidate_bonuses(
+    database: OptimizerEquipmentDatabase,
+    all_items: list[EquipmentItem],
+) -> dict[str, float]:
+    """Return per-piece pruning bonuses for feasible current/ascendable sets.
+
+    This does not alter final damage. It only prevents a strong two/three-piece
+    set from disappearing before HeroCore gets a chance to evaluate the complete
+    build. T1 pieces receive the better of their current-set and reachable T2
+    pruning value because both states are evaluated later.
+    """
+
+    definitions = database.load_sets()
+    evolutions = load_set_evolutions(database)
+    effect_scores: defaultdict[str, float] = defaultdict(float)
+    for effect in database.load_set_effects():
+        if effect.requires_dot:
+            continue
+        effect_scores[effect.set_id] += _effect_potential(effect)
+
+    slots_by_set: defaultdict[str, set[str]] = defaultdict(set)
+    for item in all_items:
+        slots_by_set[item.set_id].add(item.slot.value)
+
+    result: dict[str, float] = {}
+    for set_id, slots in slots_by_set.items():
+        definition = definitions.get(set_id)
+        if definition is None:
+            continue
+        eligible = _eligible_slots(definition.slot_group)
+        usable_slots = slots & eligible
+        if len(usable_slots) < int(definition.required_pieces):
+            continue
+        current_score = effect_scores.get(set_id, 0.0)
+        target_id = evolutions.get(set_id)
+        target_score = effect_scores.get(target_id, 0.0) if target_id else 0.0
+        total_score = max(current_score, target_score)
+        if total_score <= 0:
+            continue
+        result[set_id] = total_score / max(1, int(definition.required_pieces))
+    return result
+
+
+def _select_set_aware_candidates(
+    database: OptimizerEquipmentDatabase,
+    by_slot: dict[str, list[EquipmentItem]],
+    candidate_per_slot: int,
+) -> tuple[dict[str, list[EquipmentItem]], dict[str, float]]:
+    all_items = [item for values in by_slot.values() for item in values]
+    set_bonuses = _set_candidate_bonuses(database, all_items)
+    candidates: dict[str, list[EquipmentItem]] = {}
+    for slot, values in by_slot.items():
+        candidates[slot] = sorted(
+            values,
+            key=lambda item: (
+                _item_potential(item) + set_bonuses.get(item.set_id, 0.0),
+                _item_potential(item),
+                item.item_id,
+            ),
+            reverse=True,
+        )[:candidate_per_slot]
+    return candidates, set_bonuses
+
+
+def _variant_overrides(
+    physical_items: tuple[EquipmentItem, ...],
+    variant_items: tuple[EquipmentItem, ...],
+) -> dict[str, str]:
+    return {
+        physical.item_id: variant.set_id
+        for physical, variant in zip(physical_items, variant_items)
+        if physical.set_id != variant.set_id
+    }
+
+
+def _serialize_ascensions(ascensions: tuple[SetAscension, ...]) -> list[dict[str, str]]:
+    return [
+        {
+            "item_id": ascension.item_id,
+            "slot": ascension.slot,
+            "from_set_id": ascension.from_set_id,
+            "to_set_id": ascension.to_set_id,
+            "from_set_name": ascension.from_set_name,
+            "to_set_name": ascension.to_set_name,
+        }
+        for ascension in ascensions
+    ]
+
+
+def _active_set_ids(database: OptimizerEquipmentDatabase, items: tuple[EquipmentItem, ...]) -> list[str]:
+    definitions = database.load_sets()
+    counts = Counter(item.set_id for item in items)
+    return sorted(
+        set_id
+        for set_id, count in counts.items()
+        if set_id in definitions and count >= definitions[set_id].required_pieces
+    )
+
+
+def _screen_physical_build(
+    *,
+    core: dict[str, Any],
+    database: OptimizerEquipmentDatabase,
+    physical_items: tuple[EquipmentItem, ...],
+    evolutions: dict[str, str],
+    set_names: dict[str, str],
+    target: dict[str, Any],
+    policy: str,
+    seed: int,
+    warmup: float,
+    measurement: float,
+) -> tuple[float, int]:
+    """Return best screening score across current and reachable T2 states."""
+
+    best_score = float("-inf")
+    best_ascensions = 10**9
+    simulations = 0
+    try:
+        for variant_items, ascensions in iter_ascension_variants(physical_items, evolutions, set_names):
+            database.set_variant_overrides(_variant_overrides(physical_items, variant_items))
+            trial = HeroCoreSimulator(
+                core,
+                database=database,
+                item_ids=[item.item_id for item in physical_items],
+                target=target,
+                policy=policy,
+                seed=seed,
+                warmup=warmup,
+                measurement=measurement,
+            ).run()
+            simulations += 1
+            score = trial.total_damage / measurement * 60.0
+            if score > best_score or (score == best_score and len(ascensions) < best_ascensions):
+                best_score = score
+                best_ascensions = len(ascensions)
+    finally:
+        database.clear_variant_overrides()
+    return best_score, simulations
+
+
+def _refine_physical_build(
+    *,
+    core: dict[str, Any],
+    database: OptimizerEquipmentDatabase,
+    item_ids: tuple[str, ...],
+    evolutions: dict[str, str],
+    set_names: dict[str, str],
+    target: dict[str, Any],
+    policy: str,
+    trials: int,
+    warmup: float,
+    measurement: float,
+    seed: int,
+) -> tuple[dict[str, Any], int]:
+    """Refine every current/T2 state and keep one result per physical build."""
+
+    database.clear_variant_overrides()
+    physical_items = tuple(database.load_equipment(list(item_ids)))
+    if len(physical_items) != len(item_ids):
+        raise HeroCoreError("one or more shortlisted equipment items became unavailable")
+
+    best_row: dict[str, Any] | None = None
+    best_key: tuple[float, int, str] | None = None
+    simulations = 0
+    try:
+        for variant_items, ascensions in iter_ascension_variants(physical_items, evolutions, set_names):
+            overrides = _variant_overrides(physical_items, variant_items)
+            database.set_variant_overrides(overrides)
+            result = simulate_average(
+                core,
+                database=database,
+                item_ids=list(item_ids),
+                target=target,
+                policy=policy,
+                trials=trials,
+                warmup=warmup,
+                measurement=measurement,
+                seed=seed,
+            )
+            simulations += 1
+            active_sets = _active_set_ids(database, variant_items)
+            row = {
+                "item_ids": list(item_ids),
+                "active_sets": active_sets,
+                "active_set_names": [set_names.get(set_id, set_id) for set_id in active_sets],
+                "ascended_items": _serialize_ascensions(ascensions),
+                "uses_ascension": bool(ascensions),
+                "equipment_projection": database.projection_summary(item_ids),
+                **result,
+            }
+            mean = float(result["equivalent_60s"]["mean"])
+            state_key = "|".join(item.set_id for item in variant_items)
+            key = (mean, -len(ascensions), state_key)
+            if best_key is None or key > best_key:
+                best_key = key
+                best_row = row
+    finally:
+        database.clear_variant_overrides()
+
+    if best_row is None:
+        raise HeroCoreError("no equipment set variant could be simulated")
+    return best_row, simulations
+
+
 def recommend_hero_core(
     database_path: str | Path,
     payload: dict[str, Any],
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Two-stage HeroCore search over max-level, fully-unlocked equipment projections."""
+    """Set-aware HeroCore search over projected max-level/full-unlock equipment.
+
+    Candidate pruning includes achievable set value, V2.2 set effects are
+    normalized before HeroCore consumes them, and each physical build is scored
+    across its current T1 plus all mechanically distinct reachable T2 states.
+    Only the best state of a physical five-item build can occupy a Top-K slot.
+    """
 
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
     core = load_core(core_id)
@@ -242,8 +487,9 @@ def recommend_hero_core(
     database = OptimizerEquipmentDatabase(database_path, percentile=0.90)
     try:
         database.initialize()
+        database.clear_variant_overrides()
         all_items = database.load_equipment()
-        by_slot: dict[str, list[Any]] = {slot: [] for slot in _SLOTS}
+        by_slot: dict[str, list[EquipmentItem]] = {slot: [] for slot in _SLOTS}
         for item in all_items:
             if item.slot.value in by_slot:
                 by_slot[item.slot.value].append(item)
@@ -254,56 +500,81 @@ def recommend_hero_core(
                 detail = "；部分装备因无法可靠投影到满级全解锁状态而被排除"
             raise HeroCoreError("缺少可用装备部位: " + ", ".join(missing) + detail)
 
-        candidates = {
-            slot: sorted(values, key=lambda item: (_item_potential(item), item.item_id), reverse=True)[:candidate_per_slot]
-            for slot, values in by_slot.items()
-        }
+        candidates, set_candidate_bonuses = _select_set_aware_candidates(
+            database, by_slot, candidate_per_slot
+        )
         combinations = 1
         for values in candidates.values():
             combinations *= len(values)
+
+        evolutions = load_set_evolutions(database)
+        set_names = load_set_names(database)
 
         def report(**update: Any) -> None:
             if progress_callback is not None:
                 progress_callback(update)
 
-        report(phase="screening", completed=0, total=combinations,
-               overall_completed=0, overall_total=combinations)
+        report(
+            phase="screening",
+            completed=0,
+            total=combinations,
+            overall_completed=0,
+            overall_total=combinations,
+        )
 
         keep = max(top_k * 4, 16)
         screening_heap: list[tuple[float, str, tuple[str, ...]]] = []
         screening_warmup = max(0.0, float(payload.get("screening_warmup", 60.0)))
         screening_measurement = max(1.0, float(payload.get("screening_measurement", 240.0)))
+        variant_simulations_screened = 0
+
         for completed, build in enumerate(product(*(candidates[slot] for slot in _SLOTS)), 1):
-            item_ids = tuple(item.item_id for item in build)
-            trial = HeroCoreSimulator(
-                core,
+            physical_items = tuple(build)
+            item_ids = tuple(item.item_id for item in physical_items)
+            score, variant_count = _screen_physical_build(
+                core=core,
                 database=database,
-                item_ids=list(item_ids),
+                physical_items=physical_items,
+                evolutions=evolutions,
+                set_names=set_names,
                 target=target,
                 policy=policy,
                 seed=seed,
                 warmup=screening_warmup,
                 measurement=screening_measurement,
-            ).run()
-            score = trial.total_damage / screening_measurement * 60.0
+            )
+            variant_simulations_screened += variant_count
             tie_key = "|".join(item_ids)
             entry = (score, tie_key, item_ids)
             if len(screening_heap) < keep:
                 heapq.heappush(screening_heap, entry)
             elif entry > screening_heap[0]:
                 heapq.heapreplace(screening_heap, entry)
-            report(phase="screening", completed=completed, total=combinations,
-                   overall_completed=completed, overall_total=combinations)
+            report(
+                phase="screening",
+                completed=completed,
+                total=combinations,
+                overall_completed=completed,
+                overall_total=combinations,
+            )
 
         shortlisted = sorted(screening_heap, reverse=True)
         refined: list[dict[str, Any]] = []
-        report(phase="refining", completed=0, total=len(shortlisted),
-               overall_completed=combinations, overall_total=combinations + len(shortlisted))
+        report(
+            phase="refining",
+            completed=0,
+            total=len(shortlisted),
+            overall_completed=combinations,
+            overall_total=combinations + len(shortlisted),
+        )
+        variant_simulations_refined = 0
         for completed, (_, _, item_ids) in enumerate(shortlisted, 1):
-            result = simulate_average(
-                core,
+            row, variant_count = _refine_physical_build(
+                core=core,
                 database=database,
-                item_ids=list(item_ids),
+                item_ids=item_ids,
+                evolutions=evolutions,
+                set_names=set_names,
                 target=target,
                 policy=policy,
                 trials=refine_trials,
@@ -311,11 +582,15 @@ def recommend_hero_core(
                 measurement=float(payload.get("measurement", 600.0)),
                 seed=seed,
             )
-            projection = database.projection_summary(item_ids)
-            refined.append({"item_ids": list(item_ids), "equipment_projection": projection, **result})
-            report(phase="refining", completed=completed, total=len(shortlisted),
-                   overall_completed=combinations + completed,
-                   overall_total=combinations + len(shortlisted))
+            refined.append(row)
+            variant_simulations_refined += variant_count
+            report(
+                phase="refining",
+                completed=completed,
+                total=len(shortlisted),
+                overall_completed=combinations + completed,
+                overall_total=combinations + len(shortlisted),
+            )
 
         refined.sort(
             key=lambda row: (
@@ -338,7 +613,11 @@ def recommend_hero_core(
             "target_def": target_def,
             "enemy_count": enemy_count,
             "candidate_per_slot": candidate_per_slot,
+            "candidate_pruning": "set_aware",
+            "set_candidate_bonus_count": len(set_candidate_bonuses),
             "combinations_screened": combinations,
+            "variant_simulations_screened": variant_simulations_screened,
+            "variant_simulations_refined": variant_simulations_refined,
             "refine_trials": refine_trials,
             "equipment_projection": {
                 "mode": "max_enhancement_p90",
@@ -347,7 +626,13 @@ def recommend_hero_core(
                 "excluded_item_count": len(database.projection_exclusions),
                 "excluded_items": dict(sorted(database.projection_exclusions.items())),
             },
+            "set_model": {
+                "normalized_v22_effects": True,
+                "t1_t2_variants": True,
+                "tie_prefers_no_ascension": True,
+            },
             "results": results,
         }
     finally:
+        database.clear_variant_overrides()
         database.close()
