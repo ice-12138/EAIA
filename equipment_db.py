@@ -156,7 +156,11 @@ class EquipmentDatabase:
 
     def upsert_recognized_equipment(self, record: dict, *, source_screenshot: str | Path | None = None) -> dict:
         from equipment_persistence import build_database_rows
-        detected_item_id = str(record["item_id"]); matched_item_id = self.find_upgrade_match(record); stored_record = dict(record)
+        detected_item_id = str(record["item_id"])
+        already_recognized = self.connection.execute(
+            "SELECT 1 FROM equipment_recognition WHERE item_id=?", (detected_item_id,)
+        ).fetchone() is not None
+        matched_item_id = self.find_upgrade_match(record); stored_record = dict(record)
         if matched_item_id is not None: stored_record["item_id"] = matched_item_id
         item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot); set_name = recognition[16]
         self.connection.execute("""INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0) ON CONFLICT(set_id) DO UPDATE SET set_name=excluded.set_name""", (item[2], set_name))
@@ -165,7 +169,11 @@ class EquipmentDatabase:
         self.connection.execute("DELETE FROM equipment_stats WHERE item_id=?", (item[0],)); self.connection.executemany("""INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked) VALUES (?, ?, ?, ?, ?, ?, ?)""", stats)
         self.connection.execute("""INSERT INTO equipment_recognition(item_id,profile,fully_unlocked,quality_text,slot_text,primary_text,main_stat_name,main_stat_value,sub_stat_1_name,sub_stat_1_value,sub_stat_2_name,sub_stat_2_value,sub_stat_3_name,sub_stat_3_value,sub_stat_4_name,sub_stat_4_value,set_name_text,raw_result,source_screenshot,recognized_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')) ON CONFLICT(item_id) DO UPDATE SET profile=excluded.profile,fully_unlocked=excluded.fully_unlocked,quality_text=excluded.quality_text,slot_text=excluded.slot_text,primary_text=excluded.primary_text,main_stat_name=excluded.main_stat_name,main_stat_value=excluded.main_stat_value,sub_stat_1_name=excluded.sub_stat_1_name,sub_stat_1_value=excluded.sub_stat_1_value,sub_stat_2_name=excluded.sub_stat_2_name,sub_stat_2_value=excluded.sub_stat_2_value,sub_stat_3_name=excluded.sub_stat_3_name,sub_stat_3_value=excluded.sub_stat_3_value,sub_stat_4_name=excluded.sub_stat_4_name,sub_stat_4_value=excluded.sub_stat_4_value,set_name_text=excluded.set_name_text,raw_result=excluded.raw_result,source_screenshot=excluded.source_screenshot,recognized_at=excluded.recognized_at""", recognition)
         self.connection.commit(); self._learn_recognized_stats(stored_record, item_id=item[0])
-        return {"item_id": item[0], "detected_item_id": detected_item_id, "matched_upgrade": matched_item_id is not None, "matched_previous_item_id": matched_item_id}
+        matched_upgrade = matched_item_id is not None
+        return {"item_id": item[0], "detected_item_id": detected_item_id,
+                "matched_upgrade": matched_upgrade, "matched_previous_item_id": matched_item_id,
+                "入库类型": "更新" if matched_upgrade else ("重复" if already_recognized else "新入库"),
+                "import_action": "updated" if matched_upgrade else ("duplicate" if already_recognized else "created")}
 
     def _learn_recognized_stats(self, record: dict, *, item_id: str) -> None:
         from main_stat_cap_learner import MainStatCapLearner

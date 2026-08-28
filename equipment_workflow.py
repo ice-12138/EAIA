@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import math
 import os
+import re
 import shutil
 import subprocess
 import time
@@ -38,6 +40,7 @@ class Region:
 
 # Calibrated from screen_20260825_122242_383 拷贝.jpg at 2720x1260.
 DEFAULT_DETAIL_REGION = Region(2007, 238, 2567, 1133)
+DEFAULT_EQUIPMENT_COUNT_REGION = Region(1693, 162, 1985, 230)
 
 
 @dataclass(frozen=True)
@@ -341,10 +344,61 @@ class GridConfig:
 class EquipmentScanner:
     """Scan all rows by processing new rows after overlapping device-side swipes."""
 
-    def __init__(self, workflow: EquipmentWorkflow, swipe: Callable[[tuple[int, int], tuple[int, int], int], None], grid: GridConfig = GridConfig()):
+    def __init__(self, workflow: EquipmentWorkflow, swipe: Callable[[tuple[int, int], tuple[int, int], int], None], grid: GridConfig = GridConfig(), *, count_ocr: OcrEngine | None = None, count_region: Region = DEFAULT_EQUIPMENT_COUNT_REGION, progress_callback: Callable[[dict], None] | None = None):
         self.workflow = workflow
         self.swipe = swipe
         self.grid = grid
+        self.count_ocr = count_ocr
+        self.count_region = count_region
+        self.equipment_count: int | None = None
+        self.progress_callback = progress_callback
+        self._progress_completed = 0
+
+    def _report_progress(self, **values: object) -> None:
+        if self.progress_callback is not None:
+            self.progress_callback({"equipment_count": self.equipment_count, **values})
+
+    def _report_record(self, record: dict) -> None:
+        self._progress_completed += 1
+        self._report_progress(
+            status="scanning",
+            completed=self._progress_completed,
+            row=record.get("row"),
+            column=record.get("column"),
+        )
+
+    @staticmethod
+    def _parse_equipment_count(text: str) -> int:
+        match = re.search(r"(\d+)\s*/\s*\d+", text or "")
+        if not match:
+            raise WorkflowError(f"Unable to recognize equipment count m/n: {text!r}")
+        return int(match.group(1))
+
+    @staticmethod
+    def _equipment_signature(record: dict) -> str:
+        """Return a stable identity for a recognized equipment detail."""
+        detail = record.get("fine_detail", record)
+
+        def clean(value):
+            if isinstance(value, dict):
+                return {
+                    key: clean(item)
+                    for key, item in value.items()
+                    if key not in {"item_id", "confidence", "region"}
+                }
+            if isinstance(value, list):
+                return [clean(item) for item in value]
+            return value
+
+        return json.dumps(clean(detail), ensure_ascii=False, sort_keys=True)
+
+    def _read_equipment_count(self, image_path: Path) -> int | None:
+        if self.count_ocr is None:
+            return None
+        roi_path = Path(image_path).parent / "equipment_count_roi.png"
+        self.count_region.crop(Image.open(image_path).convert("RGB")).save(roi_path)
+        result = self.count_ocr.recognize(roi_path)
+        return self._parse_equipment_count(result.text)
 
     def _slot_luma(self, image: Image.Image, x: int, y: int) -> float:
         half_width = self.grid.slot_width // 2
@@ -463,7 +517,7 @@ class EquipmentScanner:
                 occupied_by_row[row] = all_columns.copy()
         return occupied_by_row
 
-    def _process_rows(self, logical_start: int, screen_rows: Sequence[int]) -> tuple[list[dict], bool]:
+    def _process_rows(self, logical_start: int, screen_rows: Sequence[int], initial_column: int = 1) -> tuple[list[dict], bool]:
         records = []
         reached_empty_row = False
         calibration: dict = {}
@@ -487,15 +541,20 @@ class EquipmentScanner:
                 if not occupied_columns:
                     reached_empty_row = True
                     break
+                first_column = initial_column if screen_row == screen_rows[0] else 1
                 for column, x in enumerate(self.grid.x_centers, 1):
+                    if column < first_column:
+                        continue
                     if column not in occupied_columns:
                         continue
                     y = self.grid.y_centers[screen_row]
                     allow_unchanged = self._slot_selected(current, x, y)
                     if not threaded:
-                        records.append(self.workflow.process_item(
+                        record = self.workflow.process_item(
                             logical_row, column, x, y, allow_unchanged=allow_unchanged,
-                        ))
+                        )
+                        records.append(record)
+                        self._report_record(record)
                         continue
                     captured = self.workflow.capture_item(
                         logical_row, column, x, y, allow_unchanged=allow_unchanged,
@@ -503,10 +562,14 @@ class EquipmentScanner:
                     pending.append(executor.submit(self.workflow.recognize_captured_item, captured))
                     # Keep at most two screenshots waiting behind the OCR worker.
                     if len(pending) >= 3:
-                        records.append(pending.pop(0).result())
+                        record = pending.pop(0).result()
+                        records.append(record)
+                        self._report_record(record)
         finally:
             for future in pending:
-                records.append(future.result())
+                record = future.result()
+                records.append(record)
+                self._report_record(record)
             if executor is not None:
                 executor.shutdown(wait=True)
         return records, reached_empty_row
@@ -526,10 +589,40 @@ class EquipmentScanner:
             time.sleep(self.workflow.poll_interval)
         return changed(before_grid, previous) if previous is not None else False
 
-    def scan_until_bottom(self, max_scrolls: int = 100) -> list[dict]:
+    def scan_until_bottom(self, max_scrolls: int = 100, resume_row: int = 1, resume_column: int = 0) -> list[dict]:
+        if resume_row < 1 or resume_column < 0 or resume_column > self.grid.columns:
+            raise ValueError("resume position must be a valid 1-based row and 0-8 column")
         if self.grid.overlap_rows >= self.grid.visible_rows:
             raise ValueError("overlap_rows must be smaller than visible_rows")
-        records, reached_empty_row = self._process_rows(1, range(self.grid.visible_rows))
+        first_path = self.workflow.capture()
+        equipment_count = self._read_equipment_count(first_path)
+        self.equipment_count = equipment_count
+        if resume_row == 1 and resume_column == 0:
+            screen_start, logical_start, first_column, skipped = 0, 1, 1, 0
+        else:
+            screen_start = min(self.grid.visible_rows - 1, resume_row - 1)
+            logical_start = resume_row - screen_start
+            first_column = resume_column + 1
+            skipped = (resume_row - 1) * self.grid.columns + resume_column
+        remaining_count = max(0, equipment_count - skipped) if equipment_count is not None else None
+        self._report_progress(status="scanning", completed=0, row=None, column=None, remaining_count=remaining_count)
+        if equipment_count is not None and skipped >= equipment_count:
+            return [], False
+        records, reached_empty_row = self._process_rows(logical_start, range(screen_start, self.grid.visible_rows), first_column)
+        if equipment_count is not None:
+            total_rows = math.ceil(equipment_count / self.grid.columns)
+            rows_after_initial = max(0, total_rows - (logical_start + self.grid.visible_rows - 1))
+            for _ in range(min(rows_after_initial, max_scrolls)):
+                before_path = self.workflow.capture()
+                before = Image.open(before_path).convert("RGB")
+                self.swipe(self.grid.swipe_start, self.grid.swipe_end, self.grid.swipe_velocity)
+                # The equipment count, rather than a background-sensitive
+                # bottom-of-list heuristic, determines the exact swipe count.
+                self._list_changed_after_swipe(before)
+                logical_start += self.grid.visible_rows - self.grid.overlap_rows
+                new_records, _ = self._process_rows(logical_start, range(self.grid.overlap_rows, self.grid.visible_rows))
+                records.extend(new_records)
+            return records
         if reached_empty_row:
             return records
         logical_start = 1

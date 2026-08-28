@@ -29,6 +29,7 @@ from PIL import Image
 
 from equipment_regions import SUB_FIELDS, FineEquipmentRecognizer, FineRegion
 from equipment_workflow import (
+    DEFAULT_EQUIPMENT_COUNT_REGION,
     DEFAULT_DETAIL_REGION,
     EquipmentScanner,
     EquipmentWorkflow,
@@ -403,8 +404,11 @@ class FastEquipmentScanner(EquipmentScanner):
         grid: GridConfig = GridConfig(),
         *,
         scroll_settle_delay: float = 0.25,
+        count_ocr: OcrEngine | None = None,
+        count_region: Region = DEFAULT_EQUIPMENT_COUNT_REGION,
+        progress_callback: Callable[[dict], None] | None = None,
     ):
-        super().__init__(workflow, swipe, grid)
+        super().__init__(workflow, swipe, grid, count_ocr=count_ocr, count_region=count_region, progress_callback=progress_callback)
         self.scroll_settle_delay = scroll_settle_delay
 
     def _collect_future(self, future: Future) -> dict:
@@ -413,7 +417,7 @@ class FastEquipmentScanner(EquipmentScanner):
         self.workflow.persist_record(record)
         return record
 
-    def _process_rows(self, logical_start: int, screen_rows: Sequence[int]) -> tuple[list[dict], bool]:
+    def _process_rows(self, logical_start: int, screen_rows: Sequence[int], initial_column: int = 1) -> tuple[list[dict], bool]:
         records = []
         reached_empty_row = False
         calibration: dict = {}
@@ -430,29 +434,58 @@ class FastEquipmentScanner(EquipmentScanner):
             })
             for screen_row in screen_rows:
                 logical_row = logical_start + screen_row
-                occupied_columns = occupied_by_row[screen_row]
-                if not occupied_columns:
-                    reached_empty_row = True
-                    break
-                for column, x in enumerate(self.grid.x_centers, 1):
-                    if column not in occupied_columns:
-                        continue
-                    y = self.grid.y_centers[screen_row]
-                    allow_unchanged = self._slot_selected(current, x, y)
-                    captured = self.workflow.capture_item(
-                        logical_row,
-                        column,
-                        x,
-                        y,
-                        allow_unchanged=allow_unchanged,
-                        before_path=current_path,
-                        before_image=current,
+                expected = None
+                if self.equipment_count is not None:
+                    expected = min(
+                        self.grid.columns,
+                        max(0, self.equipment_count - (logical_row - 1) * self.grid.columns),
                     )
-                    current_path = captured["final_path"]
-                    current = Image.open(current_path).convert("RGB")
-                    pending.append(executor.submit(self.workflow.recognize_captured_item, captured))
-                    if len(pending) >= 3:
-                        records.append(self._collect_future(pending.pop(0)))
+                    if screen_row == screen_rows[0]:
+                        expected = max(0, expected - initial_column + 1)
+                attempt = 0
+                while True:
+                    attempt += 1
+                    occupied_columns = occupied_by_row[screen_row]
+                    if expected == self.grid.columns:
+                        occupied_columns = list(range(1, self.grid.columns + 1))
+                    if not occupied_columns:
+                        reached_empty_row = True
+                        break
+                    row_futures = []
+                    first_column = initial_column if screen_row == screen_rows[0] else 1
+                    for column, x in enumerate(self.grid.x_centers, 1):
+                        if column < first_column:
+                            continue
+                        if column not in occupied_columns:
+                            continue
+                        y = self.grid.y_centers[screen_row]
+                        allow_unchanged = self._slot_selected(current, x, y)
+                        captured = self.workflow.capture_item(
+                            logical_row, column, x, y,
+                            allow_unchanged=allow_unchanged,
+                            before_path=current_path,
+                            before_image=current,
+                        )
+                        current_path = captured["final_path"]
+                        current = Image.open(current_path).convert("RGB")
+                        row_futures.append(executor.submit(
+                            self.workflow.recognize_captured_item, captured
+                        ))
+                    recognized = [future.result() for future in row_futures]
+                    required = expected if expected is not None else len(occupied_columns)
+                    distinct = {
+                        self._equipment_signature(record) for record in recognized
+                    }
+                    if len(distinct) >= required:
+                        for record in recognized:
+                            self.workflow.persist_record(record)
+                            self._report_record(record)
+                        records.extend(recognized)
+                        break
+                    # The row was not fully and distinctly recognized. Repeat
+                    # it from column 1 before allowing the scanner to advance.
+                    if attempt % 5 == 0:
+                        time.sleep(0.2)
         finally:
             for future in pending:
                 records.append(self._collect_future(future))
@@ -491,6 +524,9 @@ def build_fast_hdc_scanner(
     settle_delay: float = 0.20,
     recovery_delay: float = 0.12,
     scroll_settle_delay: float = 0.25,
+    count_ocr: OcrEngine | None = None,
+    count_region: Region = DEFAULT_EQUIPMENT_COUNT_REGION,
+    progress_callback: Callable[[dict], None] | None = None,
 ) -> FastEquipmentScanner:
     """Build the supervised fast scanner while retaining the HDC capture backend."""
     from screen_capture import capture_once
@@ -514,4 +550,7 @@ def build_fast_hdc_scanner(
         controller.swipe,
         grid,
         scroll_settle_delay=scroll_settle_delay,
+        count_ocr=count_ocr,
+        count_region=count_region,
+        progress_callback=progress_callback,
     )

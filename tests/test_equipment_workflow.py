@@ -32,6 +32,12 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(grid.swipe_end, (1200, 755))
         self.assertEqual(grid.swipe_velocity, 200)
 
+    def test_equipment_count_parser_uses_m_from_m_over_n(self):
+        from equipment_workflow import EquipmentScanner
+
+        self.assertEqual(EquipmentScanner._parse_equipment_count("137/200"), 137)
+        self.assertEqual(EquipmentScanner._parse_equipment_count("137 / 200"), 137)
+
     def test_grid_occupancy_uses_brightness_difference_from_current_image(self):
         from equipment_workflow import EquipmentScanner
 

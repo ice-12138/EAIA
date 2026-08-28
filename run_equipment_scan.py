@@ -18,13 +18,16 @@ SERIAL = "FMR0223A30001935"
 CACHE_DIR = Path(".paddle_home")
 
 
-def _persistence(database: EquipmentDatabase):
-    return lambda record, screenshot: database.upsert_recognized_equipment(
-        record, source_screenshot=screenshot
-    )
+def _persistence(database: EquipmentDatabase, result_callback=None):
+    def persist(record, screenshot):
+        result = database.upsert_recognized_equipment(record, source_screenshot=screenshot)
+        if result_callback is not None:
+            result_callback(result)
+        return result
+    return persist
 
 
-def _build_fast_scanner(database: EquipmentDatabase):
+def _build_fast_scanner(database: EquipmentDatabase, result_callback=None):
     regions = load_fine_regions(Path("captures"))
     recognition_ocr = PaddleTextRecognitionV5Mobile(cache_dir=CACHE_DIR)
     fine = FastFineEquipmentRecognizer(
@@ -44,16 +47,17 @@ def _build_fast_scanner(database: EquipmentDatabase):
         ocr=recognition_ocr,
         output_dir=Path("ocr_results_fast"),
         fine_recognizer=fine,
-        persistence=_persistence(database),
+        persistence=_persistence(database, result_callback),
         settle_delay=0.20,
         recovery_delay=0.12,
         # The device calibration is stable without an extra post-drag pause.
         # Validation still captures the list immediately after the drag.
         scroll_settle_delay=0.0,
+        count_ocr=recognition_ocr,
     )
 
 
-def _build_legacy_scanner(database: EquipmentDatabase):
+def _build_legacy_scanner(database: EquipmentDatabase, result_callback=None):
     ocr = PaddleOcrV5Mobile(cache_dir=CACHE_DIR)
     fine = FineEquipmentRecognizer(
         ocr=ocr,
@@ -67,8 +71,9 @@ def _build_legacy_scanner(database: EquipmentDatabase):
         ocr=ocr,
         output_dir=Path("ocr_results_run5"),
         fine_recognizer=fine,
-        persistence=_persistence(database),
+        persistence=_persistence(database, result_callback),
         enable_coarse_ocr=False,
+        count_ocr=ocr,
     )
 
 

@@ -11,6 +11,9 @@ import argparse
 import json
 import re
 import sqlite3
+import threading
+import time
+import uuid
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -18,11 +21,36 @@ from urllib.parse import urlparse
 
 from equipment_db import EquipmentDatabase
 from official_hero_data import seed_official_hero_catalog
+from screen_capture import CaptureError, choose_target, find_hdc, list_targets
 
 
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DATABASE = ROOT / "data" / "equipment.db"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
+HDC = r"D:\DEVECO~2\sdk\default\OPENHA~1\TOOLCH~1\hdc.exe"
+SERIAL = "FMR0223A30001935"
+
+_scan_lock = threading.Lock()
+_scan_state = {
+    "id": None, "status": "idle", "completed": 0, "total": None,
+    "row": None, "column": None, "error": None, "started_at": None,
+    "new_count": 0, "duplicate_count": 0, "updated_count": 0,
+}
+
+
+def scan_status() -> dict:
+    with _scan_lock:
+        state = {key: value for key, value in _scan_state.items() if key != "started_at"}
+        started_at = _scan_state["started_at"]
+        elapsed = (time.monotonic() - started_at) if started_at else 0.0
+        state["elapsed_seconds"] = round(elapsed, 2)
+        state["average_seconds"] = round(elapsed / _scan_state["completed"], 2) if _scan_state["completed"] else None
+        return state
+
+
+def _set_scan_state(**values: object) -> None:
+    with _scan_lock:
+        _scan_state.update(values)
 
 CATALOG_TABLES = (
     "equipment_categories", "equipment_slots", "set_tiers", "gear_qualities",
@@ -140,6 +168,13 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             try:
                 if path == "/api/health":
                     self._send_json({"status": "ok", "database": str(self.database)})
+                elif path == "/api/device/check":
+                    hdc = find_hdc(HDC)
+                    targets = list_targets(hdc)
+                    target = choose_target(hdc, SERIAL)
+                    self._send_json({"connected": True, "serial": target, "targets": targets})
+                elif path == "/api/scan/status":
+                    self._send_json(scan_status())
                 else:
                     hero_data, catalog_data, equipment_data = database_payload(self.database)
                     payloads = {
@@ -151,13 +186,78 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                         self._send_json(payloads[path])
                     else:
                         self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
-            except (sqlite3.Error, OSError) as error:
+            except (sqlite3.Error, OSError, CaptureError) as error:
                 self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
 
         if path == "/":
             self.path = "/index.html"
         super().do_GET()
+
+    def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        if path != "/api/scan/start":
+            self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+            return
+        try:
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = json.loads(self.rfile.read(length) or b"{}") if length else {}
+            resume_row = int(payload.get("resume_row", 1))
+            resume_column = int(payload.get("resume_column", 0))
+            if resume_row < 1 or resume_column < 0 or resume_column > 8:
+                raise ValueError
+        except (TypeError, ValueError, json.JSONDecodeError):
+            self._send_json({"error": "续扫位置必须是有效的行号和 0-8 列"}, HTTPStatus.BAD_REQUEST)
+            return
+        with _scan_lock:
+            if _scan_state["status"] in {"starting", "scanning"}:
+                self._send_json({"error": "scan already running"}, HTTPStatus.CONFLICT)
+                return
+            job_id = uuid.uuid4().hex
+            _scan_state.update({"id": job_id, "status": "starting", "completed": 0,
+                                "total": None, "row": None, "column": None, "error": None,
+                                "new_count": 0, "duplicate_count": 0, "updated_count": 0,
+                                "started_at": time.monotonic()})
+        thread = threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column), daemon=True)
+        thread.start()
+        self._send_json(scan_status(), HTTPStatus.ACCEPTED)
+
+    def _run_scan(self, job_id: str, resume_row: int, resume_column: int) -> None:
+        try:
+            from run_equipment_scan import _build_fast_scanner, _build_legacy_scanner
+
+            database = EquipmentDatabase(self.database)
+            database.initialize()
+            try:
+                def progress(update: dict) -> None:
+                    normalized = dict(update)
+                    if "equipment_count" in normalized:
+                        normalized["total"] = normalized.pop("equipment_count")
+                    _set_scan_state(id=job_id, **normalized)
+
+                def import_result(result: dict) -> None:
+                    action = result.get("import_action")
+                    key = {"created": "new_count", "duplicate": "duplicate_count", "updated": "updated_count"}.get(action)
+                    if key:
+                        with _scan_lock:
+                            _scan_state[key] += 1
+
+                try:
+                    scanner = _build_fast_scanner(database, import_result)
+                    scanner.progress_callback = progress
+                except Exception:
+                    scanner = _build_legacy_scanner(database, import_result)
+                    scanner.progress_callback = progress
+                _set_scan_state(status="scanning")
+                records = scanner.scan_until_bottom(resume_row=resume_row, resume_column=resume_column)
+                skipped = (resume_row - 1) * scanner.grid.columns + resume_column
+                _set_scan_state(status="completed", completed=len(records),
+                                total=max(0, scanner.equipment_count - skipped) if scanner.equipment_count is not None else None,
+                                row=None, column=None, error=None)
+            finally:
+                database.close()
+        except Exception as error:
+            _set_scan_state(id=job_id, status="failed", error=str(error))
 
     def log_message(self, format: str, *args: object) -> None:
         print(f"{self.address_string()} - {format % args}")

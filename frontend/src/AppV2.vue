@@ -2,7 +2,7 @@
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { bestAscensionState, setName as catalogSetName } from './equipmentAscension.js'
 
-const VIEWS = new Set(['dictionary', 'equipment', 'heroes', 'recommendation'])
+const VIEWS = new Set(['dictionary', 'equipment', 'heroes', 'recommendation', 'scanner'])
 
 function viewFromHash() {
   const value = window.location.hash.replace(/^#\/?/, '')
@@ -36,6 +36,13 @@ const recRunning = ref(false)
 
 const dictionaryTable = ref('sets')
 const equipmentTable = ref('v_equipment_full')
+const deviceState = ref({ status: 'unknown', connected: false, targets: [] })
+const scanState = ref({ status: 'idle', completed: 0, total: null, row: null, column: null, elapsed_seconds: 0, average_seconds: null, new_count: 0, duplicate_count: 0, updated_count: 0 })
+const deviceChecking = ref(false)
+const scanMode = ref('full')
+const resumeRow = ref(1)
+const resumeColumn = ref(0)
+let scanPollTimer = null
 
 const STAT_LABELS = {
   ATK_FLAT:'攻击', ATK_PCT:'攻击加成', HP_FLAT:'生命', HP_PCT:'生命加成', DEF_FLAT:'防御', DEF_PCT:'防御加成',
@@ -312,6 +319,65 @@ function formatStat(type, value) {
   return `${STAT_LABELS[type] || type} ${Number(value).toFixed(Number.isInteger(Number(value)) ? 0 : 1)}`
 }
 
+function scanStatusLabel(status) {
+  return ({ idle:'尚未开始', checking:'连接检测中', starting:'准备启动', scanning:'检测中', completed:'检测完成', failed:'检测失败' })[status] || status || '未知'
+}
+function formatSeconds(value) {
+  if (value == null) return '—'
+  const seconds = Number(value)
+  if (!Number.isFinite(seconds)) return '—'
+  if (seconds < 60) return `${seconds.toFixed(1)} 秒`
+  return `${Math.floor(seconds / 60)} 分 ${Math.round(seconds % 60)} 秒`
+}
+async function checkDevice() {
+  deviceChecking.value = true
+  deviceState.value = { ...deviceState.value, status: 'checking', connected: false }
+  try {
+    const response = await fetch('/api/device/check')
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || '连接检测失败')
+    deviceState.value = { ...data, status: 'connected' }
+  } catch (error) {
+    deviceState.value = { status: 'failed', connected: false, error: error.message || String(error), targets: [] }
+  } finally {
+    deviceChecking.value = false
+  }
+}
+async function pollScanStatus() {
+  try {
+    const response = await fetch('/api/scan/status')
+    if (!response.ok) return
+    scanState.value = await response.json()
+    if (!['scanning', 'starting'].includes(scanState.value.status)) stopScanPolling()
+  } catch { /* the next poll will retry */ }
+}
+function startScanPolling() {
+  stopScanPolling()
+  pollScanStatus()
+  scanPollTimer = window.setInterval(pollScanStatus, 1000)
+}
+function stopScanPolling() {
+  if (scanPollTimer) window.clearInterval(scanPollTimer)
+  scanPollTimer = null
+}
+async function startEquipmentScan() {
+  if (!deviceState.value.connected || ['starting', 'scanning'].includes(scanState.value.status)) return
+  try {
+    const response = await fetch('/api/scan/start', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(scanMode.value === 'resume'
+        ? { resume_row: Number(resumeRow.value), resume_column: Number(resumeColumn.value) }
+        : { resume_row: 1, resume_column: 0 })
+    })
+    const data = await response.json()
+    if (!response.ok) throw new Error(data.error || '无法启动识别')
+    scanState.value = data
+    startScanPolling()
+  } catch (error) {
+    scanState.value = { ...scanState.value, status: 'failed', error: error.message || String(error) }
+  }
+}
+
 onMounted(async () => {
   window.addEventListener('hashchange', restoreViewFromHash)
   if (window.location.hash !== `#/${currentView.value}`) window.location.hash = `#/${currentView.value}`
@@ -322,9 +388,13 @@ onMounted(async () => {
   selectedHeroKey.value = officialHeroes.value[0]?.hero_key || null
   if (!numericHeroes.value.some(x => x.hero_key === recHeroKey.value)) recHeroKey.value = numericHeroes.value[0]?.hero_key || ''
   loading.value = false
+  if (currentView.value === 'scanner') checkDevice()
 })
 
-onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
+onUnmounted(() => {
+  window.removeEventListener('hashchange', restoreViewFromHash)
+  stopScanPolling()
+})
 </script>
 
 <template>
@@ -336,6 +406,7 @@ onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
         <button class="nav-item" :class="{active:currentView==='equipment'}" @click="currentView='equipment'">已有装备</button>
         <button class="nav-item" :class="{active:currentView==='heroes'}" @click="currentView='heroes'">英雄图鉴</button>
         <button class="nav-item" :class="{active:currentView==='recommendation'}" @click="currentView='recommendation'">装备推荐</button>
+        <button class="nav-item" :class="{active:currentView==='scanner'}" @click="currentView='scanner'; checkDevice()">识别装备</button>
       </nav>
       <div class="topbar-status"><span class="status-dot"></span> 本地数据 <span class="version">CN-2026-08</span></div>
     </header>
@@ -447,6 +518,29 @@ onUnmounted(() => window.removeEventListener('hashchange', restoreViewFromHash))
             </div>
             <div class="active-sets"><span>激活套装</span><strong>{{ result.active.length ? result.active.map(displaySetName).join(' / ') : '无' }}</strong></div>
           </article>
+        </section>
+      </section>
+    </main>
+
+    <main v-else-if="currentView==='scanner'" class="page">
+      <section class="intro"><div><p class="eyebrow">DEVICE / EQUIPMENT OCR</p><h1>识别装备</h1><p class="subtitle">连接手机后启动识别脚本，实时查看装备数量、扫描位置和执行状态。</p></div><div class="intro-stats"><div><strong>{{ scanState.completed }}<small>/ {{ scanState.total ?? '—' }}</small></strong><span>已检测装备</span></div><div><strong>{{ formatSeconds(scanState.elapsed_seconds) }}</strong><span>已用时间</span></div><div><strong>{{ formatSeconds(scanState.average_seconds) }}</strong><span>平均时间</span></div></div></section>
+      <section class="scanner-layout">
+        <aside class="scanner-control">
+          <p class="eyebrow">CONNECTION</p><h2>手机连接</h2>
+          <div class="device-status" :class="deviceState.connected ? 'connected' : 'disconnected'"><span class="status-dot"></span><div><strong>{{ deviceState.connected ? '手机已连接' : (deviceState.status === 'checking' ? '正在检测连接' : '手机未连接') }}</strong><small>{{ deviceState.serial || deviceState.error || '请确认 HOScrcpy / HDC 已连接目标设备' }}</small></div></div>
+          <button class="secondary-button" :disabled="deviceChecking || scanState.status==='scanning'" @click="checkDevice">{{ deviceChecking ? '检测中…' : '重新检测连接' }}</button>
+          <div class="scan-mode"><span>识别方式</span><button :class="{selected:scanMode==='full'}" @click="scanMode='full'">从头识别</button><button :class="{selected:scanMode==='resume'}" @click="scanMode='resume'">继续识别</button></div>
+          <div v-if="scanMode==='resume'" class="resume-fields"><label><span>上次识别行</span><input v-model.number="resumeRow" type="number" min="1" /></label><label><span>上次识别列</span><input v-model.number="resumeColumn" type="number" min="0" max="8" /></label><p>请手动将该行调整为手机画面的第三行；第 1、2 行会自动按实际可见位置处理。</p></div>
+          <button class="primary-button" :disabled="!deviceState.connected || ['starting','scanning'].includes(scanState.status)" @click="startEquipmentScan">{{ ['starting','scanning'].includes(scanState.status) ? '识别进行中…' : '开始识别' }}</button>
+          <p class="model-note">开始前请将手机停留在游戏装备背包页面。识别过程中不要手动操作手机。</p>
+        </aside>
+        <section class="scanner-progress">
+          <div class="result-head"><div><p class="eyebrow">LIVE PROGRESS</p><h2>识别进度</h2></div><span class="status-chip" :class="scanState.status==='completed' ? 'good' : scanState.status==='failed' ? 'partial' : ''">{{ scanStatusLabel(scanState.status) }}</span></div>
+          <div class="progress-track"><span :style="{width: `${scanState.total ? Math.min(100, scanState.completed / scanState.total * 100) : 0}%`}"></span></div>
+          <div class="scan-metrics"><div><small>当前检测装备数</small><strong>{{ scanState.completed }} / {{ scanState.total ?? '—' }}</strong></div><div><small>当前位置</small><strong>{{ scanState.row ? `第 ${scanState.row} 行 · 第 ${scanState.column} 个` : '—' }}</strong></div><div><small>当前状态</small><strong>{{ scanStatusLabel(scanState.status) }}</strong></div></div>
+          <div v-if="scanState.status === 'completed'" class="import-summary"><div><strong>{{ scanState.new_count }}</strong><small>新入库</small></div><div><strong>{{ scanState.duplicate_count }}</strong><small>重复</small></div><div><strong>{{ scanState.updated_count }}</strong><small>更新</small></div></div>
+          <div v-if="scanState.error" class="result-message warning">{{ scanState.error }}</div>
+          <div v-else class="scanner-empty">{{ scanState.status === 'completed' ? '本次装备识别已完成，结果已写入装备数据库。' : '连接检测通过后，点击“开始识别”运行装备 OCR 脚本。' }}</div>
         </section>
       </section>
     </main>
