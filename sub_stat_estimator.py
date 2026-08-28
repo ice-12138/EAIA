@@ -76,7 +76,7 @@ class SubStatEstimator:
         self.percentile = float(percentile)
 
     def ensure_schema(self) -> None:
-        """Create the learning-only helper tables used by the estimator."""
+        """Create learning helpers and backfill samples from unlocked inventory stats."""
         self.connection.executescript(
             """
             CREATE TABLE IF NOT EXISTS sub_stat_learned_ranges (
@@ -104,6 +104,28 @@ class SubStatEstimator:
             );
             """
         )
+        observation_table = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='sub_stat_observations'"
+        ).fetchone()
+        equipment_stats_table = self.connection.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='equipment_stats'"
+        ).fetchone()
+        if observation_table and equipment_stats_table:
+            # equipment_stats already stores optimizer units, so these rows are
+            # the cleanest empirical population for P90.  The synthetic
+            # ``unknown`` roll grade lets a locked stat without a visible grade
+            # use the cross-grade population while exact-grade queries remain
+            # grade-specific.
+            self.connection.execute(
+                """INSERT OR IGNORE INTO sub_stat_observations(
+                     item_id,stat_type,roll_grade_id,stat_value,data_source,observed_at
+                   )
+                   SELECT item_id, UPPER(stat_type),
+                          COALESCE(NULLIF(roll_grade_id,''),'unknown'),
+                          stat_value, 'equipment_stats', CURRENT_TIMESTAMP
+                   FROM equipment_stats
+                   WHERE stat_source='sub' AND is_unlocked=1 AND stat_value IS NOT NULL"""
+            )
         self.connection.commit()
 
     def observe(
