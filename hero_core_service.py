@@ -20,6 +20,7 @@ from hero_core_engine import (
     simulate_average,
     validate_core,
 )
+from optimizer_projection import OptimizerEquipmentDatabase
 
 
 _SAFE_CORE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
@@ -221,7 +222,7 @@ def recommend_hero_core(
     payload: dict[str, Any],
     progress_callback: Callable[[dict[str, Any]], None] | None = None,
 ) -> dict[str, Any]:
-    """Two-stage equipment search whose final score is HeroCore ED60 damage."""
+    """Two-stage HeroCore search over max-level, fully-unlocked equipment projections."""
 
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
     core = load_core(core_id)
@@ -238,7 +239,7 @@ def recommend_hero_core(
         "enemy_count": enemy_count,
     }
 
-    database = EquipmentDatabase(database_path)
+    database = OptimizerEquipmentDatabase(database_path, percentile=0.90)
     try:
         database.initialize()
         all_items = database.load_equipment()
@@ -248,7 +249,10 @@ def recommend_hero_core(
                 by_slot[item.slot.value].append(item)
         missing = [slot for slot, values in by_slot.items() if not values]
         if missing:
-            raise HeroCoreError("缺少可用装备部位: " + ", ".join(missing))
+            detail = ""
+            if database.projection_exclusions:
+                detail = "；部分装备因无法可靠投影到满级全解锁状态而被排除"
+            raise HeroCoreError("缺少可用装备部位: " + ", ".join(missing) + detail)
 
         candidates = {
             slot: sorted(values, key=lambda item: (_item_potential(item), item.item_id), reverse=True)[:candidate_per_slot]
@@ -307,7 +311,8 @@ def recommend_hero_core(
                 measurement=float(payload.get("measurement", 600.0)),
                 seed=seed,
             )
-            refined.append({"item_ids": list(item_ids), **result})
+            projection = database.projection_summary(item_ids)
+            refined.append({"item_ids": list(item_ids), "equipment_projection": projection, **result})
             report(phase="refining", completed=completed, total=len(shortlisted),
                    overall_completed=combinations + completed,
                    overall_total=combinations + len(shortlisted))
@@ -335,6 +340,13 @@ def recommend_hero_core(
             "candidate_per_slot": candidate_per_slot,
             "combinations_screened": combinations,
             "refine_trials": refine_trials,
+            "equipment_projection": {
+                "mode": "max_enhancement_p90",
+                "locked_substat_percentile": 0.90,
+                "projected_item_count": len(database.projection_reports),
+                "excluded_item_count": len(database.projection_exclusions),
+                "excluded_items": dict(sorted(database.projection_exclusions.items())),
+            },
             "results": results,
         }
     finally:
