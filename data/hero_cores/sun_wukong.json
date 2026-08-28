@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.1.0",
+  "core_version": "1.2.0",
   "game_version": "CN-2026-08-28",
   "hero": {
     "id": "SUN_WUKONG",
@@ -12,11 +12,12 @@
     "mechanic_summary": "围绕当头一棒、破势、身外化身和大圣幻象形成持续输出循环；HeroCore 同时建模怒气、召唤物、攻击增益和破防窗口。",
     "base_stats": {
       "atk": 6498.0,
-      "hp": null,
-      "def": null,
-      "crit_rate": 0.05,
+      "hp": 28761.0,
+      "def": 2136.0,
+      "mres": 512.0,
+      "crit_rate": 0.0,
       "crit_dmg": 1.5,
-      "atk_speed": 0.0,
+      "atk_speed": 100.0,
       "rage_regen": 0.0,
       "attack_interval": 2.6
     }
@@ -30,6 +31,24 @@
   },
   "codex": {
     "mechanic_summary": "普通攻击有概率转化为当头一棒并积累破势；5层破势释放终结技时获得无视防御窗口；普攻次数还会驱动大圣幻象和攻击力增益。",
+    "attributes": [
+      {"id": "hp", "name": "生命值", "value": 28761, "unit": "flat", "source": "white"},
+      {"id": "atk", "name": "攻击", "value": 6498, "unit": "flat", "source": "white"},
+      {"id": "def", "name": "防御", "value": 2136, "unit": "flat", "source": "white"},
+      {"id": "mres", "name": "魔法抗性", "value": 512, "unit": "flat", "source": "white"},
+      {"id": "cost", "name": "费用", "value": 15, "unit": "flat", "source": "white"},
+      {"id": "block", "name": "阻挡数", "value": 2, "unit": "flat", "source": "white"},
+      {"id": "redeploy_time", "name": "再部署时间", "value": 60, "unit": "second", "source": "white"},
+      {"id": "attack_interval", "name": "攻击间隔", "value": 2.6, "unit": "second", "source": "white"},
+      {"id": "attack_speed", "name": "攻击速度", "value": 100, "unit": "panel_point", "source": "white"},
+      {"id": "crit_rate", "name": "暴击率", "value": 0.0, "unit": "ratio", "source": "white"},
+      {"id": "crit_dmg", "name": "暴击伤害", "value": 1.5, "unit": "ratio", "source": "white"},
+      {"id": "healing_effect", "name": "治疗效果", "value": 0.0, "unit": "flat", "source": "white"},
+      {"id": "rage_regen", "name": "怒气恢复效率", "value": 0.0, "unit": "ratio", "source": "white"},
+      {"id": "auto_rage", "name": "自然回怒", "value": 13, "unit": "rage_per_second", "source": "white"},
+      {"id": "basic_rage", "name": "普攻回怒", "value": 10, "unit": "rage_per_attack", "source": "white"},
+      {"id": "attacked_rage", "name": "受击回怒", "value": 5, "unit": "rage_per_hit", "source": "white"}
+    ],
     "skills": [
       {
         "id": "basic_attack",
@@ -45,7 +64,7 @@
         "id": "ultimate",
         "name": "身外化身",
         "type": "ultimate",
-        "description": "释放终结技，在约4.5秒内进行18次攻击，每次造成100%攻击力的物理伤害；当前怒气上限按700建模。",
+        "description": "对1个敌人造成18次100%攻击力伤害并附加眩晕；当前怒气上限按700建模，持续约4.5秒。",
         "coefficient": 1.0,
         "target_cap": 1,
         "duration": 4.5,
@@ -53,7 +72,8 @@
         "values": {
           "hit_count": 18,
           "hit_interval": 0.25,
-          "rage_cost": 700
+          "rage_cost": 700,
+          "initial_rage": 400
         }
       },
       {
@@ -74,7 +94,7 @@
         "id": "fire_eyes",
         "name": "火眼金睛",
         "type": "passive",
-        "description": "破势达到5层后释放终结技会消耗破势，并获得11秒的60%无视防御效果。",
+        "description": "自身触发当头一棒时获得1层破势。终结技会消耗满层破势，获得11秒无视60%防御的效果。",
         "coefficient": null,
         "target_cap": 1,
         "duration": 11.0,
@@ -202,16 +222,17 @@
   },
   "default_policy": "immediate",
   "assumptions": [
+    "基础属性只使用游戏属性页白字；绿色加成不计入HeroCore基础属性。",
+    "atk_speed保存游戏白字面板值100；引擎以当前面板攻速减去英雄白字基准攻速后，再对2.6秒白字攻击间隔应用攻速变化。",
     "暴击采用数学期望，不对每个伤害实例随机采样，以降低装备比较方差。",
     "当头一棒按25%概率建模；触发时主击倍率按界面显示200%，木桩免控时再追加一次200%伤害。",
     "身外化身按18次100%攻击力伤害、4.5秒施法和0.25秒命中间隔建模。",
-    "火眼金睛在5层破势释放终结技时消耗破势，并提供11秒60%无视防御。",
+    "火眼金睛按当前截图等级效果：5层破势释放终结技时消耗破势，并提供11秒60%无视防御。",
     "大圣幻象按每第3次普攻召唤，最多3个；满3个后每第3次普攻刷新15秒20%攻击力增益。",
     "幻象按40%攻击力、继承主人当前攻击/暴击/攻速的动态属性模型计算。"
   ],
   "validation_required": [
-    "技能升级行是否已经计入界面顶部显示的115%/100%/200%倍率；当前核心按顶部显示值直接使用。",
-    "孙悟空2.6秒基础攻击间隔、自动怒气13/s和普攻回怒10需要用游戏内录像/数值再次标定。",
+    "当前攻速到隐藏攻击间隔的数学曲线仍是可配置近似公式；白字100与2.6秒的语义已固定，后续只需校准GameRules公式。",
     "终结技4.5秒期间是否完全阻塞普通攻击，以及18段伤害的真实时间戳需要录像校准。",
     "幻象首次攻击延迟、是否动态继承20%攻击Buff及装备特殊效果继承范围需要实测。",
     "木桩实际DEF和游戏精确防御公式未公开；目标DEF应通过木桩实测标定。"
