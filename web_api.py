@@ -1,9 +1,4 @@
-"""Small HTTP API for the EAIA web application.
-
-The browser receives JSON responses assembled from SQLite at request time.
-HeroCore simulation endpoints use the same database snapshot for equipment
-stats while hero-specific combat mechanics stay in declarative core files.
-"""
+"""HTTP API and static frontend server for EAIA."""
 
 from __future__ import annotations
 
@@ -19,6 +14,17 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from data_manager import (
+    DataManagerError,
+    create_resource,
+    delete_equipment,
+    delete_resource,
+    list_equipment,
+    list_resource,
+    resource_catalog,
+    save_equipment,
+    update_resource,
+)
 from equipment_db import EquipmentDatabase
 from hero_core_engine import HeroCoreError
 from hero_core_service import hero_core_catalog, hero_core_detail, simulate_hero_core
@@ -29,7 +35,7 @@ from screen_capture import CaptureError, choose_target, find_hdc, list_targets
 ROOT = Path(__file__).resolve().parent
 DEFAULT_DATABASE = ROOT / "data" / "equipment.db"
 FRONTEND_DIST = ROOT / "frontend" / "dist"
-HDC = r"D:\DEVECO~2\sdk\default\OPENHA~1\TOOLCH~1\hdc.exe"
+HDC = r"D:\\DEVECO~2\\sdk\\default\\OPENHA~1\\TOOLCH~1\\hdc.exe"
 SERIAL = "FMR0223A30001935"
 
 _scan_lock = threading.Lock()
@@ -63,12 +69,10 @@ CATALOG_TABLES = (
     "special_effect_definitions", "v_set_catalog",
 )
 EQUIPMENT_TABLES = ("v_equipment_full", "equipment", "equipment_stats", "equipment_recognition")
-
 _PERCENT_STAT_NAMES = {"攻击加成", "生命加成", "防御加成", "暴击率", "暴击伤害", "怒气回复", "治疗效果", "治疗加成"}
 
 
 def _display_stat_name(value: object) -> object:
-    """Remove OCR'd numeric values/units and unlock markers from stat labels."""
     if value is None:
         return None
     text = str(value).strip()
@@ -81,28 +85,21 @@ def _display_stat_name(value: object) -> object:
 
 
 def _display_stat_value(name: object, value: object) -> object:
-    """Format overview values with the unit implied by the stat label."""
     if value is None or value == "":
         return None
     try:
         number = float(value)
     except (TypeError, ValueError):
         return value
-    label = str(name or "").strip()
-    if label in _PERCENT_STAT_NAMES:
-        if number.is_integer():
-            return f"{int(number)}%"
-        return f"{number:g}%"
-    if number.is_integer():
-        return str(int(number))
-    return f"{number:g}"
+    if str(name or "").strip() in _PERCENT_STAT_NAMES:
+        return f"{int(number)}%" if number.is_integer() else f"{number:g}%"
+    return str(int(number)) if number.is_integer() else f"{number:g}"
 
 
-def _format_equipment_overview(rows: list[dict]) -> list[dict]:
-    """Prepare the UI-facing overview without changing database value semantics."""
+def _format_equipment_overview(source_rows: list[dict]) -> list[dict]:
     result = []
-    for row in rows:
-        row = dict(row)
+    for source in source_rows:
+        row = dict(source)
         for name_key, value_key in (
             ("main_stat_name", "main_stat_value"),
             ("sub_stat_1_name", "sub_stat_1_value"),
@@ -117,13 +114,11 @@ def _format_equipment_overview(rows: list[dict]) -> list[dict]:
 
 
 def rows(connection: sqlite3.Connection, source: str) -> list[dict]:
-    """Read an allowlisted table or view as JSON-compatible dictionaries."""
     result = connection.execute(f'SELECT * FROM "{source}"')
     return [dict(row) for row in result.fetchall()]
 
 
 def database_payload(database: Path) -> tuple[dict, dict, dict]:
-    """Return hero, dictionary, and equipment payloads from one DB snapshot."""
     connection = sqlite3.connect(database)
     connection.row_factory = sqlite3.Row
     try:
@@ -146,9 +141,12 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
         connection.close()
 
 
-class EAIARequestHandler(SimpleHTTPRequestHandler):
-    """Serve API responses and the built frontend from the same origin."""
+def _managed_resource(path: str) -> str | None:
+    prefix = "/api/manage/resource/"
+    return unquote(path.removeprefix(prefix)) if path.startswith(prefix) else None
 
+
+class EAIARequestHandler(SimpleHTTPRequestHandler):
     database = DEFAULT_DATABASE
     frontend_root = FRONTEND_DIST
 
@@ -173,12 +171,15 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             raise ValueError("JSON request body must be an object")
         return payload
 
-    def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def _send_user_error(self, error: Exception) -> None:
+        self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+
+    def do_GET(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path.startswith("/api/"):
             try:
                 if path == "/api/health":
-                    self._send_json({"status": "ok", "database": str(self.database), "hero_core": True})
+                    self._send_json({"status": "ok", "database": str(self.database), "hero_core": True, "data_management": True})
                 elif path == "/api/device/check":
                     hdc = find_hdc(HDC)
                     targets = list_targets(hdc)
@@ -189,8 +190,13 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 elif path == "/api/hero-cores":
                     self._send_json(hero_core_catalog())
                 elif path.startswith("/api/hero-cores/"):
-                    core_id = unquote(path.removeprefix("/api/hero-cores/"))
-                    self._send_json(hero_core_detail(core_id))
+                    self._send_json(hero_core_detail(unquote(path.removeprefix("/api/hero-cores/"))))
+                elif path == "/api/manage/resources":
+                    self._send_json(resource_catalog())
+                elif path == "/api/manage/equipment":
+                    self._send_json(list_equipment(self.database))
+                elif _managed_resource(path) is not None:
+                    self._send_json(list_resource(self.database, _managed_resource(path)))
                 else:
                     hero_data, catalog_data, equipment_data = database_payload(self.database)
                     payloads = {
@@ -204,6 +210,8 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                         self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
             except HeroCoreError as error:
                 self._send_json({"error": str(error)}, HTTPStatus.NOT_FOUND)
+            except DataManagerError as error:
+                self._send_user_error(error)
             except (sqlite3.Error, OSError, CaptureError) as error:
                 self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -212,16 +220,26 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             self.path = "/index.html"
         super().do_GET()
 
-    def do_POST(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
+    def do_POST(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"
-        if path == "/api/hero-core/simulate":
-            try:
+        try:
+            if path == "/api/hero-core/simulate":
+                self._send_json(simulate_hero_core(self.database, self._read_json()))
+                return
+            if path == "/api/manage/equipment":
                 payload = self._read_json()
-                self._send_json(simulate_hero_core(self.database, payload))
-            except (HeroCoreError, TypeError, ValueError, json.JSONDecodeError) as error:
-                self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
-            except (sqlite3.Error, OSError) as error:
-                self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+                self._send_json(save_equipment(self.database, payload.get("values") or payload), HTTPStatus.CREATED)
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                payload = self._read_json()
+                self._send_json(create_resource(self.database, resource, payload.get("values") or payload), HTTPStatus.CREATED)
+                return
+        except (HeroCoreError, DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+            return
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
 
         if path != "/api/scan/start":
@@ -241,13 +259,51 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 self._send_json({"error": "scan already running"}, HTTPStatus.CONFLICT)
                 return
             job_id = uuid.uuid4().hex
-            _scan_state.update({"id": job_id, "status": "starting", "completed": 0,
-                                "total": None, "row": None, "column": None, "error": None,
-                                "new_count": 0, "duplicate_count": 0, "updated_count": 0,
-                                "started_at": time.monotonic()})
-        thread = threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column), daemon=True)
-        thread.start()
+            _scan_state.update({
+                "id": job_id, "status": "starting", "completed": 0, "total": None,
+                "row": None, "column": None, "error": None,
+                "new_count": 0, "duplicate_count": 0, "updated_count": 0,
+                "started_at": time.monotonic(),
+            })
+        threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column), daemon=True).start()
         self._send_json(scan_status(), HTTPStatus.ACCEPTED)
+
+    def do_PATCH(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        try:
+            payload = self._read_json()
+            if path == "/api/manage/equipment":
+                original = str(payload.get("original_item_id") or "")
+                if not original:
+                    raise DataManagerError("缺少原装备ID")
+                self._send_json(save_equipment(self.database, payload.get("values") or {}, original_item_id=original))
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                self._send_json(update_resource(self.database, resource, payload.get("key") or {}, payload.get("values") or {}))
+                return
+            self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+        except (DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        try:
+            payload = self._read_json()
+            if path == "/api/manage/equipment":
+                self._send_json(delete_equipment(self.database, str(payload.get("item_id") or "")))
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                self._send_json(delete_resource(self.database, resource, payload.get("key") or {}))
+                return
+            self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+        except (DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _run_scan(self, job_id: str, resume_row: int, resume_column: int) -> None:
         try:
@@ -263,8 +319,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     _set_scan_state(id=job_id, **normalized)
 
                 def import_result(result: dict) -> None:
-                    action = result.get("import_action")
-                    key = {"created": "new_count", "duplicate": "duplicate_count", "updated": "updated_count"}.get(action)
+                    key = {"created": "new_count", "duplicate": "duplicate_count", "updated": "updated_count"}.get(result.get("import_action"))
                     if key:
                         with _scan_lock:
                             _scan_state[key] += 1
@@ -278,9 +333,11 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 _set_scan_state(status="scanning")
                 records = scanner.scan_until_bottom(resume_row=resume_row, resume_column=resume_column)
                 skipped = (resume_row - 1) * scanner.grid.columns + resume_column
-                _set_scan_state(status="completed", completed=len(records),
-                                total=max(0, scanner.equipment_count - skipped) if scanner.equipment_count is not None else None,
-                                row=None, column=None, error=None)
+                _set_scan_state(
+                    status="completed", completed=len(records),
+                    total=max(0, scanner.equipment_count - skipped) if scanner.equipment_count is not None else None,
+                    row=None, column=None, error=None,
+                )
             finally:
                 database.close()
         except Exception as error:
