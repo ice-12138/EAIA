@@ -58,7 +58,7 @@ def _set_name_key(value: object) -> str:
     return normalize_set_name(value).casefold()
 
 
-def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object) -> tuple[str | None, str, list[str]]:
+def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object, slot_text: object = "") -> tuple[str | None, str, list[str]]:
     """Resolve OCR set text without guessing when multiple sets are plausible."""
     cleaned = normalize_set_name(raw_name) or "未识别"
     key = _set_name_key(cleaned)
@@ -76,6 +76,13 @@ def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object) -> t
     alias_definitions = [row for row in definitions if row[0] in alias_ids]
     if len(alias_definitions) == 1:
         return alias_definitions[0][0], alias_definitions[0][1], []
+
+    # The equipment title is normally ``<set name><slot>``.  It is a
+    # stronger signal than a truncated set OCR result such as "灭".
+    slot_key = _set_name_key(slot_text)
+    title_candidates = [row for row in definitions if _set_name_key(row[1]) and _set_name_key(row[1]) in slot_key]
+    if len(title_candidates) == 1:
+        return title_candidates[0][0], title_candidates[0][1], []
 
     # Prefix/substring matching is useful for truncated OCR, but is unsafe
     # when more than one canonical name contains the recognized fragment.
@@ -185,6 +192,14 @@ class EquipmentDatabase:
             try: previous = json.loads(row["raw_result"])
             except (TypeError, json.JSONDecodeError): continue
             if is_upgrade_of(previous, record): return row["item_id"]
+        # OCR may truncate or corrupt only the set name.  The remaining
+        # fields still identify an upgrade, after which the set is resolved
+        # again from the current title and the matched historical record.
+        for row in rows:
+            if row["item_id"] == record.get("item_id"): continue
+            try: previous = json.loads(row["raw_result"])
+            except (TypeError, json.JSONDecodeError): continue
+            if is_upgrade_of(previous, record, compare_set=False): return row["item_id"]
         return None
 
     def upsert_recognized_equipment(self, record: dict, *, source_screenshot: str | Path | None = None) -> dict:
@@ -195,8 +210,20 @@ class EquipmentDatabase:
         ).fetchone() is not None
         matched_item_id = self.find_upgrade_match(record); stored_record = dict(record)
         if matched_item_id is not None: stored_record["item_id"] = matched_item_id
+        raw_set_name = stored_record.get("set_name")
+        slot_text = stored_record.get("slot")
+        resolved_set_id, corrected_set_name, candidates = _resolve_ocr_set_name(self.connection, raw_set_name, slot_text)
+        if resolved_set_id is not None:
+            stored_record["set_name"] = corrected_set_name
+        elif matched_item_id is not None and candidates:
+            previous_set = self.connection.execute(
+                "SELECT s.set_id, s.set_name FROM equipment e JOIN sets s ON s.set_id=e.set_id WHERE e.item_id=?",
+                (matched_item_id,),
+            ).fetchone()
+            if previous_set is not None and not str(previous_set[0]).startswith("OCR_"):
+                stored_record["set_name"] = previous_set[1]
         item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot)
-        resolved_set_id, set_name, candidates = _resolve_ocr_set_name(self.connection, recognition[16])
+        resolved_set_id, set_name, candidates = _resolve_ocr_set_name(self.connection, recognition[16], slot_text)
         if resolved_set_id is None and candidates:
             set_name = f"待确认：{set_name}"
         if resolved_set_id is not None:

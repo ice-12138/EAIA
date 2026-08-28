@@ -7,7 +7,7 @@ import json
 import re
 from itertools import product
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from equipment_db import EquipmentDatabase
 from equipment_models import StatType
@@ -216,7 +216,11 @@ def _item_potential(item) -> float:
     return score
 
 
-def recommend_hero_core(database_path: str | Path, payload: dict[str, Any]) -> dict[str, Any]:
+def recommend_hero_core(
+    database_path: str | Path,
+    payload: dict[str, Any],
+    progress_callback: Callable[[dict[str, Any]], None] | None = None,
+) -> dict[str, Any]:
     """Two-stage equipment search whose final score is HeroCore ED60 damage."""
 
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
@@ -254,11 +258,18 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any]) -> d
         for values in candidates.values():
             combinations *= len(values)
 
+        def report(**update: Any) -> None:
+            if progress_callback is not None:
+                progress_callback(update)
+
+        report(phase="screening", completed=0, total=combinations,
+               overall_completed=0, overall_total=combinations)
+
         keep = max(top_k * 4, 16)
         screening_heap: list[tuple[float, str, tuple[str, ...]]] = []
         screening_warmup = max(0.0, float(payload.get("screening_warmup", 60.0)))
         screening_measurement = max(1.0, float(payload.get("screening_measurement", 240.0)))
-        for build in product(*(candidates[slot] for slot in _SLOTS)):
+        for completed, build in enumerate(product(*(candidates[slot] for slot in _SLOTS)), 1):
             item_ids = tuple(item.item_id for item in build)
             trial = HeroCoreSimulator(
                 core,
@@ -277,10 +288,14 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any]) -> d
                 heapq.heappush(screening_heap, entry)
             elif entry > screening_heap[0]:
                 heapq.heapreplace(screening_heap, entry)
+            report(phase="screening", completed=completed, total=combinations,
+                   overall_completed=completed, overall_total=combinations)
 
         shortlisted = sorted(screening_heap, reverse=True)
         refined: list[dict[str, Any]] = []
-        for _, _, item_ids in shortlisted:
+        report(phase="refining", completed=0, total=len(shortlisted),
+               overall_completed=combinations, overall_total=combinations + len(shortlisted))
+        for completed, (_, _, item_ids) in enumerate(shortlisted, 1):
             result = simulate_average(
                 core,
                 database=database,
@@ -293,6 +308,9 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any]) -> d
                 seed=seed,
             )
             refined.append({"item_ids": list(item_ids), **result})
+            report(phase="refining", completed=completed, total=len(shortlisted),
+                   overall_completed=combinations + completed,
+                   overall_total=combinations + len(shortlisted))
 
         refined.sort(
             key=lambda row: (

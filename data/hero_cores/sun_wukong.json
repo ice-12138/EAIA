@@ -11,43 +11,139 @@
     "damage_type": "physical",
     "mechanic_summary": "围绕当头一棒、破势、身外化身和大圣幻象形成持续输出循环；HeroCore 同时建模怒气、召唤物、攻击增益和破防窗口。",
     "base_stats": {
-      "atk": 6498.0,
-      "hp": 28761.0,
-      "def": 2136.0,
-      "mres": 512.0,
-      "crit_rate": 0.0,
+      "atk": 6498,
+      "hp": 28761,
+      "def": 2136,
+      "mres": 512,
+      "crit_rate": 0,
       "crit_dmg": 1.5,
-      "atk_speed": 100.0,
-      "rage_regen": 0.0,
+      "atk_speed": 100,
+      "rage_regen": 0,
       "attack_interval": 2.6
     }
   },
   "resources": {
     "rage": {
-      "initial": 400.0,
-      "max": 700.0,
-      "auto_per_second": 13.0
+      "initial": 400,
+      "max": 700,
+      "auto_per_second": 13
     }
   },
   "codex": {
     "mechanic_summary": "普通攻击有概率转化为当头一棒并积累破势；5层破势释放终结技时获得无视防御窗口；普攻次数还会驱动大圣幻象和攻击力增益。",
     "attributes": [
-      {"id": "hp", "name": "生命值", "value": 28761, "unit": "flat", "source": "white"},
-      {"id": "atk", "name": "攻击", "value": 6498, "unit": "flat", "source": "white"},
-      {"id": "def", "name": "防御", "value": 2136, "unit": "flat", "source": "white"},
-      {"id": "mres", "name": "魔法抗性", "value": 512, "unit": "flat", "source": "white"},
-      {"id": "cost", "name": "费用", "value": 15, "unit": "flat", "source": "white"},
-      {"id": "block", "name": "阻挡数", "value": 2, "unit": "flat", "source": "white"},
-      {"id": "redeploy_time", "name": "再部署时间", "value": 60, "unit": "second", "source": "white"},
-      {"id": "attack_interval", "name": "攻击间隔", "value": 2.6, "unit": "second", "source": "white"},
-      {"id": "attack_speed", "name": "攻击速度", "value": 100, "unit": "panel_point", "source": "white"},
-      {"id": "crit_rate", "name": "暴击率", "value": 0.0, "unit": "ratio", "source": "white"},
-      {"id": "crit_dmg", "name": "暴击伤害", "value": 1.5, "unit": "ratio", "source": "white"},
-      {"id": "healing_effect", "name": "治疗效果", "value": 0.0, "unit": "flat", "source": "white"},
-      {"id": "rage_regen", "name": "怒气恢复效率", "value": 0.0, "unit": "ratio", "source": "white"},
-      {"id": "auto_rage", "name": "自然回怒", "value": 13, "unit": "rage_per_second", "source": "white"},
-      {"id": "basic_rage", "name": "普攻回怒", "value": 10, "unit": "rage_per_attack", "source": "white"},
-      {"id": "attacked_rage", "name": "受击回怒", "value": 5, "unit": "rage_per_hit", "source": "white"}
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 28761,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 6498,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 2136,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 512,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 15,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 2,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 13,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 5,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
     ],
     "skills": [
       {
@@ -65,7 +161,7 @@
         "name": "身外化身",
         "type": "ultimate",
         "description": "对1个敌人造成18次100%攻击力伤害并附加眩晕；当前怒气上限按700建模，持续约4.5秒。",
-        "coefficient": 1.0,
+        "coefficient": 1,
         "target_cap": 1,
         "duration": 4.5,
         "direct_damage": true,
@@ -81,12 +177,12 @@
         "name": "当头一棒",
         "type": "passive",
         "description": "普通攻击有25%概率触发当头一棒，按200%攻击力造成伤害并获得1层破势；目标免疫眩晕时额外追加一次200%攻击力伤害。",
-        "coefficient": 2.0,
+        "coefficient": 2,
         "target_cap": 1,
         "direct_damage": true,
         "values": {
           "proc_chance": 0.25,
-          "immune_extra_coefficient": 2.0,
+          "immune_extra_coefficient": 2,
           "sunder_gain": 1
         }
       },
@@ -97,7 +193,7 @@
         "description": "自身触发当头一棒时获得1层破势。终结技会消耗满层破势，获得11秒无视60%防御的效果。",
         "coefficient": null,
         "target_cap": 1,
-        "duration": 11.0,
+        "duration": 11,
         "direct_damage": false,
         "values": {
           "required_sunder": 5,
@@ -114,25 +210,55 @@
     ]
   },
   "state": {
-    "basic_count": {"initial": 0, "min": 0},
-    "sunder": {"initial": 0, "min": 0, "max": 5},
-    "clone_count": {"initial": 0, "min": 0, "max": 3}
+    "basic_count": {
+      "initial": 0,
+      "min": 0
+    },
+    "sunder": {
+      "initial": 0,
+      "min": 0,
+      "max": 5
+    },
+    "clone_count": {
+      "initial": 0,
+      "min": 0,
+      "max": 3
+    }
   },
   "buffs": {
-    "wukong_atk_boost": {"duration": 15.0, "modifiers": {"atk_pct": 0.2}},
-    "fire_eyes_def_ignore": {"duration": 11.0, "modifiers": {"defense_ignore": 0.6}}
+    "wukong_atk_boost": {
+      "duration": 15,
+      "modifiers": {
+        "atk_pct": 0.2
+      }
+    },
+    "fire_eyes_def_ignore": {
+      "duration": 11,
+      "modifiers": {
+        "defense_ignore": 0.6
+      }
+    }
   },
   "summons": {
     "great_sage_clone": {
       "max_count": 3,
-      "inherit": {"atk": 1.0, "crit_rate": 1.0, "crit_dmg": 1.0, "atk_speed": 1.0},
+      "inherit": {
+        "atk": 1,
+        "crit_rate": 1,
+        "crit_dmg": 1,
+        "atk_speed": 1
+      },
       "attack": {
         "coefficient": 0.4,
         "hit_count": 1,
         "can_crit": true,
-        "speed_multiplier": 1.0,
+        "speed_multiplier": 1,
         "first_attack_delay_mode": "interval",
-        "tags": ["summon", "physical", "direct_damage"]
+        "tags": [
+          "summon",
+          "physical",
+          "direct_damage"
+        ]
       }
     }
   },
@@ -145,22 +271,38 @@
       "hit_count": 1,
       "can_crit": true,
       "affected_by_atk_speed": true,
-      "initial_cooldown": 0.0,
-      "resource_gain": {"resource": "rage", "value": 10.0, "scale_with_regen": true},
-      "tags": ["basic_attack", "physical", "direct_damage"]
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "direct_damage"
+      ]
     },
     "ultimate": {
       "id": "ultimate",
       "name": "身外化身",
       "kind": "ultimate",
-      "coefficient": 1.0,
+      "coefficient": 1,
       "hit_count": 18,
       "hit_interval": 0.25,
       "duration": 4.5,
       "can_crit": true,
       "blocks_basic_attack": true,
-      "resource": {"name": "rage", "cost": 700.0},
-      "tags": ["ultimate", "skill", "physical", "direct_damage"]
+      "resource": {
+        "name": "rage",
+        "cost": 700
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "physical",
+        "direct_damage"
+      ]
     }
   },
   "triggers": [
@@ -170,30 +312,53 @@
       "priority": 10,
       "chance": 0.25,
       "actions": [
-        {"type": "set_event_coefficient", "value": 2.0},
+        {
+          "type": "set_event_coefficient",
+          "value": 2
+        },
         {
           "type": "deal_damage",
-          "coefficient": 2.0,
+          "coefficient": 2,
           "source": "followup",
           "can_crit": true,
-          "tags": ["basic_attack", "physical", "direct_damage", "cudgel_extra"],
+          "tags": [
+            "basic_attack",
+            "physical",
+            "direct_damage",
+            "cudgel_extra"
+          ],
           "condition": "target.control_immune == true"
         },
-        {"type": "add_state", "state": "sunder", "value": 1}
+        {
+          "type": "add_state",
+          "state": "sunder",
+          "value": 1
+        }
       ]
     },
     {
       "id": "basic_counter",
       "event": "BASIC_ATTACK_HIT",
       "priority": 10,
-      "actions": [{"type": "add_state", "state": "basic_count", "value": 1}]
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "basic_count",
+          "value": 1
+        }
+      ]
     },
     {
       "id": "full_clone_attack_buff",
       "event": "BASIC_ATTACK_HIT",
       "priority": 20,
       "condition": "state.basic_count % 3 == 0 and state.clone_count >= 3",
-      "actions": [{"type": "apply_buff", "buff": "wukong_atk_boost"}]
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "wukong_atk_boost"
+        }
+      ]
     },
     {
       "id": "summon_clone",
@@ -201,8 +366,16 @@
       "priority": 30,
       "condition": "state.basic_count % 3 == 0 and state.clone_count < 3",
       "actions": [
-        {"type": "summon", "entity": "great_sage_clone", "count": 1},
-        {"type": "add_state", "state": "clone_count", "value": 1}
+        {
+          "type": "summon",
+          "entity": "great_sage_clone",
+          "count": 1
+        },
+        {
+          "type": "add_state",
+          "state": "clone_count",
+          "value": 1
+        }
       ]
     },
     {
@@ -211,14 +384,26 @@
       "priority": 10,
       "condition": "state.sunder >= 5",
       "actions": [
-        {"type": "reset_state", "state": "sunder"},
-        {"type": "apply_buff", "buff": "fire_eyes_def_ignore"}
+        {
+          "type": "reset_state",
+          "state": "sunder"
+        },
+        {
+          "type": "apply_buff",
+          "buff": "fire_eyes_def_ignore"
+        }
       ]
     }
   ],
   "policies": {
-    "immediate": {"label": "怒气满立即释放", "ultimate_when": "resource.rage >= 700"},
-    "wait_sunder_5": {"label": "优先5层破势释放", "ultimate_when": "resource.rage >= 700 and state.sunder >= 5"}
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 700"
+    },
+    "wait_sunder_5": {
+      "label": "优先5层破势释放",
+      "ultimate_when": "resource.rage >= 700 and state.sunder >= 5"
+    }
   },
   "default_policy": "immediate",
   "assumptions": [

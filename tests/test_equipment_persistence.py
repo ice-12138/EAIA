@@ -4,7 +4,7 @@ import unittest
 from pathlib import Path
 
 from equipment_db import EquipmentDatabase
-from equipment_persistence import build_database_rows, is_upgrade_of
+from equipment_persistence import build_database_rows, is_upgrade_of, normalize_set_name
 
 
 def fine_record(item_id="item_test"):
@@ -27,6 +27,14 @@ def fine_record(item_id="item_test"):
 
 
 class EquipmentPersistenceTests(unittest.TestCase):
+    def test_set_name_is_cleaned_and_set_mismatch_can_be_ignored(self):
+        self.assertEqual(normalize_set_name("[智慧套装"), "智慧")
+        previous = fine_record("previous")
+        current = fine_record("current")
+        current["set_name"] = {"raw_text": "灭"}
+        self.assertFalse(is_upgrade_of(previous, current))
+        self.assertTrue(is_upgrade_of(previous, current, compare_set=False))
+
     def test_chest_armor_ocr_slot_maps_to_armor(self):
         from equipment_persistence import _slot
 

@@ -32,11 +32,14 @@ def _field_value(field: object) -> float | None:
     return float(value) if value is not None else None
 
 
-def is_upgrade_of(previous: dict, current: dict) -> bool:
+def is_upgrade_of(previous: dict, current: dict, *, compare_set: bool = True) -> bool:
     if previous.get("profile") != current.get("profile"):
         return False
-    for key in ("slot", "set_name"):
-        if normalize_attribute(_text(previous.get(key))) != normalize_attribute(_text(current.get(key))):
+    keys = ("slot", "set_name") if compare_set else ("slot",)
+    for key in keys:
+        previous_value = normalize_set_name(previous.get(key)) if key == "set_name" else normalize_attribute(_text(previous.get(key)))
+        current_value = normalize_set_name(current.get(key)) if key == "set_name" else normalize_attribute(_text(current.get(key)))
+        if previous_value != current_value:
             return False
     previous_primary = previous.get("primary") or {}
     current_primary = current.get("primary") or {}

@@ -54,6 +54,12 @@ _scan_state = {
     "session_completed": 0,
 }
 
+_recommend_lock = threading.Lock()
+_recommend_state = {
+    "id": None, "status": "idle", "phase": None, "completed": 0,
+    "total": None, "error": None, "result": None, "started_at": None,
+}
+
 
 class ScanCancelled(Exception):
     """Raised at a safe item boundary when the user stops a scan."""
@@ -72,6 +78,20 @@ def scan_status() -> dict:
 def _set_scan_state(**values: object) -> None:
     with _scan_lock:
         _scan_state.update(values)
+
+
+def recommend_status() -> dict:
+    with _recommend_lock:
+        state = {key: value for key, value in _recommend_state.items() if key not in {"started_at", "result"}}
+        started_at = _recommend_state["started_at"]
+        state["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
+        state["result"] = _recommend_state["result"]
+        return state
+
+
+def _set_recommend_state(**values: object) -> None:
+    with _recommend_lock:
+        _recommend_state.update(values)
 
 
 CATALOG_TABLES = (
@@ -217,6 +237,8 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     self._send_json({"connected": True, "serial": target, "targets": targets})
                 elif path == "/api/scan/status":
                     self._send_json(scan_status())
+                elif path == "/api/hero-core/recommend/status":
+                    self._send_json(recommend_status())
                 elif path == "/api/hero-cores":
                     self._send_json(hero_core_catalog())
                 elif path.startswith("/api/hero-cores/"):
@@ -267,6 +289,21 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 return
             if path == "/api/hero-core/recommend":
                 self._send_json(recommend_hero_core(self.database, self._read_json()))
+                return
+            if path == "/api/hero-core/recommend/start":
+                payload = self._read_json()
+                with _recommend_lock:
+                    if _recommend_state["status"] in {"starting", "screening", "refining"}:
+                        self._send_json({"error": "recommendation already running"}, HTTPStatus.CONFLICT)
+                        return
+                    job_id = uuid.uuid4().hex
+                    _recommend_state.update({
+                        "id": job_id, "status": "starting", "phase": "screening",
+                        "completed": 0, "total": None, "error": None, "result": None,
+                        "started_at": time.monotonic(),
+                    })
+                threading.Thread(target=self._run_recommend, args=(job_id, payload), daemon=True).start()
+                self._send_json(recommend_status(), HTTPStatus.ACCEPTED)
                 return
             if path in {"/api/hero-core/import", "/api/hero-cores/import"}:
                 self._send_json(import_hero_core(self._read_json()), HTTPStatus.CREATED)
@@ -411,6 +448,16 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             _set_scan_state(id=job_id, status="stopped", error=None)
         except Exception as error:
             _set_scan_state(id=job_id, status="failed", error=str(error))
+
+    def _run_recommend(self, job_id: str, payload: dict) -> None:
+        def progress(update: dict) -> None:
+            _set_recommend_state(id=job_id, status=update.get("phase", "screening"), **update)
+
+        try:
+            result = recommend_hero_core(self.database, payload, progress_callback=progress)
+            _set_recommend_state(id=job_id, status="completed", phase=None, error=None, result=result)
+        except Exception as error:
+            _set_recommend_state(id=job_id, status="failed", phase=None, error=str(error), result=None)
 
     def log_message(self, format: str, *args: object) -> None:
         print(f"{self.address_string()} - {format % args}")
