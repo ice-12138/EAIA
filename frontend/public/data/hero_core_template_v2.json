@@ -1,0 +1,50 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.0.0",
+  "game_version": "CN-YYYY-MM-DD",
+  "hero": {
+    "id": "HERO_ID",
+    "name": "英雄名称",
+    "title": "",
+    "faction": "",
+    "role": "",
+    "damage_type": "physical",
+    "mechanic_summary": "",
+    "base_stats": {
+      "atk": 0,
+      "hp": null,
+      "def": null,
+      "crit_rate": 0.05,
+      "crit_dmg": 1.5,
+      "atk_speed": 0,
+      "rage_regen": 0,
+      "attack_interval": 2.0
+    }
+  },
+  "resources": {"rage": {"initial": 0, "max": 0, "auto_per_second": 0}},
+  "codex": {
+    "skills": [{"id": "basic_attack", "name": "普通攻击", "type": "basic", "description": "", "coefficient": 1.0, "target_cap": 1, "direct_damage": true}],
+    "talents": []
+  },
+  "state": {},
+  "buffs": {},
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "普通攻击",
+      "kind": "basic",
+      "coefficient": 1.0,
+      "hit_count": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "tags": ["basic_attack", "physical", "direct_damage"]
+    }
+  },
+  "triggers": [],
+  "policies": {"default": {"label": "默认", "ultimate_when": "false"}},
+  "default_policy": "default",
+  "assumptions": [],
+  "validation_required": []
+}
