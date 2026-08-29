@@ -129,6 +129,24 @@ class SafeExpression:
         return bool(eval(code, {"__builtins__": {}}, env))
 
 
+def _validate_targeting(spec: dict[str, Any], owner: str) -> None:
+    target_cap = spec.get("target_cap")
+    if target_cap is not None:
+        try:
+            target_cap_int = int(target_cap)
+        except (TypeError, ValueError) as error:
+            raise HeroCoreError(f"{owner} target_cap must be a positive integer or null") from error
+        if target_cap_int < 1:
+            raise HeroCoreError(f"{owner} target_cap must be at least 1 or null")
+    if spec.get("secondary_target_ratio") is not None:
+        try:
+            ratio = float(spec.get("secondary_target_ratio"))
+        except (TypeError, ValueError) as error:
+            raise HeroCoreError(f"{owner} secondary_target_ratio must be non-negative") from error
+        if ratio < 0:
+            raise HeroCoreError(f"{owner} secondary_target_ratio must be non-negative")
+
+
 def validate_core(core: dict[str, Any]) -> None:
     if str(core.get("schema_version")) != "1.0":
         raise HeroCoreError("HeroCore schema_version must be 1.0")
@@ -145,12 +163,19 @@ def validate_core(core: dict[str, Any]) -> None:
             raise HeroCoreError(f"skill {skill_id} has invalid kind")
         if float(skill.get("coefficient", 0)) < 0:
             raise HeroCoreError(f"skill {skill_id} coefficient must be non-negative")
+        _validate_targeting(skill, f"skill {skill_id}")
     for trigger in core.get("triggers", []):
         if not trigger.get("event"):
             raise HeroCoreError("every trigger requires an event")
         SafeExpression.compile(trigger.get("condition"))
         for action in trigger.get("actions", []):
             SafeExpression.compile(action.get("condition"))
+            if action.get("type") == "deal_damage":
+                _validate_targeting(action, f"trigger action {trigger.get('id', trigger['event'])}")
+    for summon_id, summon in (core.get("summons") or {}).items():
+        attack = summon.get("attack") or {}
+        if attack:
+            _validate_targeting(attack, f"summon {summon_id} attack")
 
 
 def load_core(core_id: str, core_dir: Path = DEFAULT_CORE_DIR) -> dict[str, Any]:
@@ -239,6 +264,7 @@ class HeroCoreSimulator:
             "enemy_count": 1,
             **(target or {}),
         }
+        self.target["enemy_count"] = max(1, int(self.target.get("enemy_count", 1)))
         self.policy_name = policy or core.get("default_policy") or next(iter(core.get("policies", {})), "")
         self.policy = (core.get("policies") or {}).get(self.policy_name, {})
         self.rng = random.Random(seed)
@@ -405,6 +431,34 @@ class HeroCoreSimulator:
                 bonus += effect.value
         return bonus
 
+    def _effective_target_count(
+        self,
+        *,
+        target_cap: int | None,
+        tags: set[str],
+    ) -> int:
+        """Return how many enemies this one damage instance can hit.
+
+        ``target_cap`` has authoritative finite-target semantics.  A null cap is
+        treated as unlimited only for actions explicitly tagged ``aoe``; otherwise
+        it remains single-target for backward compatibility with older HeroCores.
+        """
+        enemy_count = max(1, int(self.target.get("enemy_count", 1)))
+        if target_cap is None:
+            return enemy_count if "aoe" in tags else 1
+        return min(enemy_count, max(1, int(target_cap)))
+
+    def _target_multiplier(
+        self,
+        *,
+        target_cap: int | None,
+        tags: set[str],
+        secondary_target_ratio: float = 1.0,
+    ) -> float:
+        targets = self._effective_target_count(target_cap=target_cap, tags=tags)
+        ratio = max(0.0, float(secondary_target_ratio))
+        return 1.0 + max(0, targets - 1) * ratio
+
     def _deal_damage(
         self,
         *,
@@ -414,6 +468,8 @@ class HeroCoreSimulator:
         can_crit: bool = True,
         source: str = "skill",
         atk_multiplier: float = 1.0,
+        target_cap: int | None = None,
+        secondary_target_ratio: float = 1.0,
     ) -> float:
         tags_set = set(tags)
         modifiers = self._active_buff_modifiers()
@@ -426,10 +482,16 @@ class HeroCoreSimulator:
         defense = max(0.0, float(self.target.get("defense", 0.0))) * (1.0 - defense_ignore)
         defense_factor = self.rules.defense_multiplier(defense)
         damage_bonus = modifiers.get("damage_pct", 0.0) + self._set_damage_bonus(tags_set)
+        target_multiplier = self._target_multiplier(
+            target_cap=target_cap,
+            tags=tags_set,
+            secondary_target_ratio=secondary_target_ratio,
+        )
         damage = (
             atk
             * float(coefficient)
             * max(1, int(hit_count))
+            * target_multiplier
             * crit_factor
             * defense_factor
             * (1.0 + damage_bonus)
@@ -480,12 +542,28 @@ class HeroCoreSimulator:
         elif action_type == "set_event_coefficient":
             event["coefficient"] = float(action["value"])
         elif action_type == "deal_damage":
+            action_has_tags = "tags" in action
+            tags = action.get("tags", event.get("tags", []))
+            if "target_cap" in action:
+                target_cap = action.get("target_cap")
+            elif not action_has_tags:
+                target_cap = event.get("target_cap")
+            else:
+                target_cap = None
+            if "secondary_target_ratio" in action:
+                secondary_target_ratio = float(action.get("secondary_target_ratio", 1.0))
+            elif not action_has_tags:
+                secondary_target_ratio = float(event.get("secondary_target_ratio", 1.0))
+            else:
+                secondary_target_ratio = 1.0
             self._deal_damage(
                 coefficient=float(action.get("coefficient", 0.0)),
                 hit_count=int(action.get("hit_count", 1)),
-                tags=action.get("tags", event.get("tags", [])),
+                tags=tags,
                 can_crit=bool(action.get("can_crit", True)),
                 source=str(action.get("source", event.get("source", "followup"))),
+                target_cap=target_cap,
+                secondary_target_ratio=secondary_target_ratio,
             )
         elif action_type == "summon":
             entity = action["entity"]
@@ -559,8 +637,16 @@ class HeroCoreSimulator:
             can_crit=bool(attack.get("can_crit", True)),
             source=f"summon:{entity}",
             atk_multiplier=atk_multiplier,
+            target_cap=attack.get("target_cap"),
+            secondary_target_ratio=float(attack.get("secondary_target_ratio", 1.0)),
         )
-        payload = {"serial": serial, "entity": entity}
+        payload = {
+            "serial": serial,
+            "entity": entity,
+            "target_cap": attack.get("target_cap"),
+            "secondary_target_ratio": float(attack.get("secondary_target_ratio", 1.0)),
+            "tags": list(attack.get("tags", ["summon"])),
+        }
         self._run_triggers("SUMMON_ATTACK", payload)
         self._schedule(
             self.now + self._attack_interval(float(attack.get("speed_multiplier", 1.0))),
@@ -584,6 +670,8 @@ class HeroCoreSimulator:
             "coefficient": float(skill.get("coefficient", 0.0)),
             "tags": list(skill.get("tags", ["basic_attack"])),
             "source": "basic",
+            "target_cap": skill.get("target_cap"),
+            "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
         }
         self._run_triggers("BASIC_ATTACK_BEFORE_DAMAGE", event)
         self._deal_damage(
@@ -592,6 +680,8 @@ class HeroCoreSimulator:
             tags=event["tags"],
             can_crit=bool(skill.get("can_crit", True)),
             source="basic",
+            target_cap=event.get("target_cap"),
+            secondary_target_ratio=float(event.get("secondary_target_ratio", 1.0)),
         )
         resource_gain = skill.get("resource_gain") or {}
         if resource_gain:
@@ -616,7 +706,13 @@ class HeroCoreSimulator:
         if kind == "ultimate":
             self._cast_ultimate(skill_id, skill)
             return
-        event = {"skill_id": skill_id, "source": "skill", "tags": list(skill.get("tags", ["skill"]))}
+        event = {
+            "skill_id": skill_id,
+            "source": "skill",
+            "tags": list(skill.get("tags", ["skill"])),
+            "target_cap": skill.get("target_cap"),
+            "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
+        }
         self._run_triggers("SKILL_CAST_START", event)
         duration = float(skill.get("duration", skill.get("action_time", 0.0)))
         if skill.get("blocks_basic_attack") and duration > 0:
@@ -639,6 +735,8 @@ class HeroCoreSimulator:
             "coefficient": float(skill.get("coefficient", 0.0)),
             "source": "skill",
             "tags": list(skill.get("tags", ["skill"])),
+            "target_cap": skill.get("target_cap"),
+            "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
         }
         self._run_triggers("SKILL_BEFORE_DAMAGE", event)
         self._deal_damage(
@@ -647,6 +745,8 @@ class HeroCoreSimulator:
             tags=event["tags"],
             can_crit=bool(skill.get("can_crit", True)),
             source="skill",
+            target_cap=event.get("target_cap"),
+            secondary_target_ratio=float(event.get("secondary_target_ratio", 1.0)),
         )
         self._run_triggers("SKILL_HIT", event)
 
@@ -692,7 +792,13 @@ class HeroCoreSimulator:
         duration = float(skill.get("duration", skill.get("action_time", 0.0)))
         if skill.get("blocks_basic_attack"):
             self.basic_block_until = max(self.basic_block_until, self.now + duration)
-        event = {"skill_id": skill_id, "source": "ultimate", "tags": list(skill.get("tags", ["ultimate"]))}
+        event = {
+            "skill_id": skill_id,
+            "source": "ultimate",
+            "tags": list(skill.get("tags", ["ultimate"])),
+            "target_cap": skill.get("target_cap"),
+            "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
+        }
         self._run_triggers("ULT_CAST_START", event)
         hit_count = max(1, int(skill.get("hit_count", 1)))
         interval = float(skill.get("hit_interval", duration / hit_count if hit_count else 0.0))
@@ -709,6 +815,8 @@ class HeroCoreSimulator:
             "coefficient": float(skill.get("coefficient", 0.0)),
             "source": "ultimate",
             "tags": list(skill.get("tags", ["ultimate"])),
+            "target_cap": skill.get("target_cap"),
+            "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
         }
         self._run_triggers("ULT_BEFORE_DAMAGE", event)
         self._deal_damage(
@@ -717,6 +825,8 @@ class HeroCoreSimulator:
             tags=event["tags"],
             can_crit=bool(skill.get("can_crit", True)),
             source="ultimate",
+            target_cap=event.get("target_cap"),
+            secondary_target_ratio=float(event.get("secondary_target_ratio", 1.0)),
         )
         self._run_triggers("ULT_HIT", event)
 
@@ -850,6 +960,11 @@ def simulate_average(
         "trials": trials,
         "warmup_seconds": warmup,
         "measurement_seconds": measurement,
+        "target": {
+            "defense": max(0.0, float((target or {}).get("defense", 0.0))),
+            "control_immune": bool((target or {}).get("control_immune", True)),
+            "enemy_count": max(1, int((target or {}).get("enemy_count", 1))),
+        },
         "equivalent_60s": {
             "mean": eq_mean,
             "stddev": eq_std,
