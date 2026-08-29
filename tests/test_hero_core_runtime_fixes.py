@@ -149,7 +149,10 @@ class HeroCoreRuntimeFixTests(unittest.TestCase):
                     measurement=1.0,
                     seed=1,
                 ).run()
-                self.assertAlmostEqual(result.total_damage, 700.0, places=6)
+                # Insight contributes +15% crit rate as well as the fixed 600
+                # single-target basic extra damage. The 100 ATK basic therefore
+                # has 107.5 expected direct damage plus 600 fixed damage.
+                self.assertAlmostEqual(result.total_damage, 707.5, places=6)
                 self.assertEqual(result.coverage, "full")
             finally:
                 db.close()
