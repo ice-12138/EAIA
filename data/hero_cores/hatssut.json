@@ -22,6 +22,11 @@
       "attack_interval": 2
     }
   },
+  "recommendation_profile": {
+    "category": "output",
+    "archetype": "damage",
+    "primary_scaling_stat": "ATK"
+  },
   "resources": {
     "rage": {
       "initial": 600,
