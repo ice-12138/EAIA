@@ -2,10 +2,11 @@
 
 The inventory database keeps equipment exactly as observed in game. The
 recommendation engine compares gear at its cultivation ceiling whenever that
-ceiling is known, estimates locked sub-stats at P90, and exposes normalized set
-effects to HeroCore. If a max-level main stat value is still unknown, the
-observed current-level main stat is retained as a conservative fallback instead
-of excluding the item. Stored inventory rows are never mutated.
+ceiling is known, estimates locked sub-stats at P60 by default, and exposes
+normalized set effects to HeroCore. If a max-level main stat value is still
+unknown, the observed current-level main stat is retained as a conservative
+fallback instead of excluding the item. Stored inventory rows are never
+mutated.
 """
 
 from __future__ import annotations
@@ -36,12 +37,12 @@ def _slot_scope(slot: str) -> str:
 
 
 class OptimizerEquipmentDatabase(EquipmentDatabase):
-    """Read-only optimizer view using max enhancement and P90 locked sub-stats.
+    """Read-only optimizer view using max enhancement and P60 locked sub-stats.
 
     Main stats use the known value at the quality enhancement cap when one is
     available. Unlocked sub-stats keep their observed value. Locked sub-stats
     use an explicit override when present, otherwise the empirical/canonical
-    P90 estimate from :class:`SubStatEstimator`.
+    configured percentile estimate from :class:`SubStatEstimator`.
 
     When the max-level main-stat value is not yet known, an item with a known
     current enhancement level and observed main-stat value remains usable. The
@@ -64,7 +65,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         self,
         path: str | Path = "data/equipment.db",
         *,
-        percentile: float = 0.90,
+        percentile: float = 0.60,
         min_samples_for_percentile: int = 3,
     ):
         if not 0.0 <= percentile <= 1.0:
@@ -327,8 +328,9 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             for item_id, set_id in sorted(self._set_variant_overrides.items())
             if item_id in selected
         }
+        percentile_label = int(round(self.percentile * 100))
         return {
-            "mode": "max_enhancement_p90",
+            "mode": f"max_enhancement_p{percentile_label}",
             "locked_substat_percentile": self.percentile,
             "main_stat_fallback_policy": "use_current_observed_value_when_max_cap_unknown",
             "current_main_fallback_item_count": len(fallback_items),
