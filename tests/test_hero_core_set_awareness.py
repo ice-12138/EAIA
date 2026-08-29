@@ -55,12 +55,16 @@ class HeroCoreSetAwarenessTests(unittest.TestCase):
                ) VALUES (?,?,?,?,?,?,?,?,?)""",
             (item_id, slot, set_id, 0, 1, slot, None, 16, 0),
         )
-        database.connection.execute(
+        database.connection.executemany(
             """INSERT INTO equipment_stats(
                  item_id,stat_index,stat_source,stat_type,stat_value,
                  unlock_level,is_unlocked,roll_grade_id,estimate_override
                ) VALUES (?,?,?,?,?,?,?,?,?)""",
-            (item_id, 0, "main", main_type, main_value, 0, 1, None, None),
+            [
+                (item_id, 0, "main", main_type, main_value, 0, 1, None, None),
+                (item_id, 1, "sub", "ATK_PCT", 0.0, 0, 1, None, None),
+                (item_id, 2, "sub", "CRIT_RATE", 0.0, 0, 1, None, None),
+            ],
         )
 
     def test_projection_database_normalizes_v22_set_effects_for_herocore(self):
@@ -166,6 +170,7 @@ class HeroCoreSetAwarenessTests(unittest.TestCase):
                 },
             )
             self.assertEqual(result["candidate_pruning"], "set_aware")
+            self.assertEqual(result["equipment_prefilter"]["category"], "output")
             self.assertTrue(result["set_model"]["normalized_v22_effects"])
             self.assertTrue(result["set_model"]["t1_t2_variants"])
             self.assertEqual(result["combinations_screened"], 1)
