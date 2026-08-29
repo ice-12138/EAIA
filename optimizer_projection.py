@@ -16,7 +16,7 @@ from typing import Any
 
 from equipment_db import EquipmentDatabase, STAT_TYPES
 from equipment_models import EquipmentItem, EquipmentStat, Slot, StatType
-from equipment_set_variants import load_optimizer_set_effects
+from equipment_set_variants import load_hero_core_set_effects
 from sub_stat_estimator import SubStatEstimator
 
 
@@ -50,11 +50,11 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
     example, a known +8 main stat participate in recommendation until its +16
     cap is measured, without pretending that the +8 value is the +16 value.
 
-    HeroCore also reads set effects through this database. V2.2 semantic rows
-    such as ``stat_mod + atk_pct`` and ``damage_mult + damage_bonus`` are
-    normalized to the optimizer-facing EffectType representation before combat
-    simulation. Temporary T1 -> T2 set overrides are calculation-only and are
-    never persisted to SQLite.
+    HeroCore also reads the full normalized V2.2 set-effect catalog through this
+    database. Historical ``enabled_in_optimizer`` flags only described limits of
+    the old simulator and must not suppress effects that HeroCore can now model.
+    Temporary T1 -> T2 set overrides are calculation-only and are never
+    persisted to SQLite.
 
     A Mythic item still needs all four sub-stat identities. Missing stat
     identities or missing locked-substat estimates remain exclusion reasons.
@@ -85,8 +85,8 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         ).ensure_schema()
 
     def load_set_effects(self):
-        """Return V2.2 set effects normalized for HeroCore/optimizer use."""
-        return load_optimizer_set_effects(self)
+        """Return all semantically normalizable set effects for HeroCore."""
+        return load_hero_core_set_effects(self)
 
     def set_variant_overrides(self, overrides: dict[str, str] | None = None) -> None:
         """Apply calculation-only set identities for one ascension variant."""
@@ -147,8 +147,6 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             (item_id,),
         ).fetchall()
 
-        # Mythic recommendation is an all-four-substats view even if the main
-        # stat has to fall back to a known lower enhancement value.
         if quality_id == "mythic_red":
             indices = {int(stat["stat_index"]) for stat in stat_rows}
             if indices != {0, 1, 2, 3, 4}:
