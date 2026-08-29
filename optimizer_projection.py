@@ -176,6 +176,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             projected: float | None
             projection_source: str
             stat_level_used: int | None = None
+            normalized_unlocked = source == "main" or actual is not None
 
             if source == "main":
                 cap = self._main_cap(
@@ -218,13 +219,13 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                     )
                 main_stat_level_used = stat_level_used
             else:
-                unlocked = bool(stat["is_unlocked"])
+                # Some historical/manual rows contain an inverted or stale
+                # is_unlocked flag.  A numeric observed value is definitive:
+                # use it as actual.  NULL means the roll is still unknown and
+                # should use override/P60.  Do not let metadata overwrite data.
+                unlocked = actual is not None
                 override = stat["estimate_override"]
                 if unlocked:
-                    if actual is None:
-                        raise EquipmentProjectionError(
-                            f"{item_id}: unlocked sub-stat {stat_type_raw} has no value"
-                        )
                     projected = actual
                     projection_source = "actual"
                     stat_level_used = current_level
@@ -261,7 +262,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                 "projected_value": float(projected),
                 "projection_source": projection_source,
                 "value_level": stat_level_used,
-                "is_unlocked": bool(stat["is_unlocked"]),
+                "is_unlocked": normalized_unlocked,
                 "roll_grade_id": stat["roll_grade_id"],
             })
 
