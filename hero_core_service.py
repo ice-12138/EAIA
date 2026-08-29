@@ -229,21 +229,52 @@ def _set_effect_scores(database: OptimizerEquipmentDatabase) -> dict[str, float]
 
 
 def _set_candidate_bonuses(database: OptimizerEquipmentDatabase, all_items: list[EquipmentItem]) -> dict[str, float]:
+    """Return per-current-set bonus using reachable final T1/T2 set feasibility.
+
+    The previous implementation only counted slots carrying the same current
+    ``set_id``. That unfairly rewarded a complete T1 inventory while giving an
+    already-ascended T2 item no set potential when the remaining pieces were
+    still T1. Candidate pruning could therefore discard a stronger native T2
+    item before the mixed ``T2 + T1->T2`` build reached HeroCore.
+
+    A final T2 set is now considered feasible from both native T2 pieces and any
+    T1 pieces that can ascend into it. Source T1 items and native T2 items receive
+    the same reachable T2 set-potential bonus; raw item potential then decides
+    which same-slot item is stronger.
+    """
     definitions = database.load_sets()
     evolutions = load_set_evolutions(database)
     effect_scores = _set_effect_scores(database)
-    slots_by_set: defaultdict[str, set[str]] = defaultdict(set)
+
+    slots_by_current_set: defaultdict[str, set[str]] = defaultdict(set)
     for item in all_items:
-        slots_by_set[item.set_id].add(item.slot.value)
-    result: dict[str, float] = {}
-    for set_id, slots in slots_by_set.items():
-        definition = definitions.get(set_id)
-        if definition is None or len(slots & _eligible_slots(definition.slot_group)) < int(definition.required_pieces):
+        slots_by_current_set[item.set_id].add(item.slot.value)
+
+    sources_by_target: defaultdict[str, set[str]] = defaultdict(set)
+    for source, target in evolutions.items():
+        sources_by_target[target].add(source)
+
+    feasible_final_bonus: dict[str, float] = {}
+    for final_set_id, definition in definitions.items():
+        compatible_current_sets = {final_set_id, *sources_by_target.get(final_set_id, set())}
+        reachable_slots: set[str] = set()
+        for current_set_id in compatible_current_sets:
+            reachable_slots.update(slots_by_current_set.get(current_set_id, set()))
+        if len(reachable_slots & _eligible_slots(definition.slot_group)) < int(definition.required_pieces):
             continue
-        target = evolutions.get(set_id)
-        total_score = max(effect_scores.get(set_id, 0.0), effect_scores.get(target, 0.0) if target else 0.0)
-        if total_score > 0:
-            result[set_id] = total_score / max(1, int(definition.required_pieces))
+        effect_score = effect_scores.get(final_set_id, 0.0)
+        if effect_score > 0:
+            feasible_final_bonus[final_set_id] = effect_score / max(1, int(definition.required_pieces))
+
+    result: dict[str, float] = {}
+    for current_set_id in slots_by_current_set:
+        reachable_final_sets = {current_set_id}
+        target = evolutions.get(current_set_id)
+        if target:
+            reachable_final_sets.add(target)
+        best = max((feasible_final_bonus.get(set_id, 0.0) for set_id in reachable_final_sets), default=0.0)
+        if best > 0:
+            result[current_set_id] = best
     return result
 
 
@@ -332,6 +363,18 @@ def _serialize_ascensions(ascensions: tuple[SetAscension, ...]) -> list[dict[str
     } for row in ascensions]
 
 
+def _serialize_final_set_states(items: tuple[EquipmentItem, ...], set_names: dict[str, str]) -> list[dict[str, str]]:
+    return [
+        {
+            "item_id": item.item_id,
+            "slot": item.slot.value,
+            "set_id": item.set_id,
+            "set_name": set_names.get(item.set_id, item.set_id),
+        }
+        for item in items
+    ]
+
+
 def _active_set_ids(database: OptimizerEquipmentDatabase, items: tuple[EquipmentItem, ...]) -> list[str]:
     definitions = database.load_sets()
     counts = Counter(item.set_id for item in items)
@@ -375,12 +418,15 @@ def _refine_physical_build(*, core, database, item_ids, evolutions, set_names, t
             )
             simulations += 1
             active_sets = _active_set_ids(database, variant_items)
+            serialized_ascensions = _serialize_ascensions(ascensions)
             row = {
                 "item_ids": list(item_ids),
                 "active_sets": active_sets,
                 "active_set_names": [set_names.get(set_id, set_id) for set_id in active_sets],
-                "ascended_items": _serialize_ascensions(ascensions),
+                "ascended_items": serialized_ascensions,
+                "upgrade_recommendations": serialized_ascensions,
                 "uses_ascension": bool(ascensions),
+                "final_set_states": _serialize_final_set_states(variant_items, set_names),
                 "equipment_projection": database.projection_summary(item_ids),
                 **result,
             }
@@ -543,11 +589,12 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             "enemy_count": enemy_count,
             "candidate_per_slot": candidate_per_slot,
             "min_relevant_substats": prefilter_report.get("min_relevant_substats"),
-            "candidate_pruning": "set_aware",
+            "candidate_pruning": "set_aware_reachable_t2",
             "search_strategy": "left_right_group_pruning" if group_pruning_applied else "set_aware_cartesian",
             "group_pruning_applied": group_pruning_applied,
             "equipment_prefilter": prefilter_report,
             "set_candidate_bonus_count": len(set_candidate_bonuses),
+            "set_candidate_bonuses": dict(sorted(set_candidate_bonuses.items())),
             "per_slot_candidate_counts": {slot: len(candidates[slot]) for slot in _SLOTS},
             "pre_group_combinations": per_slot_cartesian,
             "left_group_candidates": {
@@ -578,6 +625,7 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
                 "t1_t2_variants": True,
                 "tie_prefers_no_ascension": True,
                 "cheap_group_scoring_includes_completed_sets": True,
+                "mixed_t1_t2_candidate_reachability": True,
             },
             "results": results,
         }
