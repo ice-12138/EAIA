@@ -32,10 +32,21 @@ class HeroCoreServiceTests(unittest.TestCase):
                     "INSERT OR IGNORE INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES ('TEST_NONE','测试无套装',99,NULL,1)"
                 )
                 for slot in ("weapon", "armor", "bracelet", "necklace", "ring"):
+                    item_id = f"TEST_{slot}"
                     database.connection.execute(
                         """INSERT INTO equipment(item_id,slot,set_id,locked,available,slot_id,enhancement_level,item_locked)
                            VALUES (?,?,?,?,?,?,?,?)""",
-                        (f"TEST_{slot}", slot, "TEST_NONE", 0, 1, slot, 16, 0),
+                        (item_id, slot, "TEST_NONE", 0, 1, slot, 16, 0),
+                    )
+                    database.connection.executemany(
+                        """INSERT INTO equipment_stats(
+                             item_id,stat_index,stat_source,stat_type,stat_value,
+                             unlock_level,is_unlocked,roll_grade_id,estimate_override
+                           ) VALUES (?,?,?,?,?,?,?,?,?)""",
+                        [
+                            (item_id, 1, "sub", "ATK_PCT", 0.0, 0, 1, None, None),
+                            (item_id, 2, "sub", "CRIT_RATE", 0.0, 0, 1, None, None),
+                        ],
                     )
                 database.connection.commit()
             finally:
@@ -52,6 +63,8 @@ class HeroCoreServiceTests(unittest.TestCase):
                 "measurement": 60,
                 "target_def": 0,
             })
+            self.assertEqual(result["equipment_prefilter"]["category"], "output")
+            self.assertEqual(result["equipment_prefilter"]["removed_item_count"], 0)
             self.assertEqual(result["combinations_screened"], 1)
             self.assertEqual(len(result["results"]), 1)
             self.assertGreater(result["results"][0]["equivalent_60s"]["mean"], 0)
