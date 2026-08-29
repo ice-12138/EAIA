@@ -231,16 +231,10 @@ def _set_effect_scores(database: OptimizerEquipmentDatabase) -> dict[str, float]
 def _set_candidate_bonuses(database: OptimizerEquipmentDatabase, all_items: list[EquipmentItem]) -> dict[str, float]:
     """Return per-current-set bonus using reachable final T1/T2 set feasibility.
 
-    The previous implementation only counted slots carrying the same current
-    ``set_id``. That unfairly rewarded a complete T1 inventory while giving an
-    already-ascended T2 item no set potential when the remaining pieces were
-    still T1. Candidate pruning could therefore discard a stronger native T2
-    item before the mixed ``T2 + T1->T2`` build reached HeroCore.
-
-    A final T2 set is now considered feasible from both native T2 pieces and any
-    T1 pieces that can ascend into it. Source T1 items and native T2 items receive
-    the same reachable T2 set-potential bonus; raw item potential then decides
-    which same-slot item is stronger.
+    A final T2 set can be completed by a mixture of native T2 pieces and T1
+    pieces that ascend into that T2. Both forms therefore receive reachable T2
+    potential during the cheap candidate stage. This prevents the old asymmetry
+    where only a complete current T1 inventory was recognized as set-feasible.
     """
     definitions = database.load_sets()
     evolutions = load_set_evolutions(database)
@@ -279,15 +273,41 @@ def _set_candidate_bonuses(database: OptimizerEquipmentDatabase, all_items: list
 
 
 def _select_set_aware_candidates(database: OptimizerEquipmentDatabase, by_slot: dict[str, list[EquipmentItem]], candidate_per_slot: int) -> tuple[dict[str, list[EquipmentItem]], dict[str, float]]:
+    """Select baseline set-aware candidates plus native-T2 safety representatives.
+
+    ``candidate_per_slot`` remains the baseline limit. After that baseline is
+    selected, the strongest native T2 item for each *feasible* reachable T2 set
+    in that slot is protected even if it would otherwise be cut. The later
+    left/right group pruning still bounds expensive HeroCore work, while mixed
+    native-T2 + ascended-T1 combinations can no longer disappear in the first
+    per-slot pruning stage.
+    """
     all_items = [item for values in by_slot.values() for item in values]
     bonuses = _set_candidate_bonuses(database, all_items)
+    evolutions = load_set_evolutions(database)
+    native_t2_sets = set(evolutions.values())
     candidates: dict[str, list[EquipmentItem]] = {}
     for slot, values in by_slot.items():
-        candidates[slot] = sorted(
+        ranked = sorted(
             values,
             key=lambda item: (_item_potential(item) + bonuses.get(item.set_id, 0.0), _item_potential(item), item.item_id),
             reverse=True,
-        )[:candidate_per_slot]
+        )
+        selected = list(ranked[:candidate_per_slot])
+        selected_ids = {item.item_id for item in selected}
+
+        for target_set_id in sorted(native_t2_sets):
+            if bonuses.get(target_set_id, 0.0) <= 0:
+                continue
+            native = [item for item in values if item.set_id == target_set_id]
+            if not native:
+                continue
+            best_native = max(native, key=lambda item: (_item_potential(item), item.item_id))
+            if best_native.item_id not in selected_ids:
+                selected.append(best_native)
+                selected_ids.add(best_native.item_id)
+
+        candidates[slot] = selected
     return candidates, bonuses
 
 
@@ -589,7 +609,8 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             "enemy_count": enemy_count,
             "candidate_per_slot": candidate_per_slot,
             "min_relevant_substats": prefilter_report.get("min_relevant_substats"),
-            "candidate_pruning": "set_aware_reachable_t2",
+            "candidate_pruning": "set_aware",
+            "candidate_protection": "baseline_plus_native_t2_representatives",
             "search_strategy": "left_right_group_pruning" if group_pruning_applied else "set_aware_cartesian",
             "group_pruning_applied": group_pruning_applied,
             "equipment_prefilter": prefilter_report,
@@ -626,6 +647,7 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
                 "tie_prefers_no_ascension": True,
                 "cheap_group_scoring_includes_completed_sets": True,
                 "mixed_t1_t2_candidate_reachability": True,
+                "native_t2_candidate_protection": True,
             },
             "results": results,
         }
