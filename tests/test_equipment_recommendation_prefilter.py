@@ -34,6 +34,19 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
             RecommendationCategory.HEALING,
         )
 
+    def test_missing_role_follows_output_profile_default(self):
+        # Valkyra's current HeroCore has an empty role field. The objective
+        # resolver already treats that case as output, so the prefilter must do
+        # the same instead of falling through to an unpruned Cartesian search.
+        self.assertEqual(
+            classify_recommendation_category({"hero": {"role": ""}}),
+            RecommendationCategory.OUTPUT,
+        )
+        self.assertEqual(
+            classify_recommendation_category({"hero": {}}),
+            RecommendationCategory.OUTPUT,
+        )
+
     def test_output_policy_keeps_only_output_sets_with_two_output_substats(self):
         with tempfile.TemporaryDirectory() as directory:
             database = EquipmentDatabase(Path(directory) / "equipment.db")
