@@ -9,7 +9,7 @@ from optimizer_projection import EquipmentProjectionError, OptimizerEquipmentDat
 
 class OptimizerProjectionTests(unittest.TestCase):
     def _database(self, directory: str) -> OptimizerEquipmentDatabase:
-        database = OptimizerEquipmentDatabase(Path(directory) / "equipment.db", percentile=0.90)
+        database = OptimizerEquipmentDatabase(Path(directory) / "equipment.db", percentile=0.60)
         database.initialize()
         database.connection.execute(
             "INSERT OR IGNORE INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES ('TEST_NONE','测试无套装',99,NULL,1)"
@@ -74,7 +74,7 @@ class OptimizerProjectionTests(unittest.TestCase):
             )
         database.connection.commit()
 
-    def test_underlevel_mythic_uses_plus16_main_cap_and_locked_p90(self):
+    def test_underlevel_mythic_uses_plus16_main_cap_and_locked_p60(self):
         with tempfile.TemporaryDirectory() as directory:
             database = self._database(directory)
             try:
@@ -93,7 +93,7 @@ class OptimizerProjectionTests(unittest.TestCase):
                 stats = {stat.stat_index: stat.stat_value for stat in item.stats}
                 self.assertEqual(item.level, 16)
                 self.assertAlmostEqual(stats[0], 0.60)
-                self.assertAlmostEqual(stats[1], 0.46)
+                self.assertAlmostEqual(stats[1], 0.34)
 
                 report = database.projection_reports["TARGET"]
                 self.assertEqual(report["current_level"], 8)
@@ -102,7 +102,7 @@ class OptimizerProjectionTests(unittest.TestCase):
                 self.assertFalse(report["uses_current_main_fallback"])
                 self.assertTrue(report["projection_complete"])
                 self.assertEqual(report["stats"][0]["projection_source"], "main_stat_cap")
-                self.assertEqual(report["stats"][1]["projection_source"], "empirical_p90")
+                self.assertEqual(report["stats"][1]["projection_source"], "empirical_p60")
 
                 stored = database.connection.execute(
                     "SELECT enhancement_level FROM equipment WHERE item_id='TARGET'"
@@ -256,10 +256,12 @@ class OptimizerProjectionTests(unittest.TestCase):
                 "measurement": 60,
                 "target_def": 0,
             })
-            self.assertEqual(result["equipment_projection"]["mode"], "max_enhancement_p90")
-            self.assertEqual(result["equipment_projection"]["locked_substat_percentile"], 0.90)
+            self.assertEqual(result["equipment_projection"]["mode"], "max_enhancement_p60")
+            self.assertEqual(result["equipment_projection"]["locked_substat_percentile"], 0.60)
             self.assertEqual(result["combinations_screened"], 1)
             build_projection = result["results"][0]["equipment_projection"]
+            self.assertEqual(build_projection["mode"], "max_enhancement_p60")
+            self.assertEqual(build_projection["locked_substat_percentile"], 0.60)
             self.assertEqual(len(build_projection["items"]), 5)
             self.assertTrue(all(item["projected_level"] == 16 for item in build_projection["items"]))
             weapon = next(item for item in build_projection["items"] if item["item_id"] == "W")
