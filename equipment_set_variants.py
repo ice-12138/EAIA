@@ -8,6 +8,7 @@ can then keep the better state without duplicating the same physical build.
 
 from __future__ import annotations
 
+import json
 from collections import defaultdict
 from dataclasses import replace
 from itertools import product
@@ -42,6 +43,17 @@ _STAT_EFFECT_TYPES = {
     "rage_regen": EffectType.RAGE_REGEN,
     "healing_effect": EffectType.HEALING_EFFECT,
     "penetration": EffectType.PENETRATION,
+}
+
+# JSON carried in the historical ``condition`` column is sometimes effect
+# metadata rather than a boolean activation condition. These keys describe how
+# the already-resolved value is interpreted and must not prevent a passive from
+# becoming an always-on effect.
+_METADATA_CONDITION_KEYS = {
+    "formula", "max_hero_level",
+    "scaling_source", "damage_type",
+    "ignore_def", "ignore_mres",
+    "from", "to",
 }
 
 
@@ -80,6 +92,29 @@ def _effect_enabled(row) -> bool:
     return True
 
 
+def _condition_payload(row) -> tuple[str | None, dict | None]:
+    raw = _row_value(row, "condition")
+    if raw in (None, ""):
+        return None, None
+    text = str(raw).strip()
+    try:
+        parsed = json.loads(text)
+    except (TypeError, ValueError, json.JSONDecodeError):
+        return text, None
+    return text, parsed if isinstance(parsed, dict) else None
+
+
+def _condition_is_runtime_gate(row) -> bool:
+    text, payload = _condition_payload(row)
+    if not text:
+        return False
+    if payload is None:
+        return True
+    keys = set(payload)
+    # Pure metadata objects describe effect scaling/type, not activation.
+    return not keys.issubset(_METADATA_CONDITION_KEYS)
+
+
 def _normalize_effect_type(row) -> EffectType | None:
     raw_effect = str(_row_value(row, "effect_type", "") or "").strip()
     raw_stat = str(_row_value(row, "stat_type", "") or "").strip().lower()
@@ -96,6 +131,8 @@ def _normalize_effect_type(row) -> EffectType | None:
         return _DAMAGE_STAT_TYPES.get(raw_stat)
     if raw_effect_lower == "extra_damage":
         return EffectType.EXTRA_DAMAGE
+    if raw_effect_lower == "stat_conversion":
+        return EffectType.STAT_CONVERSION
     return None
 
 
@@ -103,11 +140,11 @@ def _normalize_trigger(row, effect_type: EffectType) -> str:
     trigger = str(_row_value(row, "trigger", "always") or "always").strip().lower()
     trigger = _TRIGGER_ALIASES.get(trigger, trigger)
     duration = float(_row_value(row, "duration", 0) or 0)
-    condition = _row_value(row, "condition")
+    runtime_condition = _condition_is_runtime_gate(row)
 
-    if not condition and trigger in {"passive", "while_deployed"}:
+    if not runtime_condition and trigger in {"passive", "while_deployed"}:
         return "always"
-    if not condition and trigger == "on_deploy" and duration <= 0:
+    if not runtime_condition and trigger == "on_deploy" and duration <= 0:
         return "always"
     return trigger
 
@@ -122,6 +159,7 @@ def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool)
         if effect_type is None:
             continue
         trigger = _normalize_trigger(row, effect_type)
+        condition, _ = _condition_payload(row)
         result.append(
             SetEffect(
                 set_id=str(_row_value(row, "set_id")),
@@ -135,7 +173,7 @@ def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool)
                 stack_rule=str(_row_value(row, "stack_rule", "add") or "add"),
                 proc_chance=float(_row_value(row, "proc_chance", 1) or 0),
                 internal_cd=float(_row_value(row, "internal_cd", 0) or 0),
-                condition=_row_value(row, "condition"),
+                condition=condition,
                 approximate=bool(_row_value(row, "approximate", 0)),
                 requires_dot=bool(_row_value(row, "requires_dot", 0)),
                 enabled_in_v1_1=True,
@@ -154,9 +192,6 @@ def load_optimizer_set_effects(database) -> list[SetEffect]:
 
     Historical ``enabled_in_optimizer``/``enabled_in_v1_1`` flags described
     implementation gaps in the old simulator; they are not game-state flags.
-    The current HeroCore recommendation path needs the complete semantic catalog
-    so effects such as Insight's fixed extra damage and Fatality penetration are
-    not silently removed before simulation.
     """
     return _load_normalized_set_effects(database, respect_legacy_enable_flags=False)
 
@@ -171,13 +206,7 @@ def iter_ascension_variants(
     evolutions: dict[str, str],
     set_names: dict[str, str] | None = None,
 ) -> Iterable[tuple[tuple[EquipmentItem, ...], tuple[SetAscension, ...]]]:
-    """Yield mechanically distinct current/T2 states for one physical build.
-
-    Items of the same source set are grouped. Because ascension does not alter
-    rolled stats, ascending any N pieces of the same source set has identical
-    combat math; only the source/target set piece counts matter. Therefore we
-    evaluate N=0..K rather than all 2**K permutations.
-    """
+    """Yield mechanically distinct current/T2 states for one physical build."""
     set_names = set_names or {}
     groups: dict[tuple[str, str], list[int]] = defaultdict(list)
     for index, item in enumerate(items):
