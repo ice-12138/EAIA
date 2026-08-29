@@ -14,12 +14,33 @@ import sqlite3
 import threading
 import time
 import uuid
+from collections import OrderedDict
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
+from data_manager import (
+    DataManagerError,
+    create_resource,
+    delete_equipment,
+    delete_resource,
+    list_equipment,
+    list_resource,
+    resource_catalog,
+    save_equipment,
+    update_resource,
+)
 from equipment_db import EquipmentDatabase
+from hero_core_engine import HeroCoreError
+from hero_core_service import (
+    hero_core_catalog,
+    hero_core_codex_payload,
+    hero_core_detail,
+    import_hero_core,
+    recommend_hero_core,
+    simulate_hero_core,
+)
 from official_hero_data import seed_official_hero_catalog
 from screen_capture import CaptureError, choose_target, find_hdc, list_targets
 
@@ -39,24 +60,154 @@ _scan_state = {
     "session_completed": 0,
 }
 
+_recommend_lock = threading.Lock()
+_recommend_jobs: OrderedDict[str, dict] = OrderedDict()
+_recommend_queue: list[str] = []
+_recommend_worker: threading.Thread | None = None
+
 
 class ScanCancelled(Exception):
     """Raised at a safe item boundary when the user stops a scan."""
 
 
-def scan_status() -> dict:
+def _scan_review_items(database: Path, *, scan_error: str | None = None, row: object = None, column: object = None) -> list[dict]:
+    """Return OCR records that need a human review after a scan."""
+    connection = sqlite3.connect(database)
+    connection.row_factory = sqlite3.Row
+    try:
+        records = connection.execute(
+            """SELECT e.item_id, e.set_id, s.set_name, er.profile,
+                      er.set_name_text, er.slot_text, er.primary_text,
+                      er.quality_text
+                 FROM equipment e
+                 LEFT JOIN sets s ON s.set_id=e.set_id
+                 LEFT JOIN equipment_recognition er ON er.item_id=e.item_id
+                WHERE e.set_id LIKE 'OCR_%'
+                   OR (er.item_id IS NOT NULL AND trim(coalesce(er.slot_text, '')) = '')
+                   OR (er.item_id IS NOT NULL AND trim(coalesce(er.primary_text, '')) = '')
+                ORDER BY e.item_id"""
+        ).fetchall()
+        result = []
+        for record in records:
+            issues = []
+            if str(record["set_id"] or "").startswith("OCR_"):
+                issues.append("unmatched_set")
+            if not str(record["slot_text"] or "").strip():
+                issues.append("missing_slot")
+            if not str(record["primary_text"] or "").strip():
+                issues.append("missing_primary")
+            result.append({
+                "item_id": record["item_id"], "profile": record["profile"],
+                "set_name": record["set_name"] or record["set_name_text"] or "未识别",
+                "set_name_text": record["set_name_text"],
+                "slot_text": record["slot_text"], "primary_text": record["primary_text"],
+                "issues": issues,
+            })
+        if scan_error:
+            result.append({
+                "item_id": None, "profile": None, "set_name": None,
+                "issues": ["scan_error"], "error": scan_error,
+                "row": row, "column": column,
+            })
+        return result
+    finally:
+        connection.close()
+
+
+def scan_status(database: Path = DEFAULT_DATABASE) -> dict:
     with _scan_lock:
         state = {key: value for key, value in _scan_state.items() if key != "started_at"}
         started_at = _scan_state["started_at"]
         elapsed = (time.monotonic() - started_at) if started_at else 0.0
         state["elapsed_seconds"] = round(elapsed, 2)
         state["average_seconds"] = round(elapsed / _scan_state["session_completed"], 2) if _scan_state["session_completed"] else None
+        if state["status"] in {"completed", "stopped", "failed"}:
+            state["review_items"] = _scan_review_items(
+                database,
+                scan_error=state["error"] if state["status"] == "failed" else None,
+                row=state["row"], column=state["column"],
+            )
+        else:
+            state["review_items"] = []
         return state
 
 
 def _set_scan_state(**values: object) -> None:
     with _scan_lock:
         _scan_state.update(values)
+
+
+def recommend_status() -> dict:
+    with _recommend_lock:
+        jobs = []
+        for job in _recommend_jobs.values():
+            item = {key: value for key, value in job.items() if key not in {"payload", "result", "started_at"}}
+            started_at = job.get("started_at")
+            item["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
+            if job.get("status") in {"completed", "failed"}:
+                item["result"] = job.get("result")
+            jobs.append(item)
+        return {"jobs": jobs, "active_id": next((x for x in _recommend_queue if _recommend_jobs[x]["status"] in {"starting", "screening", "refining"}), None)}
+
+
+def _set_recommend_state(job_id: str, **values: object) -> None:
+    with _recommend_lock:
+        if job_id in _recommend_jobs:
+            _recommend_jobs[job_id].update(values)
+
+
+def _recommend_worker_loop() -> None:
+    while True:
+        with _recommend_lock:
+            job_id = next((x for x in _recommend_queue if _recommend_jobs[x]["status"] == "queued"), None)
+            if job_id is None:
+                return
+            job = _recommend_jobs[job_id]
+            job["status"] = "starting"
+            job["started_at"] = time.monotonic()
+            payload = dict(job["payload"])
+        try:
+            result = recommend_hero_core(EAIARequestHandler.database, payload,
+                                         progress_callback=lambda update: _set_recommend_state(
+                                             job_id, status=update.get("phase", "screening"), **update))
+            _set_recommend_state(job_id, status="completed", phase=None, error=None, result=result)
+        except Exception as error:
+            _set_recommend_state(job_id, status="failed", phase=None, error=str(error), result=None)
+        finally:
+            with _recommend_lock:
+                if job_id in _recommend_queue:
+                    _recommend_queue.remove(job_id)
+
+
+def _enqueue_recommendation(payload: dict) -> str:
+    global _recommend_worker
+    job_id = uuid.uuid4().hex
+    with _recommend_lock:
+        _recommend_jobs[job_id] = {
+            "id": job_id, "hero_name": str(payload.get("hero_name") or payload.get("hero_core_id") or "—"),
+            "status": "queued", "phase": "queued", "completed": 0, "total": None,
+            "overall_completed": 0, "overall_total": None, "error": None, "result": None,
+            "started_at": None, "queued_at": time.monotonic(), "payload": dict(payload),
+        }
+        _recommend_queue.append(job_id)
+        if _recommend_worker is None or not _recommend_worker.is_alive():
+            _recommend_worker = threading.Thread(target=_recommend_worker_loop, daemon=True)
+            _recommend_worker.start()
+    return job_id
+
+
+def cancel_recommendation(job_id: str) -> dict:
+    with _recommend_lock:
+        job = _recommend_jobs.get(job_id)
+        if job is None:
+            raise ValueError("recommendation job not found")
+        if job["status"] != "queued":
+            raise ValueError("only queued recommendation jobs can be deleted")
+        job["status"] = "cancelled"
+        job["phase"] = None
+        if job_id in _recommend_queue:
+            _recommend_queue.remove(job_id)
+        return {key: value for key, value in job.items() if key not in {"payload", "result", "started_at", "queued_at"}}
 
 CATALOG_TABLES = (
     "equipment_categories", "equipment_slots", "set_tiers", "gear_qualities",
@@ -139,6 +290,7 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
                     skill["value_json"] = json.loads(skill["value_json"])
                 except json.JSONDecodeError:
                     pass
+        heroes, skills = _merge_hero_core_codex(heroes, skills)
         equipment = {table: rows(connection, table) for table in EQUIPMENT_TABLES}
         equipment["v_equipment_full"] = _format_equipment_overview(equipment["v_equipment_full"])
         return (
@@ -148,6 +300,27 @@ def database_payload(database: Path) -> tuple[dict, dict, dict]:
         )
     finally:
         connection.close()
+
+
+def _merge_hero_core_codex(heroes: list[dict], skills: list[dict]) -> tuple[list[dict], list[dict]]:
+    core_payload = hero_core_codex_payload()
+    hero_map = {str(row["hero_key"]): dict(row) for row in heroes}
+    for row in core_payload["heroes"]:
+        key = str(row["hero_key"])
+        hero_map[key] = {**hero_map.get(key, {}), **row}
+    skill_map = {(str(row["hero_key"]), str(row["skill_key"])): dict(row) for row in skills}
+    for row in core_payload["skills"]:
+        key = (str(row["hero_key"]), str(row["skill_key"]))
+        skill_map[key] = {**skill_map.get(key, {}), **row}
+    return (
+        sorted(hero_map.values(), key=lambda row: str(row.get("hero_name") or row.get("hero_key"))),
+        sorted(skill_map.values(), key=lambda row: (str(row.get("hero_key")), str(row.get("skill_key")))),
+    )
+
+
+def _managed_resource(path: str) -> str | None:
+    prefix = "/api/manage/resource/"
+    return unquote(path.removeprefix(prefix)) if path.startswith(prefix) else None
 
 
 class EAIARequestHandler(SimpleHTTPRequestHandler):
@@ -168,19 +341,43 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
+    def _read_json(self) -> dict:
+        length = int(self.headers.get("Content-Length", "0"))
+        if length <= 0:
+            return {}
+        payload = json.loads(self.rfile.read(length) or b"{}")
+        if not isinstance(payload, dict):
+            raise ValueError("JSON request body must be an object")
+        return payload
+
+    def _send_user_error(self, error: Exception) -> None:
+        self._send_json({"error": str(error)}, HTTPStatus.BAD_REQUEST)
+
     def do_GET(self) -> None:  # noqa: N802 - required by BaseHTTPRequestHandler
         path = urlparse(self.path).path.rstrip("/") or "/"
         if path.startswith("/api/"):
             try:
                 if path == "/api/health":
-                    self._send_json({"status": "ok", "database": str(self.database)})
+                    self._send_json({"status": "ok", "database": str(self.database), "hero_core": True, "data_management": True})
                 elif path == "/api/device/check":
                     hdc = find_hdc(HDC)
                     targets = list_targets(hdc)
                     target = choose_target(hdc, SERIAL)
                     self._send_json({"connected": True, "serial": target, "targets": targets})
                 elif path == "/api/scan/status":
-                    self._send_json(scan_status())
+                    self._send_json(scan_status(self.database))
+                elif path == "/api/hero-core/recommend/status":
+                    self._send_json(recommend_status())
+                elif path == "/api/hero-cores":
+                    self._send_json(hero_core_catalog())
+                elif path.startswith("/api/hero-cores/"):
+                    self._send_json(hero_core_detail(unquote(path.removeprefix("/api/hero-cores/"))))
+                elif path == "/api/manage/resources":
+                    self._send_json(resource_catalog())
+                elif path == "/api/manage/equipment":
+                    self._send_json(list_equipment(self.database))
+                elif _managed_resource(path) is not None:
+                    self._send_json(list_resource(self.database, _managed_resource(path)))
                 else:
                     hero_data, catalog_data, equipment_data = database_payload(self.database)
                     payloads = {
@@ -192,6 +389,10 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                         self._send_json(payloads[path])
                     else:
                         self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+            except HeroCoreError as error:
+                self._send_json({"error": str(error)}, HTTPStatus.NOT_FOUND)
+            except DataManagerError as error:
+                self._send_user_error(error)
             except (sqlite3.Error, OSError, CaptureError) as error:
                 self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
@@ -209,7 +410,40 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     _scan_state["status"] = "stopping"
                     if _scan_cancel_event is not None:
                         _scan_cancel_event.set()
-            self._send_json(scan_status())
+            self._send_json(scan_status(self.database))
+            return
+        try:
+            if path == "/api/hero-core/simulate":
+                self._send_json(simulate_hero_core(self.database, self._read_json()))
+                return
+            if path == "/api/hero-core/recommend":
+                self._send_json(recommend_hero_core(self.database, self._read_json()))
+                return
+            if path == "/api/hero-core/recommend/start":
+                job_id = _enqueue_recommendation(self._read_json())
+                self._send_json({"id": job_id, "status": "queued"}, HTTPStatus.ACCEPTED)
+                return
+            if path == "/api/hero-core/recommend/cancel":
+                payload = self._read_json()
+                self._send_json(cancel_recommendation(str(payload.get("id") or "")))
+                return
+            if path in {"/api/hero-core/import", "/api/hero-cores/import"}:
+                self._send_json(import_hero_core(self._read_json()), HTTPStatus.CREATED)
+                return
+            if path == "/api/manage/equipment":
+                payload = self._read_json()
+                self._send_json(save_equipment(self.database, payload.get("values") or payload), HTTPStatus.CREATED)
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                payload = self._read_json()
+                self._send_json(create_resource(self.database, resource, payload.get("values") or payload), HTTPStatus.CREATED)
+                return
+        except (HeroCoreError, DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+            return
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
             return
         if path != "/api/scan/start":
             self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
@@ -238,7 +472,44 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                                 "started_at": time.monotonic()})
         thread = threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column, cancel_event), daemon=True)
         thread.start()
-        self._send_json(scan_status(), HTTPStatus.ACCEPTED)
+        self._send_json(scan_status(self.database), HTTPStatus.ACCEPTED)
+
+    def do_PATCH(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        try:
+            payload = self._read_json()
+            if path == "/api/manage/equipment":
+                original = str(payload.get("original_item_id") or "")
+                if not original:
+                    raise DataManagerError("缺少原装备ID")
+                self._send_json(save_equipment(self.database, payload.get("values") or {}, original_item_id=original))
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                self._send_json(update_resource(self.database, resource, payload.get("key") or {}, payload.get("values") or {}))
+                return
+            self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+        except (DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
+
+    def do_DELETE(self) -> None:  # noqa: N802
+        path = urlparse(self.path).path.rstrip("/") or "/"
+        try:
+            payload = self._read_json()
+            if path == "/api/manage/equipment":
+                self._send_json(delete_equipment(self.database, str(payload.get("item_id") or "")))
+                return
+            resource = _managed_resource(path)
+            if resource is not None:
+                self._send_json(delete_resource(self.database, resource, payload.get("key") or {}))
+                return
+            self._send_json({"error": "unknown endpoint"}, HTTPStatus.NOT_FOUND)
+        except (DataManagerError, TypeError, ValueError, json.JSONDecodeError, sqlite3.IntegrityError) as error:
+            self._send_user_error(error)
+        except (sqlite3.Error, OSError) as error:
+            self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
     def _run_scan(self, job_id: str, resume_row: int, resume_column: int, cancel_event: threading.Event) -> None:
         try:
