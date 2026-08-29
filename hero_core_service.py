@@ -642,7 +642,7 @@ def recommend_hero_core(
     policy = str(payload.get("policy") or core.get("default_policy") or "")
     seed = int(payload.get("seed", 20260828))
 
-    database = OptimizerEquipmentDatabase(database_path, percentile=0.90)
+    database = OptimizerEquipmentDatabase(database_path, percentile=0.60)
     try:
         database.initialize()
         database.clear_variant_overrides()
@@ -844,8 +844,8 @@ def recommend_hero_core(
             "variant_evaluations_refined": variant_evaluations_refined,
             "refine_trials": refine_trials if category == "output" else 1,
             "equipment_projection": {
-                "mode": "max_enhancement_p90",
-                "locked_substat_percentile": 0.90,
+                "mode": "max_enhancement_p60",
+                "locked_substat_percentile": 0.60,
                 "projected_item_count": len(database.projection_reports),
                 "prefiltered_item_count": len(all_items),
                 "excluded_item_count": len(database.projection_exclusions),
