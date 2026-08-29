@@ -1,7 +1,8 @@
 """Generic event-driven HeroCore simulator.
 
-Hero-specific mechanics live in JSON HeroCore files.  The engine only knows
-about common events, states, resources, buffs, summons and damage actions.
+Hero-specific mechanics live in JSON HeroCore files. The engine implements
+shared combat semantics: resources, buffs, summons, multi-target damage and the
+normalized equipment-set runtime used by recommendation.
 """
 
 from __future__ import annotations
@@ -18,8 +19,9 @@ from types import SimpleNamespace
 from typing import Any
 
 from equipment_db import EquipmentDatabase
-from equipment_models import EffectType, EquipmentItem, StatType
+from equipment_models import EffectType, StatType
 from equipment_rules import GameRules
+from equipment_set_variants import load_optimizer_set_effects
 
 
 ROOT = Path(__file__).resolve().parent
@@ -28,10 +30,15 @@ DEFAULT_CORE_DIR = ROOT / "data" / "hero_cores"
 PANEL_EFFECTS = {
     EffectType.ATK_FLAT,
     EffectType.ATK_PCT,
+    EffectType.HP_FLAT,
+    EffectType.HP_PCT,
+    EffectType.DEF_FLAT,
+    EffectType.DEF_PCT,
     EffectType.CRIT_RATE,
     EffectType.CRIT_DMG,
     EffectType.ATK_SPEED,
     EffectType.RAGE_REGEN,
+    EffectType.HEALING_EFFECT,
 }
 DAMAGE_EFFECTS = {
     EffectType.DAMAGE_PCT,
@@ -40,6 +47,16 @@ DAMAGE_EFFECTS = {
     EffectType.ULT_DMG,
     EffectType.SINGLE_DMG,
     EffectType.AOE_DMG,
+}
+_SUPPORTED_SET_TRIGGERS = {
+    "always",
+    "on_deploy",
+    "on_ult",
+    "on_any_ultimate_cast",
+    "on_crit",
+    "on_basic_crit",
+    "on_basic_attack_damage",
+    "on_kill",
 }
 
 
@@ -56,11 +73,7 @@ def _namespace(value: Any) -> Any:
 
 
 class SafeExpression:
-    """Small expression evaluator for HeroCore conditions.
-
-    It intentionally supports no function calls, subscripting, imports or
-    arbitrary Python execution.
-    """
+    """Small expression evaluator for HeroCore conditions."""
 
     _ALLOWED = (
         ast.Expression,
@@ -181,9 +194,7 @@ def validate_core(core: dict[str, Any]) -> None:
 def load_core(core_id: str, core_dir: Path = DEFAULT_CORE_DIR) -> dict[str, Any]:
     path = Path(core_dir) / f"{core_id.lower()}.json"
     if not path.exists():
-        candidates = {
-            item.stem.upper(): item for item in Path(core_dir).glob("*.json")
-        }
+        candidates = {item.stem.upper(): item for item in Path(core_dir).glob("*.json")}
         path = candidates.get(core_id.upper())
     if not path or not Path(path).exists():
         raise HeroCoreError(f"unknown HeroCore: {core_id}")
@@ -258,12 +269,19 @@ class HeroCoreSimulator:
         self.core = core
         self.database = database
         self.item_ids = list(item_ids or [])
+        target_value = dict(target or {})
+        defense = max(0.0, float(target_value.get("defense", 0.0)))
         self.target = {
-            "defense": 0.0,
+            "defense": defense,
+            # Backward compatibility: until the UI exposes a separate MRES
+            # field, target_def is also the magic-resistance fallback.
+            "mres": max(0.0, float(target_value.get("mres", defense))),
             "control_immune": True,
             "enemy_count": 1,
-            **(target or {}),
+            **target_value,
         }
+        self.target["defense"] = max(0.0, float(self.target.get("defense", 0.0)))
+        self.target["mres"] = max(0.0, float(self.target.get("mres", self.target["defense"])))
         self.target["enemy_count"] = max(1, int(self.target.get("enemy_count", 1)))
         self.policy_name = policy or core.get("default_policy") or next(iter(core.get("policies", {})), "")
         self.policy = (core.get("policies") or {}).get(self.policy_name, {})
@@ -271,11 +289,7 @@ class HeroCoreSimulator:
         self.warmup = max(0.0, float(warmup))
         self.measurement = max(0.001, float(measurement))
         self.end_time = self.warmup + self.measurement
-        self.rules = (
-            GameRules.from_mapping(database.load_rules())
-            if database is not None
-            else GameRules()
-        )
+        self.rules = GameRules.from_mapping(database.load_rules()) if database is not None else GameRules()
 
         self.sequence = 0
         self.queue: list[ScheduledEvent] = []
@@ -284,10 +298,7 @@ class HeroCoreSimulator:
         self.damage_total = 0.0
         self.source_damage: defaultdict[str, float] = defaultdict(float)
         self.event_counts: defaultdict[str, int] = defaultdict(int)
-        self.state = {
-            key: spec.get("initial", 0)
-            for key, spec in (core.get("state") or {}).items()
-        }
+        self.state = {key: spec.get("initial", 0) for key, spec in (core.get("state") or {}).items()}
         self.resources = {
             key: float(spec.get("initial", 0.0))
             for key, spec in (core.get("resources") or {}).items()
@@ -298,6 +309,16 @@ class HeroCoreSimulator:
         self.ultimate_casting = False
         self.summon_serial = 0
         self.summons: dict[int, str] = {}
+
+        # Runtime set state. Duration stacks keep independent expiries so
+        # stackable effects such as on-basic-crit buffs do not become permanent
+        # or receive impossible full uptime.
+        self.set_effect_expiries: defaultdict[str, list[float]] = defaultdict(list)
+        self.set_effect_permanent_stacks: defaultdict[str, float] = defaultdict(float)
+        self.set_effect_last_trigger: defaultdict[str, float] = defaultdict(lambda: -float("inf"))
+        self.set_effect_conditions: dict[str, ast.Expression | None] = {}
+        self._static_components: dict[str, float] = {}
+
         self.compiled_triggers: dict[str, list[tuple[int, dict[str, Any], ast.Expression | None]]] = defaultdict(list)
         for trigger in core.get("triggers", []):
             self.compiled_triggers[trigger["event"]].append((
@@ -333,36 +354,69 @@ class HeroCoreSimulator:
                 set_id for set_id, count in counts.items()
                 if set_id in definitions and count >= definitions[set_id].required_pieces
             }
+            # Always normalize V2.2 semantic set rows, including direct/manual
+            # simulation which intentionally does not use the +16/P90 database.
             all_effects = [
-                effect for effect in self.database.load_set_effects()
-                if effect.set_id in active_sets and not effect.requires_dot
+                effect for effect in load_optimizer_set_effects(self.database)
+                if effect.set_id in active_sets
             ]
             set_effects = all_effects
             for effect in all_effects:
-                if effect.trigger != "always" and effect.effect_type not in {EffectType.EXTRA_DAMAGE}:
-                    warnings.append(
-                        f"套装效果 {effect.effect_id} 使用触发型机制，HeroCore v1 仅对基础触发子集建模。"
-                    )
+                if effect.requires_dot:
+                    warnings.append(f"套装效果 {effect.effect_id} 依赖DOT/灼烧状态，当前木桩HeroCore未建模该状态。")
+                    continue
+                if effect.trigger not in _SUPPORTED_SET_TRIGGERS:
+                    warnings.append(f"套装效果 {effect.effect_id} 的触发器 {effect.trigger} 尚未建模。")
+                    continue
+                if effect.effect_type not in PANEL_EFFECTS | DAMAGE_EFFECTS | {EffectType.EXTRA_DAMAGE, EffectType.PENETRATION}:
+                    warnings.append(f"套装效果 {effect.effect_id} 的效果类型 {effect.effect_type.value} 尚未建模。")
+                    continue
+                condition = getattr(effect, "condition", None)
+                if condition:
+                    try:
+                        self.set_effect_conditions[effect.effect_id] = SafeExpression.compile(str(condition))
+                    except HeroCoreError:
+                        self.set_effect_conditions[effect.effect_id] = None
+                        warnings.append(f"套装效果 {effect.effect_id} 的条件 {condition!r} 不能由HeroCore安全表达式执行。")
+                if getattr(effect, "approximate", False):
+                    warnings.append(f"套装效果 {effect.effect_id} 使用近似数据。")
                 if effect.trigger == "always" and effect.effect_type in PANEL_EFFECTS:
                     stats[effect.effect_type.value] += float(effect.value)
+                elif effect.trigger == "always" and effect.effect_type == EffectType.PENETRATION:
+                    stats[EffectType.PENETRATION.value] += float(effect.value)
 
-        atk = self.rules.compose_attack(
-            float(base["atk"]),
-            stats[StatType.ATK_FLAT.value],
-            stats[StatType.ATK_PCT.value],
-        )
-        crit_rate, overflow = self.rules.crit(
-            float(base.get("crit_rate", 0.0)) + stats[StatType.CRIT_RATE.value]
-        )
+        base_atk = float(base["atk"])
+        base_hp = float(base.get("hp", base.get("max_hp", 0.0)) or 0.0)
+        base_def = float(base.get("def", base.get("defense", 0.0)) or 0.0)
+        atk_flat = stats[StatType.ATK_FLAT.value]
+        atk_pct = stats[StatType.ATK_PCT.value]
+        hp_flat = stats[StatType.HP_FLAT.value]
+        hp_pct = stats[StatType.HP_PCT.value]
+        def_flat = stats[StatType.DEF_FLAT.value]
+        def_pct = stats[StatType.DEF_PCT.value]
+        raw_crit = float(base.get("crit_rate", 0.0)) + stats[StatType.CRIT_RATE.value]
+        crit_rate, overflow = self.rules.crit(raw_crit)
         base_attack_speed = float(base.get("atk_speed", 0.0))
+
+        self._static_components = {
+            "base_atk": base_atk,
+            "atk_flat": atk_flat,
+            "atk_pct": atk_pct,
+            "base_crit_rate": float(base.get("crit_rate", 0.0)),
+            "crit_rate_bonus": stats[StatType.CRIT_RATE.value],
+        }
         panel = {
-            "atk": atk,
+            "atk": self.rules.compose_attack(base_atk, atk_flat, atk_pct),
+            "hp": (base_hp + hp_flat) * (1.0 + hp_pct),
+            "defense": (base_def + def_flat) * (1.0 + def_pct),
             "crit_rate": crit_rate,
             "crit_overflow": overflow,
             "crit_dmg": float(base.get("crit_dmg", 1.5)) + stats[StatType.CRIT_DMG.value],
             "atk_speed_base": base_attack_speed,
             "atk_speed": base_attack_speed + stats[StatType.ATK_SPEED.value],
             "rage_regen": float(base.get("rage_regen", 0.0)) + stats[StatType.RAGE_REGEN.value],
+            "healing_effect": float(base.get("healing_effect", 0.0)) + stats[StatType.HEALING_EFFECT.value],
+            "penetration": max(0.0, stats[EffectType.PENETRATION.value]),
             "attack_interval": float(base["attack_interval"]),
         }
         return panel, tuple(sorted(active_sets)), set_effects, warnings
@@ -371,15 +425,126 @@ class HeroCoreSimulator:
         if time_point > self.end_time + 1e-9:
             return
         self.sequence += 1
-        heapq.heappush(
-            self.queue,
-            ScheduledEvent(float(time_point), self.sequence, event_type, payload),
+        heapq.heappush(self.queue, ScheduledEvent(float(time_point), self.sequence, event_type, payload))
+
+    def _purge_set_effect_stacks(self, effect_id: str) -> None:
+        if effect_id not in self.set_effect_expiries:
+            return
+        active = [expiry for expiry in self.set_effect_expiries[effect_id] if expiry > self.now]
+        if active:
+            self.set_effect_expiries[effect_id] = active
+        else:
+            self.set_effect_expiries.pop(effect_id, None)
+
+    def _active_set_effect_stacks(self, effect: Any) -> float:
+        if effect.trigger == "always":
+            return 1.0
+        self._purge_set_effect_stacks(effect.effect_id)
+        return self.set_effect_permanent_stacks.get(effect.effect_id, 0.0) + len(
+            self.set_effect_expiries.get(effect.effect_id, [])
         )
+
+    def _effect_condition_satisfied(self, effect: Any, event: dict[str, Any]) -> bool:
+        condition = getattr(effect, "condition", None)
+        if not condition:
+            return True
+        if effect.effect_id not in self.set_effect_conditions:
+            return False
+        compiled = self.set_effect_conditions[effect.effect_id]
+        if compiled is None:
+            return False
+        return SafeExpression.evaluate(compiled, self._condition_context(event))
+
+    def _activate_set_effect(self, effect: Any) -> None:
+        maximum = max(1, int(getattr(effect, "max_stacks", 1) or 1))
+        duration = float(getattr(effect, "duration", 0.0) or 0.0)
+        stack_rule = str(getattr(effect, "stack_rule", "add") or "add").lower()
+        if duration > 0:
+            self._purge_set_effect_stacks(effect.effect_id)
+            expiries = list(self.set_effect_expiries.get(effect.effect_id, []))
+            if maximum <= 1:
+                expiries = [self.now + duration]
+            elif len(expiries) < maximum:
+                expiries.append(self.now + duration)
+            elif stack_rule in {"refresh", "replace"}:
+                expiries = [self.now + duration for _ in expiries]
+            else:
+                # At cap, refresh the oldest stack rather than silently losing
+                # a proc. This preserves the cap while keeping independent
+                # stack durations for additive effects.
+                expiries.sort()
+                expiries[0] = self.now + duration
+            self.set_effect_expiries[effect.effect_id] = expiries
+        else:
+            self.set_effect_permanent_stacks[effect.effect_id] = min(
+                float(maximum),
+                self.set_effect_permanent_stacks.get(effect.effect_id, 0.0) + 1.0,
+            )
+
+    def _trigger_set_effects(self, trigger: str, event: dict[str, Any] | None = None) -> None:
+        event = dict(event or {})
+        for effect in self.set_effects:
+            if effect.requires_dot or effect.trigger != trigger:
+                continue
+            if effect.effect_type == EffectType.EXTRA_DAMAGE and trigger == "on_basic_attack_damage":
+                continue
+            if not self._effect_condition_satisfied(effect, event):
+                continue
+            internal_cd = max(0.0, float(getattr(effect, "internal_cd", 0.0) or 0.0))
+            if self.now - self.set_effect_last_trigger[effect.effect_id] < internal_cd - 1e-9:
+                continue
+            chance = min(1.0, max(0.0, float(getattr(effect, "proc_chance", 1.0) or 0.0)))
+            if chance < 1.0 and self.rng.random() >= chance:
+                continue
+            self.set_effect_last_trigger[effect.effect_id] = self.now
+            self._activate_set_effect(effect)
+
+    def _active_buff_modifiers(self) -> dict[str, float]:
+        modifiers: defaultdict[str, float] = defaultdict(float)
+        for buff_id, expires in list(self.buffs.items()):
+            if expires <= self.now:
+                self.buffs.pop(buff_id, None)
+                continue
+            spec = (self.core.get("buffs") or {}).get(buff_id, {})
+            for key, value in (spec.get("modifiers") or {}).items():
+                modifiers[str(key).lower()] += float(value)
+        return modifiers
+
+    def _active_set_modifiers(self) -> dict[str, float]:
+        modifiers: defaultdict[str, float] = defaultdict(float)
+        effect_keys = {
+            EffectType.ATK_FLAT: "atk_flat",
+            EffectType.ATK_PCT: "atk_pct",
+            EffectType.CRIT_RATE: "crit_rate",
+            EffectType.CRIT_DMG: "crit_dmg",
+            EffectType.ATK_SPEED: "atk_speed",
+            EffectType.RAGE_REGEN: "rage_regen",
+            EffectType.PENETRATION: "penetration",
+        }
+        for effect in self.set_effects:
+            if effect.requires_dot or effect.trigger == "always":
+                continue
+            key = effect_keys.get(effect.effect_type)
+            if not key:
+                continue
+            stacks = self._active_set_effect_stacks(effect)
+            if stacks > 0:
+                modifiers[key] += float(effect.value) * stacks
+        return modifiers
+
+    def _active_combat_modifiers(self) -> dict[str, float]:
+        modifiers: defaultdict[str, float] = defaultdict(float)
+        for source in (self._active_buff_modifiers(), self._active_set_modifiers()):
+            for key, value in source.items():
+                modifiers[key] += value
+        return modifiers
 
     def _resource_rate(self, name: str) -> float:
         spec = (self.core.get("resources") or {}).get(name, {})
         base_rate = float(spec.get("auto_per_second", 0.0))
-        return base_rate * (1.0 + max(-0.99, self.panel.get("rage_regen", 0.0)))
+        modifiers = self._active_combat_modifiers()
+        regen = self.panel.get("rage_regen", 0.0) + modifiers.get("rage_regen", 0.0)
+        return base_rate * (1.0 + max(-0.99, regen))
 
     def _update_resources(self, now: float) -> None:
         delta = max(0.0, now - self.last_resource_update)
@@ -401,48 +566,65 @@ class HeroCoreSimulator:
             "buff": {key: self.buffs.get(key, 0.0) > self.now for key in (self.core.get("buffs") or {})},
         }
 
-    def _active_buff_modifiers(self) -> dict[str, float]:
-        modifiers: defaultdict[str, float] = defaultdict(float)
-        for buff_id, expires in list(self.buffs.items()):
-            if expires <= self.now:
-                self.buffs.pop(buff_id, None)
-                continue
-            spec = (self.core.get("buffs") or {}).get(buff_id, {})
-            for key, value in (spec.get("modifiers") or {}).items():
-                modifiers[key] += float(value)
-        return modifiers
+    @staticmethod
+    def _is_single_target_instance(*, target_cap: int | None, tags: set[str]) -> bool:
+        if "aoe" in tags:
+            return False
+        if target_cap is None:
+            return True
+        try:
+            return int(target_cap) <= 1
+        except (TypeError, ValueError):
+            return False
 
-    def _set_damage_bonus(self, tags: set[str]) -> float:
+    def _effect_applies_to(self, effect: Any, *, source: str, tags: set[str], target_cap: int | None) -> bool:
+        applies = str(getattr(effect, "applies_to", "all") or "all").lower()
+        single = self._is_single_target_instance(target_cap=target_cap, tags=tags)
+        if applies in {"", "all", "self", "team", "owner"}:
+            return True
+        if applies == "basic":
+            return source == "basic" or "basic_attack" in tags
+        if applies == "single_target_basic":
+            return (source == "basic" or "basic_attack" in tags) and single
+        if applies in {"skill", "active_skill"}:
+            return source == "skill"
+        if applies in {"ultimate", "ult"}:
+            return source == "ultimate"
+        if applies in {"single", "single_target"}:
+            return single
+        if applies in {"aoe", "area"}:
+            return not single
+        return True
+
+    def _set_damage_bonus(self, *, tags: set[str], source: str, target_cap: int | None) -> float:
         bonus = 0.0
+        single = self._is_single_target_instance(target_cap=target_cap, tags=tags)
         for effect in self.set_effects:
-            if effect.trigger != "always" or effect.effect_type not in DAMAGE_EFFECTS:
+            if effect.requires_dot or effect.effect_type not in DAMAGE_EFFECTS:
                 continue
+            stacks = self._active_set_effect_stacks(effect)
+            if stacks <= 0 or not self._effect_condition_satisfied(effect, {"source": source, "tags": list(tags)}):
+                continue
+            if not self._effect_applies_to(effect, source=source, tags=tags, target_cap=target_cap):
+                continue
+            matched = False
             if effect.effect_type == EffectType.DAMAGE_PCT:
-                bonus += effect.value
-            elif effect.effect_type == EffectType.BASIC_DMG and "basic_attack" in tags:
-                bonus += effect.value
-            elif effect.effect_type == EffectType.SKILL_DMG and "skill" in tags:
-                bonus += effect.value
-            elif effect.effect_type == EffectType.ULT_DMG and "ultimate" in tags:
-                bonus += effect.value
-            elif effect.effect_type == EffectType.SINGLE_DMG and self.target.get("enemy_count", 1) <= 1:
-                bonus += effect.value
-            elif effect.effect_type == EffectType.AOE_DMG and self.target.get("enemy_count", 1) > 1:
-                bonus += effect.value
+                matched = True
+            elif effect.effect_type == EffectType.BASIC_DMG:
+                matched = source == "basic" or "basic_attack" in tags
+            elif effect.effect_type == EffectType.SKILL_DMG:
+                matched = source == "skill"
+            elif effect.effect_type == EffectType.ULT_DMG:
+                matched = source == "ultimate"
+            elif effect.effect_type == EffectType.SINGLE_DMG:
+                matched = single
+            elif effect.effect_type == EffectType.AOE_DMG:
+                matched = not single
+            if matched:
+                bonus += float(effect.value) * stacks
         return bonus
 
-    def _effective_target_count(
-        self,
-        *,
-        target_cap: int | None,
-        tags: set[str],
-    ) -> int:
-        """Return how many enemies this one damage instance can hit.
-
-        ``target_cap`` has authoritative finite-target semantics.  A null cap is
-        treated as unlimited only for actions explicitly tagged ``aoe``; otherwise
-        it remains single-target for backward compatibility with older HeroCores.
-        """
+    def _effective_target_count(self, *, target_cap: int | None, tags: set[str]) -> int:
         enemy_count = max(1, int(self.target.get("enemy_count", 1)))
         if target_cap is None:
             return enemy_count if "aoe" in tags else 1
@@ -459,6 +641,86 @@ class HeroCoreSimulator:
         ratio = max(0.0, float(secondary_target_ratio))
         return 1.0 + max(0, targets - 1) * ratio
 
+    def _current_attack(self, modifiers: dict[str, float], atk_multiplier: float = 1.0) -> float:
+        base = self._static_components.get("base_atk", self.panel["atk"])
+        flat = self._static_components.get("atk_flat", 0.0) + modifiers.get("atk_flat", 0.0)
+        pct = self._static_components.get("atk_pct", 0.0) + modifiers.get("atk_pct", 0.0)
+        return self.rules.compose_attack(base, flat, pct) * atk_multiplier
+
+    def _current_crit_rate(self, modifiers: dict[str, float]) -> float:
+        raw = (
+            self._static_components.get("base_crit_rate", 0.0)
+            + self._static_components.get("crit_rate_bonus", 0.0)
+            + modifiers.get("crit_rate", 0.0)
+        )
+        return self.rules.crit(raw)[0]
+
+    def _damage_kind(self, tags: set[str]) -> str:
+        if "true" in tags or "true_damage" in tags:
+            return "true"
+        if "magic" in tags:
+            return "magic"
+        if "physical" in tags:
+            return "physical"
+        return str((self.core.get("hero") or {}).get("damage_type") or "physical").lower()
+
+    def _mitigation_factor(self, *, tags: set[str], modifiers: dict[str, float]) -> float:
+        kind = self._damage_kind(tags)
+        if kind == "true":
+            return 1.0
+        resistance = self.target.get("mres", self.target.get("defense", 0.0)) if kind == "magic" else self.target.get("defense", 0.0)
+        resistance = max(0.0, float(resistance))
+        defense_ignore = min(1.0, max(0.0, modifiers.get("defense_ignore", 0.0)))
+        penetration = min(1.0, max(0.0, self.panel.get("penetration", 0.0) + modifiers.get("penetration", 0.0)))
+        effective = resistance * (1.0 - defense_ignore) * (1.0 - penetration)
+        return self.rules.defense_multiplier(effective)
+
+    def _set_extra_damage(
+        self,
+        *,
+        source: str,
+        tags: set[str],
+        target_cap: int | None,
+        secondary_target_ratio: float,
+        modifiers: dict[str, float],
+    ) -> float:
+        if source != "basic" and "basic_attack" not in tags:
+            return 0.0
+        total = 0.0
+        targets = self._target_multiplier(
+            target_cap=target_cap,
+            tags=tags,
+            secondary_target_ratio=secondary_target_ratio,
+        )
+        for effect in self.set_effects:
+            if effect.requires_dot or effect.effect_type != EffectType.EXTRA_DAMAGE:
+                continue
+            if effect.trigger != "on_basic_attack_damage":
+                continue
+            event = {"source": source, "tags": list(tags), "target_cap": target_cap}
+            if not self._effect_condition_satisfied(effect, event):
+                continue
+            if not self._effect_applies_to(effect, source=source, tags=tags, target_cap=target_cap):
+                continue
+            internal_cd = max(0.0, float(getattr(effect, "internal_cd", 0.0) or 0.0))
+            if self.now - self.set_effect_last_trigger[effect.effect_id] < internal_cd - 1e-9:
+                continue
+            chance = min(1.0, max(0.0, float(getattr(effect, "proc_chance", 1.0) or 0.0)))
+            if chance < 1.0 and self.rng.random() >= chance:
+                continue
+            self.set_effect_last_trigger[effect.effect_id] = self.now
+            value = float(effect.value)
+            if abs(value) < 1.0:
+                # Current dictionary uses ratio-valued EXTRA_DAMAGE for the
+                # max-HP true-damage set. Ratio extras are therefore resolved
+                # from the owner's max HP and bypass mitigation.
+                total += self.panel.get("hp", 0.0) * value * targets
+            else:
+                # Fixed extras (e.g. Insight 600) stay non-critical and outside
+                # damage multipliers, matching the legacy simulator semantics.
+                total += value * targets * self._mitigation_factor(tags=tags, modifiers=modifiers)
+        return total
+
     def _deal_damage(
         self,
         *,
@@ -472,16 +734,18 @@ class HeroCoreSimulator:
         secondary_target_ratio: float = 1.0,
     ) -> float:
         tags_set = set(tags)
-        modifiers = self._active_buff_modifiers()
-        atk = self.panel["atk"] * (1.0 + modifiers.get("atk_pct", 0.0)) * atk_multiplier
+        modifiers = self._active_combat_modifiers()
+        atk = self._current_attack(modifiers, atk_multiplier)
+        crit_rate = self._current_crit_rate(modifiers)
         crit_dmg = self.panel["crit_dmg"] + modifiers.get("crit_dmg", 0.0)
         crit_factor = 1.0
         if can_crit:
-            crit_factor = (1.0 - self.panel["crit_rate"]) + self.panel["crit_rate"] * crit_dmg
-        defense_ignore = min(1.0, max(0.0, modifiers.get("defense_ignore", 0.0)))
-        defense = max(0.0, float(self.target.get("defense", 0.0))) * (1.0 - defense_ignore)
-        defense_factor = self.rules.defense_multiplier(defense)
-        damage_bonus = modifiers.get("damage_pct", 0.0) + self._set_damage_bonus(tags_set)
+            crit_factor = (1.0 - crit_rate) + crit_rate * crit_dmg
+        mitigation = self._mitigation_factor(tags=tags_set, modifiers=modifiers)
+        damage_bonus = (
+            modifiers.get("damage_pct", 0.0)
+            + self._set_damage_bonus(tags=tags_set, source=source, target_cap=target_cap)
+        )
         target_multiplier = self._target_multiplier(
             target_cap=target_cap,
             tags=tags_set,
@@ -493,12 +757,29 @@ class HeroCoreSimulator:
             * max(1, int(hit_count))
             * target_multiplier
             * crit_factor
-            * defense_factor
+            * mitigation
             * (1.0 + damage_bonus)
+        )
+        damage += self._set_extra_damage(
+            source=source,
+            tags=tags_set,
+            target_cap=target_cap,
+            secondary_target_ratio=secondary_target_ratio,
+            modifiers=modifiers,
         )
         if self.now >= self.warmup:
             self.damage_total += damage
             self.source_damage[source] += damage
+
+        # Base damage uses exact mathematical crit expectation for stable gear
+        # ranking. Crit-triggered set state is sampled separately, then averaged
+        # across trials. The triggering hit itself does not retroactively gain
+        # the newly created buff.
+        if can_crit and crit_rate > 0 and self.rng.random() < crit_rate:
+            event = {"source": source, "tags": list(tags_set), "target_cap": target_cap}
+            self._trigger_set_effects("on_crit", event)
+            if source == "basic" or "basic_attack" in tags_set:
+                self._trigger_set_effects("on_basic_crit", event)
         return damage
 
     def _apply_action(self, action: dict[str, Any], event: dict[str, Any]) -> None:
@@ -527,7 +808,9 @@ class HeroCoreSimulator:
             spec = (self.core.get("resources") or {}).get(name, {})
             value = float(action.get("value", 0.0))
             if action.get("scale_with_regen", False):
-                value *= 1.0 + max(-0.99, self.panel.get("rage_regen", 0.0))
+                modifiers = self._active_combat_modifiers()
+                regen = self.panel.get("rage_regen", 0.0) + modifiers.get("rage_regen", 0.0)
+                value *= 1.0 + max(-0.99, regen)
             self.resources[name] = min(float(spec.get("max", float("inf"))), self.resources.get(name, 0.0) + value)
         elif action_type == "spend_resource":
             name = action["resource"]
@@ -597,7 +880,7 @@ class HeroCoreSimulator:
                 self._apply_action(action, event)
 
     def _attack_interval(self, multiplier: float = 1.0) -> float:
-        modifiers = self._active_buff_modifiers()
+        modifiers = self._active_combat_modifiers()
         speed = self.panel["atk_speed"] + modifiers.get("atk_speed", 0.0)
         return self.rules.attack_interval(
             self.panel["attack_interval"],
@@ -630,24 +913,27 @@ class HeroCoreSimulator:
         attack = spec["attack"]
         inherit = spec.get("inherit") or {}
         atk_multiplier = float(inherit.get("atk", 1.0))
-        self._deal_damage(
-            coefficient=float(attack.get("coefficient", 0.0)),
-            hit_count=int(attack.get("hit_count", 1)),
-            tags=attack.get("tags", ["summon"]),
-            can_crit=bool(attack.get("can_crit", True)),
-            source=f"summon:{entity}",
-            atk_multiplier=atk_multiplier,
-            target_cap=attack.get("target_cap"),
-            secondary_target_ratio=float(attack.get("secondary_target_ratio", 1.0)),
-        )
-        payload = {
-            "serial": serial,
-            "entity": entity,
-            "target_cap": attack.get("target_cap"),
-            "secondary_target_ratio": float(attack.get("secondary_target_ratio", 1.0)),
-            "tags": list(attack.get("tags", ["summon"])),
-        }
-        self._run_triggers("SUMMON_ATTACK", payload)
+        hit_count = max(1, int(attack.get("hit_count", 1)))
+        for hit_index in range(hit_count):
+            self._deal_damage(
+                coefficient=float(attack.get("coefficient", 0.0)),
+                hit_count=1,
+                tags=attack.get("tags", ["summon"]),
+                can_crit=bool(attack.get("can_crit", True)),
+                source=f"summon:{entity}",
+                atk_multiplier=atk_multiplier,
+                target_cap=attack.get("target_cap"),
+                secondary_target_ratio=float(attack.get("secondary_target_ratio", 1.0)),
+            )
+            payload = {
+                "serial": serial,
+                "entity": entity,
+                "hit_index": hit_index,
+                "target_cap": attack.get("target_cap"),
+                "secondary_target_ratio": float(attack.get("secondary_target_ratio", 1.0)),
+                "tags": list(attack.get("tags", ["summon"])),
+            }
+            self._run_triggers("SUMMON_ATTACK", payload)
         self._schedule(
             self.now + self._attack_interval(float(attack.get("speed_multiplier", 1.0))),
             "SUMMON_ATTACK",
@@ -656,10 +942,7 @@ class HeroCoreSimulator:
         )
 
     def _process_basic(self) -> None:
-        skill = next(
-            (value for value in self.core.get("skills", {}).values() if value.get("kind") == "basic"),
-            None,
-        )
+        skill = next((value for value in self.core.get("skills", {}).values() if value.get("kind") == "basic"), None)
         if skill is None:
             return
         if self.now < self.basic_block_until - 1e-9:
@@ -674,15 +957,19 @@ class HeroCoreSimulator:
             "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
         }
         self._run_triggers("BASIC_ATTACK_BEFORE_DAMAGE", event)
-        self._deal_damage(
-            coefficient=float(event["coefficient"]),
-            hit_count=int(skill.get("hit_count", 1)),
-            tags=event["tags"],
-            can_crit=bool(skill.get("can_crit", True)),
-            source="basic",
-            target_cap=event.get("target_cap"),
-            secondary_target_ratio=float(event.get("secondary_target_ratio", 1.0)),
-        )
+        hit_count = max(1, int(skill.get("hit_count", 1)))
+        for hit_index in range(hit_count):
+            hit_event = {**event, "hit_index": hit_index}
+            self._deal_damage(
+                coefficient=float(event["coefficient"]),
+                hit_count=1,
+                tags=event["tags"],
+                can_crit=bool(skill.get("can_crit", True)),
+                source="basic",
+                target_cap=event.get("target_cap"),
+                secondary_target_ratio=float(event.get("secondary_target_ratio", 1.0)),
+            )
+            self._run_triggers("BASIC_ATTACK_HIT", hit_event)
         resource_gain = skill.get("resource_gain") or {}
         if resource_gain:
             self._apply_action({
@@ -691,7 +978,6 @@ class HeroCoreSimulator:
                 "value": resource_gain.get("value", 0.0),
                 "scale_with_regen": resource_gain.get("scale_with_regen", False),
             }, event)
-        self._run_triggers("BASIC_ATTACK_HIT", event)
         self._schedule(self.now + self._attack_interval(), "BASIC_ATTACK_READY")
         self._schedule_policy_check(self.now)
 
@@ -722,10 +1008,11 @@ class HeroCoreSimulator:
         for index in range(hit_count):
             self._schedule(self.now + index * interval, "SKILL_HIT", skill_id=skill_id, hit_index=index)
         self._schedule(self.now + duration, "SKILL_CAST_END", skill_id=skill_id)
-        cooldown = float(skill.get("cooldown", 0.0))
-        self.skill_ready[skill_id] = self.now + cooldown
-        if cooldown > 0:
-            self._schedule(self.now + cooldown, "SKILL_READY", skill_id=skill_id)
+        cooldown = float(skill.get("cooldown", 0.0) or 0.0)
+        next_ready = self.now + cooldown if cooldown > 0 else self.now + max(duration, 0.01)
+        self.skill_ready[skill_id] = next_ready
+        if skill.get("auto_cast", True):
+            self._schedule(next_ready, "SKILL_READY", skill_id=skill_id)
 
     def _process_skill_hit(self, skill_id: str, hit_index: int) -> None:
         skill = self.core["skills"][skill_id]
@@ -751,6 +1038,9 @@ class HeroCoreSimulator:
         self._run_triggers("SKILL_HIT", event)
 
     def _ultimate_policy_satisfied(self, skill: dict[str, Any]) -> bool:
+        skill_id = str(skill.get("id") or "")
+        if skill_id and self.now < self.skill_ready.get(skill_id, 0.0) - 1e-9:
+            return False
         resource = skill.get("resource") or {}
         if resource:
             name = resource["name"]
@@ -767,9 +1057,14 @@ class HeroCoreSimulator:
         if not ult or self.ultimate_casting:
             return
         skill_id, skill = ult
+        ready_at = self.skill_ready.get(skill_id, 0.0)
+        if now < ready_at - 1e-9:
+            self._schedule(ready_at, "POLICY_CHECK", skill_id=skill_id)
+            return
         resource = skill.get("resource") or {}
         if not resource:
-            self._schedule(now, "POLICY_CHECK", skill_id=skill_id)
+            if self._ultimate_policy_satisfied(skill):
+                self._schedule(now, "POLICY_CHECK", skill_id=skill_id)
             return
         name = resource["name"]
         cost = float(resource.get("cost", 0.0))
@@ -788,8 +1083,16 @@ class HeroCoreSimulator:
         resource = skill.get("resource") or {}
         if resource:
             self.resources[resource["name"]] -= float(resource.get("cost", 0.0))
-        self.ultimate_casting = True
         duration = float(skill.get("duration", skill.get("action_time", 0.0)))
+        cooldown_raw = skill.get("cooldown")
+        if cooldown_raw is not None:
+            self.skill_ready[skill_id] = self.now + max(0.01, float(cooldown_raw))
+        elif not resource:
+            # A resource-less ultimate without a cooldown must not recast at the
+            # same timestamp forever. Treat it as a one-shot scripted ultimate.
+            self.skill_ready[skill_id] = self.end_time + 1.0
+
+        self.ultimate_casting = True
         if skill.get("blocks_basic_attack"):
             self.basic_block_until = max(self.basic_block_until, self.now + duration)
         event = {
@@ -799,6 +1102,10 @@ class HeroCoreSimulator:
             "target_cap": skill.get("target_cap"),
             "secondary_target_ratio": float(skill.get("secondary_target_ratio", 1.0)),
         }
+        # Equipment effects triggered by opening an ultimate are active for the
+        # ultimate's first hit and subsequent actions.
+        self._trigger_set_effects("on_ult", event)
+        self._trigger_set_effects("on_any_ultimate_cast", event)
         self._run_triggers("ULT_CAST_START", event)
         hit_count = max(1, int(skill.get("hit_count", 1)))
         interval = float(skill.get("hit_interval", duration / hit_count if hit_count else 0.0))
@@ -832,15 +1139,12 @@ class HeroCoreSimulator:
 
     def _initialize(self) -> None:
         self._schedule(0.0, "BATTLE_START")
-        basic = next(
-            (value for value in self.core.get("skills", {}).values() if value.get("kind") == "basic"),
-            None,
-        )
+        basic = next((value for value in self.core.get("skills", {}).values() if value.get("kind") == "basic"), None)
         if basic:
             self._schedule(float(basic.get("initial_cooldown", 0.0)), "BASIC_ATTACK_READY")
         for skill_id, skill in (self.core.get("skills") or {}).items():
             if skill.get("kind") == "skill" and skill.get("auto_cast", True):
-                initial = float(skill.get("initial_cooldown", skill.get("cooldown", 0.0)))
+                initial = float(skill.get("initial_cooldown", skill.get("cooldown", 0.0) or 0.0))
                 self.skill_ready[skill_id] = initial
                 self._schedule(initial, "SKILL_READY", skill_id=skill_id)
         self._schedule_policy_check(0.0)
@@ -855,6 +1159,7 @@ class HeroCoreSimulator:
             self._update_resources(self.now)
             self.event_counts[scheduled.event_type] += 1
             if scheduled.event_type == "BATTLE_START":
+                self._trigger_set_effects("on_deploy", {})
                 self._run_triggers("BATTLE_START", {})
             elif scheduled.event_type == "BASIC_ATTACK_READY":
                 self._process_basic()
@@ -879,6 +1184,8 @@ class HeroCoreSimulator:
             elif scheduled.event_type == "SUMMON_ATTACK":
                 self._process_summon_attack(scheduled)
             else:
+                if scheduled.event_type in {"KILL", "ENEMY_KILLED"}:
+                    self._trigger_set_effects("on_kill", dict(scheduled.payload))
                 self._run_triggers(scheduled.event_type, dict(scheduled.payload))
             self._schedule_policy_check(self.now)
 
@@ -949,6 +1256,8 @@ def simulate_average(
     eq_mean, eq_std = _mean_std(equivalent_values)
     actual_mean, actual_std = _mean_std(actual_values)
     representative = representative or HeroCoreSimulator(core).run()
+    target_value = target or {}
+    defense = max(0.0, float(target_value.get("defense", 0.0)))
     return {
         "hero": {
             "id": core["hero"]["id"],
@@ -961,9 +1270,10 @@ def simulate_average(
         "warmup_seconds": warmup,
         "measurement_seconds": measurement,
         "target": {
-            "defense": max(0.0, float((target or {}).get("defense", 0.0))),
-            "control_immune": bool((target or {}).get("control_immune", True)),
-            "enemy_count": max(1, int((target or {}).get("enemy_count", 1))),
+            "defense": defense,
+            "mres": max(0.0, float(target_value.get("mres", defense))),
+            "control_immune": bool(target_value.get("control_immune", True)),
+            "enemy_count": max(1, int(target_value.get("enemy_count", 1))),
         },
         "equivalent_60s": {
             "mean": eq_mean,
