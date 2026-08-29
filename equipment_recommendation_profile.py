@@ -1,4 +1,4 @@
-"""Recommendation-profile driven equipment scoring for non-output HeroCore roles."""
+"""Recommendation-profile driven equipment scoring for HeroCore roles."""
 
 from __future__ import annotations
 
@@ -6,16 +6,19 @@ from collections import Counter, defaultdict
 from copy import deepcopy
 from typing import Any
 
-from equipment_models import EffectType, EquipmentItem, StatType
+from equipment_models import EquipmentItem
 from equipment_rules import GameRules
 
 
+# ``stat_weights`` express relative importance only. Unit conversion belongs in
+# ``_STAT_NORMALIZERS``. Keeping the two concerns separate prevents flat ATK and
+# attack-speed points from being normalized twice during candidate pruning.
 _OUTPUT_STAT_WEIGHTS = {
     "ATK_PCT": 8.0,
-    "ATK_FLAT": 1.0 / 900.0,
+    "ATK_FLAT": 1.0,
     "CRIT_RATE": 7.0,
     "CRIT_DMG": 3.2,
-    "ATK_SPEED": 1.0 / 85.0,
+    "ATK_SPEED": 100.0 / 85.0,
     "RAGE_REGEN": 2.2,
 }
 _STAT_NORMALIZERS = {
@@ -195,16 +198,16 @@ def _default_profile(category: str, primary: str | None, archetype: str | None) 
 
 
 def resolve_recommendation_profile(core: dict[str, Any]) -> dict[str, Any]:
-    """Resolve defaults and explicit HeroCore recommendation_profile overrides.
-
-    Hero-specific skill analysis belongs in the HeroCore generator; the optimizer
-    consumes the resulting scaling priorities and objective weights.
-    """
+    """Resolve defaults and explicit HeroCore recommendation_profile overrides."""
     raw = core.get("recommendation_profile") or {}
     category = _category_from_core(core)
     primary = raw.get("primary_scaling_stat") or raw.get("primary_stat")
     archetype = raw.get("archetype") or raw.get("subtype")
-    profile = _default_profile(category, None if primary is None else str(primary), None if archetype is None else str(archetype))
+    profile = _default_profile(
+        category,
+        None if primary is None else str(primary),
+        None if archetype is None else str(archetype),
+    )
 
     if "set_categories" in raw:
         values = [str(value).strip().lower() for value in (raw.get("set_categories") or []) if str(value).strip()]
@@ -252,30 +255,72 @@ def item_potential(item: EquipmentItem, profile: dict[str, Any]) -> float:
     return score
 
 
+def _trigger_uptime_factor(effect: Any) -> float:
+    """Conservative cheap-score factor for non-static set effects.
+
+    Precise uptime is resolved by HeroCore. This factor only prevents the cheap
+    pruning stage from treating a short conditional buff as permanently active.
+    """
+    trigger = str(getattr(effect, "trigger", "always") or "always").lower()
+    if trigger in {"always", "while_deployed", "passive"}:
+        return 1.0
+    if trigger in {"on_ult", "on_ultimate", "on_any_ultimate_cast"}:
+        return 0.60
+    if trigger in {"on_crit", "on_basic_crit"}:
+        return 0.50
+    if trigger == "on_basic_attack_damage":
+        return 1.0
+    if trigger == "on_kill":
+        # Recommendation uses a non-dying dummy unless a future scenario adds
+        # explicit kill events.
+        return 0.0
+    return 0.35
+
+
 def effect_potential(effect: Any, profile: dict[str, Any]) -> float:
     key = effect.effect_type.value.upper()
     explicit = _upper_mapping(profile.get("effect_weights"))
+    stack_factor = max(1.0, float(getattr(effect, "max_stacks", 1) or 1))
+    uptime = _trigger_uptime_factor(effect)
+
     if key in explicit:
-        return max(0.0, float(effect.value) * explicit[key])
+        return max(0.0, float(effect.value) * explicit[key] * stack_factor * uptime)
 
     if profile.get("category") == "output":
+        if key == "EXTRA_DAMAGE":
+            # EXTRA_DAMAGE may be fixed damage (e.g. 600) or a ratio (e.g.
+            # 4% max-HP true damage). Normalize fixed values before weighting;
+            # never treat a raw 600 as a 600x multiplicative bonus.
+            raw = abs(float(effect.value))
+            normalized = raw / 1000.0 if raw >= 1.0 else raw
+            return normalized * 2.0 * stack_factor * uptime
+
         weights = {
-            "ATK_PCT": 8.0, "ATK_FLAT": 1.0 / 900.0,
-            "CRIT_RATE": 7.0, "CRIT_DMG": 3.2,
-            "ATK_SPEED": 1.0 / 85.0, "RAGE_REGEN": 2.2,
-            "DAMAGE_PCT": 8.0, "BASIC_DMG": 6.0,
-            "SKILL_DMG": 5.0, "ULT_DMG": 5.0,
-            "SINGLE_DMG": 4.0, "AOE_DMG": 4.0,
-            "EXTRA_DAMAGE": 2.0, "PENETRATION": 3.0,
+            "ATK_PCT": 8.0,
+            "ATK_FLAT": 1.0 / 900.0,
+            "CRIT_RATE": 7.0,
+            "CRIT_DMG": 3.2,
+            "ATK_SPEED": 1.0 / 85.0,
+            "RAGE_REGEN": 2.2,
+            "DAMAGE_PCT": 8.0,
+            "BASIC_DMG": 6.0,
+            "SKILL_DMG": 5.0,
+            "ULT_DMG": 5.0,
+            "SINGLE_DMG": 4.0,
+            "AOE_DMG": 4.0,
+            "PENETRATION": 3.0,
         }
-        return max(0.0, float(effect.value) * weights.get(key, 0.0))
+        return max(0.0, float(effect.value) * weights.get(key, 0.0) * stack_factor * uptime)
 
     stat_weights = _upper_mapping(profile.get("stat_weights"))
     normalizers = _upper_mapping(profile.get("stat_normalizers")) or dict(_STAT_NORMALIZERS)
     if key in stat_weights:
-        return max(0.0, float(effect.value) * stat_weights[key] * normalizers.get(key, 1.0))
+        return max(
+            0.0,
+            float(effect.value) * stat_weights[key] * normalizers.get(key, 1.0) * stack_factor * uptime,
+        )
     if key == "DAMAGE_PCT" and profile.get("category") == "support":
-        return max(0.0, float(effect.value) * 0.25)
+        return max(0.0, float(effect.value) * 0.25 * stack_factor * uptime)
     return 0.0
 
 
@@ -301,8 +346,9 @@ def evaluate_role_build(
 ) -> dict[str, Any]:
     """Evaluate tank/healing/support builds with an auditable profile objective.
 
-    HeroCore v1 currently models damage events only. These roles therefore use a
-    profile-driven panel objective until healing/shield/utility events are added.
+    HeroCore currently uses the event simulator for output ranking. Other roles
+    keep a profile-driven panel objective until healing/shield/utility events are
+    modeled, while sharing the same equipment/set catalog interfaces.
     """
     items = list(database.load_equipment(list(item_ids)))
     if len(items) != len(item_ids):
