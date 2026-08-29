@@ -56,6 +56,7 @@ class HeroCoreServiceTests(unittest.TestCase):
                 "hero_core_id": "SUN_WUKONG",
                 "top_k": 1,
                 "candidate_per_slot": 1,
+                "min_relevant_substats": 1,
                 "trials": 1,
                 "screening_warmup": 0,
                 "screening_measurement": 60,
@@ -64,6 +65,9 @@ class HeroCoreServiceTests(unittest.TestCase):
                 "target_def": 0,
             })
             self.assertEqual(result["equipment_prefilter"]["category"], "output")
+            self.assertEqual(result["equipment_prefilter"]["requested_min_relevant_substats"], 1)
+            self.assertEqual(result["equipment_prefilter"]["min_relevant_substats"], 1)
+            self.assertEqual(result["min_relevant_substats"], 1)
             self.assertEqual(result["equipment_prefilter"]["removed_item_count"], 0)
             self.assertEqual(result["combinations_screened"], 1)
             self.assertEqual(len(result["results"]), 1)
