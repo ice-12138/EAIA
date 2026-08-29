@@ -67,6 +67,7 @@ class EffectType(StrEnum):
     AOE_DMG = "AOE_DMG"
     EXTRA_DAMAGE = "EXTRA_DAMAGE"
     PENETRATION = "PENETRATION"
+    STAT_CONVERSION = "STAT_CONVERSION"
 
 
 @dataclass(frozen=True)
