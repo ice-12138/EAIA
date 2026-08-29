@@ -1,0 +1,307 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.0",
+  "game_version": "CN-2026-08-28",
+  "hero": {
+    "id": "HATSSUT",
+    "name": "哈苏",
+    "title": "复仇女王",
+    "faction": "噩梦议会",
+    "role": "射手",
+    "damage_type": "physical",
+    "mechanic_summary": "普攻为双段物理攻击并带弹射；灵魂折磨使命中目标降低防御；冥踪潜隐提供部署后隐身与击杀叠攻；冥魂齐射为短周期高频范围爆发终结技。",
+    "base_stats": {
+      "atk": 3795,
+      "hp": 11608,
+      "def": 871,
+      "mres": 939,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 600,
+      "max": 700,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "mechanic_summary": "满级基础攻击对主目标连续攻击2次，每击按60%攻击力建模；灵魂折磨提供弹射与30%防御降低；冥魂齐射满级按230%范围伤害每0.3秒一次、持续4秒建模。",
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 11608,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 3795,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 871,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 939,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2,
+        "unit": "second",
+        "source": "public_database"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "public_database"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "public_database"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "public_database"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "public_database"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "public_database"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "public_database"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "满级：连续攻击2次；主目标每击由50%基础倍率经四级强化提升至60%。基础描述还包含对附近敌人的弹射伤害。",
+        "coefficient": 0.6,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 2,
+          "rage_gain": 10,
+          "base_splash_per_hit": 0.2,
+          "max_skill_splash_bonus": 0.04
+        }
+      },
+      {
+        "id": "ghastly_burst",
+        "name": "冥魂齐射",
+        "type": "ultimate",
+        "description": "满级：对周围最多5个敌人每0.3秒造成一次范围物理伤害；基础180%经技能升级累计提高50个百分点，按230%/跳建模；持续4秒。",
+        "coefficient": 2.3,
+        "target_cap": 5,
+        "duration": 4,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 14,
+          "hit_interval": 0.3,
+          "rage_cost": 700,
+          "initial_rage": 600
+        }
+      },
+      {
+        "id": "soul_torment",
+        "name": "灵魂折磨",
+        "type": "passive",
+        "description": "攻击额外弹射1个目标；满级弹射伤害强化，并使被命中的敌人防御降低30%，持续10秒。",
+        "coefficient": null,
+        "target_cap": 3,
+        "duration": 10,
+        "direct_damage": false,
+        "values": {
+          "def_reduction": 0.3,
+          "def_reduction_duration": 10
+        }
+      },
+      {
+        "id": "ghastly_stealth",
+        "name": "冥踪潜隐",
+        "type": "passive",
+        "description": "满级：部署后获得40秒隐身；每次击杀使攻击提高5%，最多5层，满级持续10秒。",
+        "coefficient": null,
+        "target_cap": null,
+        "duration": 40,
+        "direct_damage": false,
+        "values": {
+          "kill_atk_pct": 0.05,
+          "max_stacks": 5,
+          "kill_buff_duration": 10
+        }
+      }
+    ],
+    "talents": [],
+    "awakenings": [
+      {
+        "level": 1,
+        "description": "攻击触发的弹射伤害提高5%。"
+      },
+      {
+        "level": 2,
+        "description": "攻击+300。"
+      },
+      {
+        "level": 3,
+        "description": "冥踪潜隐持续时间+10秒。"
+      },
+      {
+        "level": 4,
+        "description": "穿透+8%。"
+      },
+      {
+        "level": 5,
+        "description": "冥魂齐射持续时间+1秒。"
+      }
+    ]
+  },
+  "state": {},
+  "buffs": {
+    "ghastly_stealth_active": {
+      "duration": 40,
+      "modifiers": {}
+    },
+    "soul_torment_def_reduction_proxy": {
+      "duration": 10,
+      "modifiers": {
+        "defense_ignore": 0.3
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 0.6,
+      "hit_count": 2,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "direct_damage"
+      ]
+    },
+    "ghastly_burst": {
+      "id": "ghastly_burst",
+      "name": "冥魂齐射",
+      "kind": "ultimate",
+      "coefficient": 2.3,
+      "hit_count": 14,
+      "hit_interval": 0.3,
+      "target_cap": 5,
+      "duration": 4,
+      "can_crit": true,
+      "blocks_basic_attack": true,
+      "resource": {
+        "name": "rage",
+        "cost": 700
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "physical",
+        "direct_damage",
+        "aoe"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "ghastly_stealth_on_deploy",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "ghastly_stealth_active",
+          "duration": 40
+        }
+      ]
+    },
+    {
+      "id": "soul_torment_def_reduction",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "soul_torment_def_reduction_proxy",
+          "duration": 10
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 700"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能、未计觉醒加成的基础版本建模；觉醒效果仅保留在codex.awakenings中。",
+    "基础属性采用公开资料中的Lv.60裸装值：攻击3795、生命11608、防御871、魔抗939、攻击间隔2.0秒、攻击速度100、暴击率0%、暴击伤害150%。",
+    "满级普攻主目标按60%×2建模；弹射属于群体目标语义，当前HeroCore引擎未实现按target_cap/enemy_count进行逐目标伤害展开，因此执行层暂不额外计入弹射目标伤害。",
+    "灵魂折磨的30%目标防御降低，当前引擎没有独立目标Debuff对象，因此用10秒defense_ignore=30%的自Buff作为数学等价代理；第一轮双段普攻全部结算后才施加，无法精确表达首轮第2段已吃减防的情况。",
+    "冥魂齐射满级按230%每0.3秒、持续4秒近似为14跳；如果游戏内部实际tick边界不是t=0至3.9秒，则需要实测校准hit_count。",
+    "固定不死亡木桩不会产生击杀，因此冥踪潜隐的每击杀+5%攻击、最多5层机制不触发；隐身本身不直接增加伤害。",
+    "受击回怒6仅保留资料；当前木桩模型不模拟敌人攻击时不产生该怒气。"
+  ],
+  "validation_required": [
+    "确认用户当前哈苏的觉醒等级；若A1/A2/A4/A5已解锁，需要把弹射伤害、基础攻击、穿透和终结技持续时间写入执行层。",
+    "确认国服当前版本满级冥魂齐射最终倍率是否确为230%/跳，以及4秒持续时间对应的实际伤害tick数。",
+    "确认灵魂折磨减防是否对主目标第一轮双段攻击的第2段即时生效。",
+    "当前HeroCore引擎尚未把target_cap/enemy_count用于群体伤害倍乘，哈苏的普攻弹射和终结技最多5目标暂不能完整计算群体木桩总伤害。"
+  ]
+}
