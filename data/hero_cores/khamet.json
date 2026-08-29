@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.2.1",
+  "core_version": "1.2.0",
   "game_version": "CN-2026-08-28",
   "hero": {
     "id": "KHAMET",
@@ -32,17 +32,83 @@
   "codex": {
     "mechanic_summary": "普通攻击、泯灭一击、泯灭诅咒和厄咒律令共同构成输出循环；咒能爆发需要击杀目标，在固定不死亡木桩中不触发。",
     "attributes": [
-      {"id": "hp", "name": "生命值", "value": 10874, "unit": "flat", "source": "white"},
-      {"id": "atk", "name": "攻击", "value": 4633, "unit": "flat", "source": "white"},
-      {"id": "def", "name": "防御", "value": 751, "unit": "flat", "source": "white"},
-      {"id": "mres", "name": "魔法抗性", "value": 2272, "unit": "flat", "source": "white"},
-      {"id": "attack_interval", "name": "攻击间隔", "value": 2.6, "unit": "second", "source": "white"},
-      {"id": "attack_speed", "name": "攻击速度", "value": 100, "unit": "panel_point", "source": "white"},
-      {"id": "crit_rate", "name": "暴击率", "value": 0, "unit": "ratio", "source": "white"},
-      {"id": "crit_dmg", "name": "暴击伤害", "value": 1.5, "unit": "ratio", "source": "white"},
-      {"id": "auto_rage", "name": "自然回怒", "value": 14, "unit": "rage_per_second", "source": "white"},
-      {"id": "basic_rage", "name": "普攻回怒", "value": 10, "unit": "rage_per_attack", "source": "white"},
-      {"id": "attacked_rage", "name": "受击回怒", "value": 6, "unit": "rage_per_hit", "source": "white"}
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 10874,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 4633,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 751,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 2272,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
     ],
     "skills": [
       {
@@ -52,9 +118,10 @@
         "description": "满级按120%攻击力造成魔法伤害，同时攻击2个目标。",
         "coefficient": 1.2,
         "target_cap": 2,
-        "secondary_target_ratio": 1.0,
         "direct_damage": true,
-        "values": {"rage_gain": 10}
+        "values": {
+          "rage_gain": 10
+        }
       },
       {
         "id": "ultimate_festering_curse",
@@ -63,10 +130,12 @@
         "description": "满级：开启后20秒内，每次攻击造成400%的范围魔法伤害。",
         "coefficient": 4,
         "target_cap": null,
-        "secondary_target_ratio": 1.0,
         "duration": 20,
         "direct_damage": true,
-        "values": {"rage_cost": 1200, "initial_rage": 600}
+        "values": {
+          "rage_cost": 1200,
+          "initial_rage": 600
+        }
       },
       {
         "id": "obliteration_strike",
@@ -100,10 +169,16 @@
     "talents": []
   },
   "state": {
-    "basic_count": {"initial": 0, "min": 0}
+    "basic_count": {
+      "initial": 0,
+      "min": 0
+    }
   },
   "buffs": {
-    "khamet_ultimate_active": {"duration": 20, "modifiers": {}}
+    "khamet_ultimate_active": {
+      "duration": 20,
+      "modifiers": {}
+    }
   },
   "summons": {},
   "skills": {
@@ -114,12 +189,20 @@
       "coefficient": 1.2,
       "hit_count": 1,
       "target_cap": 2,
-      "secondary_target_ratio": 1.0,
       "can_crit": true,
       "affected_by_atk_speed": true,
       "initial_cooldown": 0,
-      "resource_gain": {"resource": "rage", "value": 10, "scale_with_regen": true},
-      "tags": ["basic_attack", "magic", "direct_damage", "aoe"]
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "magic",
+        "direct_damage",
+        "aoe"
+      ]
     },
     "ultimate_festering_curse": {
       "id": "ultimate_festering_curse",
@@ -130,8 +213,16 @@
       "duration": 20,
       "can_crit": false,
       "blocks_basic_attack": false,
-      "resource": {"name": "rage", "cost": 1200},
-      "tags": ["ultimate", "skill", "magic", "non_damage"]
+      "resource": {
+        "name": "rage",
+        "cost": 1200
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "magic",
+        "non_damage"
+      ]
     }
   },
   "triggers": [
@@ -139,7 +230,12 @@
       "id": "ultimate_activate",
       "event": "ULT_CAST_START",
       "priority": 10,
-      "actions": [{"type": "apply_buff", "buff": "khamet_ultimate_active"}]
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "khamet_ultimate_active"
+        }
+      ]
     },
     {
       "id": "ultimate_replace_basic_damage",
@@ -147,15 +243,22 @@
       "priority": 5,
       "condition": "buff.khamet_ultimate_active == true",
       "actions": [
-        {"type": "set_event_coefficient", "value": 0},
+        {
+          "type": "set_event_coefficient",
+          "value": 0
+        },
         {
           "type": "deal_damage",
           "coefficient": 4,
           "source": "ultimate_attack",
           "can_crit": true,
-          "target_cap": null,
-          "secondary_target_ratio": 1.0,
-          "tags": ["ultimate", "skill", "magic", "direct_damage", "aoe"]
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "aoe"
+          ]
         }
       ]
     },
@@ -164,51 +267,72 @@
       "event": "BASIC_ATTACK_BEFORE_DAMAGE",
       "priority": 10,
       "condition": "state.basic_count == 0",
-      "actions": [{
-        "type": "deal_damage",
-        "coefficient": 4,
-        "source": "obliteration_strike",
-        "can_crit": true,
-        "target_cap": 1,
-        "tags": ["skill", "magic", "direct_damage", "single_target"]
-      }]
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 4,
+          "source": "obliteration_strike",
+          "can_crit": true,
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target"
+          ]
+        }
+      ]
     },
     {
       "id": "obliteration_curse_retrigger",
       "event": "BASIC_ATTACK_BEFORE_DAMAGE",
       "priority": 20,
       "condition": "state.basic_count > 0 and state.basic_count % 5 == 0",
-      "actions": [{
-        "type": "deal_damage",
-        "coefficient": 4,
-        "source": "obliteration_retrigger",
-        "can_crit": true,
-        "target_cap": 1,
-        "tags": ["skill", "magic", "direct_damage", "single_target"]
-      }]
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 4,
+          "source": "obliteration_retrigger",
+          "can_crit": true,
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target"
+          ]
+        }
+      ]
     },
     {
       "id": "basic_counter",
       "event": "BASIC_ATTACK_HIT",
       "priority": 10,
-      "actions": [{"type": "add_state", "state": "basic_count", "value": 1}]
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "basic_count",
+          "value": 1
+        }
+      ]
     }
   ],
   "policies": {
-    "immediate": {"label": "怒气满立即释放", "ultimate_when": "resource.rage >= 1200"}
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 1200"
+    }
   },
   "default_policy": "immediate",
   "assumptions": [
     "基础属性仅录入截图白字；绿色加成不计入HeroCore基础属性。",
     "技能按满级数值建模：普攻120%，厄咒律令400%持续20秒，泯灭诅咒每5次攻击触发，咒能爆发160%，泯灭一击额外400%。",
     "厄咒律令按攻击替换型终结技处理：终结技本身的ULT_HIT系数为0，持续期间每次基础攻击事件改为400%终结技范围伤害；不会再叠加120%普攻本体。",
-    "群体木桩按target_cap/enemy_count计算总伤害：普通攻击最多2目标，厄咒律令范围攻击按当前木桩目标数量计入。",
     "固定单目标木桩下，泯灭诅咒等价近似为第6、11、16……次攻击重新追加一次400%泯灭一击；不模拟目标切换。",
     "固定不死亡木桩不会触发咒能爆发，因此该被动仅保留在codex中。",
     "受击回怒6仅保留白字资料；当前木桩模型不模拟敌人攻击时不产生该怒气。"
   ],
   "validation_required": [
     "确认厄咒律令持续期间的攻击是否继续获得普攻回怒10。",
-    "确认群体首次命中多个目标时，泯灭一击是否逐目标分别触发。"
+    "确认群体首次命中多个目标时，泯灭一击是否逐目标分别触发。",
+    "当前HeroCore引擎尚未把target_cap/enemy_count用于伤害倍乘，群体木桩总伤害需引擎层补充目标数语义。"
   ]
 }

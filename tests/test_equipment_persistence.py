@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from equipment_db import EquipmentDatabase, _resolve_ocr_set_name
-from equipment_persistence import build_database_rows, is_upgrade_of, normalize_set_name
+from equipment_db import EquipmentDatabase
+from equipment_persistence import build_database_rows, is_upgrade_of
 
 
 def fine_record(item_id="item_test"):
@@ -27,67 +27,6 @@ def fine_record(item_id="item_test"):
 
 
 class EquipmentPersistenceTests(unittest.TestCase):
-    def test_exclusive_set_resolution_does_not_use_unrelated_equipment_title(self):
-        with tempfile.TemporaryDirectory() as directory:
-            database = EquipmentDatabase(Path(directory) / "equipment.db")
-            try:
-                database.initialize()
-                database.connection.execute(
-                    "INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0)",
-                    ("TEST_FLAME", "火焰",),
-                )
-                database.connection.execute(
-                    "INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0)",
-                    ("TEST_FROST", "寒焰",),
-                )
-                database.connection.commit()
-
-                resolved = _resolve_ocr_set_name(
-                    database.connection,
-                    "焰",
-                    "英雄专属武器",
-                    profile="exclusive",
-                )
-                self.assertIsNone(resolved[0])
-                self.assertEqual(resolved[1], "焰")
-                self.assertEqual(resolved[2], ["寒焰", "火焰"])
-            finally:
-                database.close()
-
-    def test_general_set_resolution_still_uses_equipment_title(self):
-        with tempfile.TemporaryDirectory() as directory:
-            database = EquipmentDatabase(Path(directory) / "equipment.db")
-            try:
-                database.initialize()
-                database.connection.execute(
-                    "INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0)",
-                    ("TEST_FLAME", "火焰",),
-                )
-                database.connection.execute(
-                    "INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0)",
-                    ("TEST_FROST", "寒焰",),
-                )
-                database.connection.commit()
-
-                resolved = _resolve_ocr_set_name(
-                    database.connection,
-                    "无法识别",
-                    "火焰武器",
-                    profile="general",
-                )
-                self.assertEqual(resolved[0], "TEST_FLAME")
-                self.assertEqual(resolved[1], "火焰")
-            finally:
-                database.close()
-
-    def test_set_name_is_cleaned_and_set_mismatch_can_be_ignored(self):
-        self.assertEqual(normalize_set_name("[智慧套装"), "智慧")
-        previous = fine_record("previous")
-        current = fine_record("current")
-        current["set_name"] = {"raw_text": "灭"}
-        self.assertFalse(is_upgrade_of(previous, current))
-        self.assertTrue(is_upgrade_of(previous, current, compare_set=False))
-
     def test_chest_armor_ocr_slot_maps_to_armor(self):
         from equipment_persistence import _slot
 

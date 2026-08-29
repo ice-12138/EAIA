@@ -326,7 +326,7 @@ class GridConfig:
     overlap_rows: int = 3
     swipe_start: tuple[int, int] = (1200, 950)
     # Calibrated on the device: one equipment row per drag.
-    swipe_end: tuple[int, int] = (1200, 751)
+    swipe_end: tuple[int, int] = (1200, 752)
     swipe_velocity: int = 200
     slot_width: int = 164
     slot_height: int = 205
@@ -351,13 +351,12 @@ class EquipmentScanner:
         self.count_ocr = count_ocr
         self.count_region = count_region
         self.equipment_count: int | None = None
-        self.scan_limit: int | None = None
         self.progress_callback = progress_callback
         self._progress_completed = 0
 
     def _report_progress(self, **values: object) -> None:
         if self.progress_callback is not None:
-            self.progress_callback({"equipment_count": self.equipment_count, "scan_limit": self.scan_limit, **values})
+            self.progress_callback({"equipment_count": self.equipment_count, **values})
 
     def _report_record(self, record: dict) -> None:
         self._progress_completed += 1
@@ -487,22 +486,16 @@ class EquipmentScanner:
         half_height = self.grid.slot_height // 2
         top = y - half_height
         left = x - half_width
-        top_gold_pixels = 0
-        left_gold_pixels = 0
+        gold_pixels = 0
         for yy in range(top, min(top + 8, image.height)):
             for xx in range(left, min(left + self.grid.slot_width, image.width)):
                 red, green, blue = image.getpixel((xx, yy))
                 if red > 160 and green > 120 and blue < 130:
-                    top_gold_pixels += 1
-        for yy in range(top, min(top + self.grid.slot_height, image.height)):
-            for xx in range(left, min(left + 8, image.width)):
-                red, green, blue = image.getpixel((xx, yy))
-                if red > 160 and green > 120 and blue < 130:
-                    left_gold_pixels += 1
+                    gold_pixels += 1
         # A few golden pixels can be part of the equipment artwork itself.
-        # The selected-state frame has both a broad top edge and a long left
-        # edge. The small "new" badge on every item only affects the top edge.
-        return top_gold_pixels >= 200 and left_gold_pixels >= 40
+        # The selected-state strip spans most of the tile width, so require a
+        # substantially larger contiguous-area signal before reusing a frame.
+        return gold_pixels >= 200
 
     def _normalize_occupied_rows(
         self, occupied_by_row: dict[int, list[int]]
@@ -549,10 +542,10 @@ class EquipmentScanner:
                 current_path = self.workflow.capture()
                 current = Image.open(current_path).convert("RGB")
                 occupied_columns = occupied_by_row[screen_row]
-                if self.scan_limit is not None:
+                if self.equipment_count is not None:
                     expected = min(
                         self.grid.columns,
-                        max(0, self.scan_limit - (logical_row - 1) * self.grid.columns),
+                        max(0, self.equipment_count - (logical_row - 1) * self.grid.columns),
                     )
                     if screen_row == screen_rows[0]:
                         expected = max(0, expected - first_column + 1)
@@ -607,35 +600,28 @@ class EquipmentScanner:
             time.sleep(self.workflow.poll_interval)
         return changed(before_grid, previous) if previous is not None else False
 
-    def scan_until_bottom(self, max_scrolls: int = 100, start_row: int = 1, start_column: int = 1, end_row: int | None = None, end_column: int | None = None) -> list[dict]:
-        if start_row < 1 or start_column < 1 or start_column > self.grid.columns:
-            raise ValueError("start position must be a valid 1-based row and 1-8 column")
-        if end_row is not None and (end_row < 1 or end_column is None or end_column < 1 or end_column > self.grid.columns):
-            raise ValueError("end position must be a valid 1-based row and 1-8 column")
-        start_index = (start_row - 1) * self.grid.columns + start_column
-        end_index = ((end_row - 1) * self.grid.columns + end_column) if end_row is not None else None
-        if end_index is not None and end_index < start_index:
-            raise ValueError("end position must not precede start position")
+    def scan_until_bottom(self, max_scrolls: int = 100, resume_row: int = 1, resume_column: int = 0) -> list[dict]:
+        if resume_row < 1 or resume_column < 0 or resume_column > self.grid.columns:
+            raise ValueError("resume position must be a valid 1-based row and 0-8 column")
         if self.grid.overlap_rows >= self.grid.visible_rows:
             raise ValueError("overlap_rows must be smaller than visible_rows")
         first_path = self.workflow.capture()
         equipment_count = self._read_equipment_count(first_path)
         self.equipment_count = equipment_count
-        self.scan_limit = min(equipment_count, end_index) if equipment_count is not None and end_index is not None else (end_index or equipment_count)
-        # Continuation is prepared by placing the requested start row on the
-        # third visible row. Keep the first two rows as context for the swipe;
-        # for row 1/2, use the highest available row instead.
-        screen_start = min(self.grid.visible_rows - 2, start_row - 1)
-        logical_start = start_row - screen_start
-        first_column = start_column
-        skipped = start_index - 1
-        remaining_count = max(0, self.scan_limit - skipped) if self.scan_limit is not None else None
+        if resume_row == 1 and resume_column == 0:
+            screen_start, logical_start, first_column, skipped = 0, 1, 1, 0
+        else:
+            screen_start = min(self.grid.visible_rows - 1, resume_row - 1)
+            logical_start = resume_row - screen_start
+            first_column = resume_column + 1
+            skipped = (resume_row - 1) * self.grid.columns + resume_column
+        remaining_count = max(0, equipment_count - skipped) if equipment_count is not None else None
         self._report_progress(status="scanning", completed=0, row=None, column=None, remaining_count=remaining_count)
-        if self.scan_limit is not None and skipped >= self.scan_limit:
+        if equipment_count is not None and skipped >= equipment_count:
             return [], False
         records, reached_empty_row = self._process_rows(logical_start, range(screen_start, self.grid.visible_rows), first_column)
-        if self.scan_limit is not None:
-            total_rows = math.ceil(self.scan_limit / self.grid.columns)
+        if equipment_count is not None:
+            total_rows = math.ceil(equipment_count / self.grid.columns)
             rows_after_initial = max(0, total_rows - (logical_start + self.grid.visible_rows - 1))
             for _ in range(min(rows_after_initial, max_scrolls)):
                 before_path = self.workflow.capture()

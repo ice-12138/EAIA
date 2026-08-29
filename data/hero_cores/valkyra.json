@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.2.1",
+  "core_version": "1.2.0",
   "game_version": "CN-2026-08-28",
   "hero": {
     "id": "VALKYRA",
@@ -437,16 +437,12 @@
     "胜利之剑通过BATTLE_START后每14秒调度一次VICTORY_SWORD_TICK，并用8个永久5%攻击Buff表达最多8层叠加。",
     "标准木桩无外部护盾，故冲锋之影护盾分支默认不触发。",
     "魔法易伤具体数值未知，且当前引擎无目标易伤modifier；范围内敌人死亡增伤和圣迹也不属于不死亡木桩机制，因此仅保留在codex。",
-    "受击回怒8仅保留白字资料；当前木桩模型不模拟敌人攻击时不产生该怒气。",
-    "recommendation_profile.category 显式设为 output；装备推荐应按输出英雄策略执行，包括输出类套装/副词条预筛选，以及左侧Top 8 × 右侧Top 16的分组裁剪。"
+    "受击回怒8仅保留白字资料；当前木桩模型不模拟敌人攻击时不产生该怒气。"
   ],
   "validation_required": [
     "补充魔法易伤的精确数值后，需要扩展引擎支持目标侧易伤/伤害承受倍率。",
     "补充护盾量到额外伤害提升的映射后，需要扩展引擎支持护盾状态与条件分支。",
     "当前HeroCore引擎尚未把target_cap/enemy_count用于伤害倍乘，群体木桩总伤害需引擎层补充目标数语义。",
     "截图中最右侧紫色已满级技能未提供详情，当前未执行该技能机制。"
-  ],
-  "recommendation_profile": {
-    "category": "output"
-  }
+  ]
 }

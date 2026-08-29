@@ -29,7 +29,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(grid.x_centers[-1], 1843)
         self.assertEqual(grid.y_centers, (363, 594, 825, 1056))
         self.assertEqual(grid.overlap_rows, 3)
-        self.assertEqual(grid.swipe_end, (1200, 751))
+        self.assertEqual(grid.swipe_end, (1200, 752))
         self.assertEqual(grid.swipe_velocity, 200)
 
     def test_equipment_count_parser_uses_m_from_m_over_n(self):
@@ -94,11 +94,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         from PIL import ImageDraw
         ImageDraw.Draw(image).rectangle((371, 260, 535, 465), fill=(130, 90, 90))
         ImageDraw.Draw(image).rectangle((371, 260, 535, 267), fill=(220, 180, 50))
-        ImageDraw.Draw(image).rectangle((371, 260, 378, 465), fill=(220, 180, 50))
         self.assertTrue(scanner._slot_selected(image, 453, 363))
-
-        ImageDraw.Draw(image).rectangle((371, 260, 378, 465), fill=(130, 90, 90))
-        self.assertFalse(scanner._slot_selected(image, 453, 363))
 
     def test_grid_snapshot_excludes_inventory_background(self):
         from equipment_workflow import EquipmentScanner
