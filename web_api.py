@@ -65,13 +65,65 @@ class ScanCancelled(Exception):
     """Raised at a safe item boundary when the user stops a scan."""
 
 
-def scan_status() -> dict:
+def _scan_review_items(database: Path, *, scan_error: str | None = None, row: object = None, column: object = None) -> list[dict]:
+    """Return OCR records that need a human review after a scan."""
+    connection = sqlite3.connect(database)
+    connection.row_factory = sqlite3.Row
+    try:
+        records = connection.execute(
+            """SELECT e.item_id, e.set_id, s.set_name, er.profile,
+                      er.set_name_text, er.slot_text, er.primary_text,
+                      er.quality_text
+                 FROM equipment e
+                 LEFT JOIN sets s ON s.set_id=e.set_id
+                 LEFT JOIN equipment_recognition er ON er.item_id=e.item_id
+                WHERE e.set_id LIKE 'OCR_%'
+                   OR (er.item_id IS NOT NULL AND trim(coalesce(er.slot_text, '')) = '')
+                   OR (er.item_id IS NOT NULL AND trim(coalesce(er.primary_text, '')) = '')
+                ORDER BY e.item_id"""
+        ).fetchall()
+        result = []
+        for record in records:
+            issues = []
+            if str(record["set_id"] or "").startswith("OCR_"):
+                issues.append("unmatched_set")
+            if not str(record["slot_text"] or "").strip():
+                issues.append("missing_slot")
+            if not str(record["primary_text"] or "").strip():
+                issues.append("missing_primary")
+            result.append({
+                "item_id": record["item_id"], "profile": record["profile"],
+                "set_name": record["set_name"] or record["set_name_text"] or "未识别",
+                "set_name_text": record["set_name_text"],
+                "slot_text": record["slot_text"], "primary_text": record["primary_text"],
+                "issues": issues,
+            })
+        if scan_error:
+            result.append({
+                "item_id": None, "profile": None, "set_name": None,
+                "issues": ["scan_error"], "error": scan_error,
+                "row": row, "column": column,
+            })
+        return result
+    finally:
+        connection.close()
+
+
+def scan_status(database: Path = DEFAULT_DATABASE) -> dict:
     with _scan_lock:
         state = {key: value for key, value in _scan_state.items() if key != "started_at"}
         started_at = _scan_state["started_at"]
         elapsed = (time.monotonic() - started_at) if started_at else 0.0
         state["elapsed_seconds"] = round(elapsed, 2)
         state["average_seconds"] = round(elapsed / _scan_state["session_completed"], 2) if _scan_state["session_completed"] else None
+        if state["status"] in {"completed", "stopped", "failed"}:
+            state["review_items"] = _scan_review_items(
+                database,
+                scan_error=state["error"] if state["status"] == "failed" else None,
+                row=state["row"], column=state["column"],
+            )
+        else:
+            state["review_items"] = []
         return state
 
 
@@ -296,7 +348,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     target = choose_target(hdc, SERIAL)
                     self._send_json({"connected": True, "serial": target, "targets": targets})
                 elif path == "/api/scan/status":
-                    self._send_json(scan_status())
+                    self._send_json(scan_status(self.database))
                 elif path == "/api/hero-core/recommend/status":
                     self._send_json(recommend_status())
                 elif path == "/api/hero-cores":
@@ -341,7 +393,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     _scan_state["status"] = "stopping"
                     if _scan_cancel_event is not None:
                         _scan_cancel_event.set()
-            self._send_json(scan_status())
+            self._send_json(scan_status(self.database))
             return
         try:
             if path == "/api/hero-core/simulate":
@@ -411,7 +463,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 "started_at": time.monotonic(),
             })
         threading.Thread(target=self._run_scan, args=(job_id, start_row, start_column, end_row or None, end_column or None, cancel_event), daemon=True).start()
-        self._send_json(scan_status(), HTTPStatus.ACCEPTED)
+        self._send_json(scan_status(self.database), HTTPStatus.ACCEPTED)
 
     def do_PATCH(self) -> None:  # noqa: N802
         path = urlparse(self.path).path.rstrip("/") or "/"

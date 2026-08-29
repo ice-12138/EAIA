@@ -58,8 +58,20 @@ def _set_name_key(value: object) -> str:
     return normalize_set_name(value).casefold()
 
 
-def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object, slot_text: object = "") -> tuple[str | None, str, list[str]]:
-    """Resolve OCR set text without guessing when multiple sets are plausible."""
+def _resolve_ocr_set_name(
+    connection: sqlite3.Connection,
+    raw_name: object,
+    slot_text: object = "",
+    *,
+    profile: str = "general",
+) -> tuple[str | None, str, list[str]]:
+    """Resolve OCR set text without guessing when multiple sets are plausible.
+
+    General equipment titles normally contain the set name and can provide a
+    useful fallback when the set OCR is truncated.  Exclusive equipment uses
+    a hero/equipment title unrelated to its set, so that fallback would be a
+    false signal and must not participate in resolution.
+    """
     cleaned = normalize_set_name(raw_name) or "未识别"
     key = _set_name_key(cleaned)
     definitions = connection.execute("SELECT set_id, set_name FROM sets WHERE set_id NOT LIKE 'OCR_%'").fetchall()
@@ -77,12 +89,13 @@ def _resolve_ocr_set_name(connection: sqlite3.Connection, raw_name: object, slot
     if len(alias_definitions) == 1:
         return alias_definitions[0][0], alias_definitions[0][1], []
 
-    # The equipment title is normally ``<set name><slot>``.  It is a
-    # stronger signal than a truncated set OCR result such as "灭".
-    slot_key = _set_name_key(slot_text)
-    title_candidates = [row for row in definitions if _set_name_key(row[1]) and _set_name_key(row[1]) in slot_key]
-    if len(title_candidates) == 1:
-        return title_candidates[0][0], title_candidates[0][1], []
+    if profile != "exclusive":
+        # The equipment title is normally ``<set name><slot>``.  It is a
+        # stronger signal than a truncated set OCR result such as "灭".
+        slot_key = _set_name_key(slot_text)
+        title_candidates = [row for row in definitions if _set_name_key(row[1]) and _set_name_key(row[1]) in slot_key]
+        if len(title_candidates) == 1:
+            return title_candidates[0][0], title_candidates[0][1], []
 
     # Prefix/substring matching is useful for truncated OCR, but is unsafe
     # when more than one canonical name contains the recognized fragment.
@@ -212,7 +225,10 @@ class EquipmentDatabase:
         if matched_item_id is not None: stored_record["item_id"] = matched_item_id
         raw_set_name = stored_record.get("set_name")
         slot_text = stored_record.get("slot")
-        resolved_set_id, corrected_set_name, candidates = _resolve_ocr_set_name(self.connection, raw_set_name, slot_text)
+        profile = str(stored_record.get("profile", "general"))
+        resolved_set_id, corrected_set_name, candidates = _resolve_ocr_set_name(
+            self.connection, raw_set_name, slot_text, profile=profile
+        )
         if resolved_set_id is not None:
             stored_record["set_name"] = corrected_set_name
         elif matched_item_id is not None and candidates:
@@ -223,7 +239,9 @@ class EquipmentDatabase:
             if previous_set is not None and not str(previous_set[0]).startswith("OCR_"):
                 stored_record["set_name"] = previous_set[1]
         item, stats, recognition = build_database_rows(stored_record, source_screenshot=source_screenshot)
-        resolved_set_id, set_name, candidates = _resolve_ocr_set_name(self.connection, recognition[16], slot_text)
+        resolved_set_id, set_name, candidates = _resolve_ocr_set_name(
+            self.connection, recognition[16], slot_text, profile=profile
+        )
         if resolved_set_id is None and candidates:
             set_name = f"待确认：{set_name}"
         if resolved_set_id is not None:

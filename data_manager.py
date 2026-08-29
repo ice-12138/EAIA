@@ -1,6 +1,7 @@
 """Allowlisted user-facing CRUD for EAIA SQLite data."""
 from __future__ import annotations
 import sqlite3
+import uuid
 from contextlib import contextmanager
 from pathlib import Path
 from typing import Any, Mapping
@@ -22,7 +23,14 @@ RESOURCE_SPECS={
 "gear_qualities":spec("装备品质","装备字典","品质与强化上限。",[f("quality_id","品质ID"),f("quality_name","品质名称"),f("quality_rank","品质顺序",NUM),f("max_enhancement_level","最高强化等级",NUM),f("has_special_roll_rule","特殊词条规则",BOOL),f("notes","备注",TXT)]),
 "stat_roll_grades":spec("副词条档位","属性规则","副词条颜色/档位。",[f("roll_grade_id","档位ID"),f("roll_grade_name","档位名称"),f("grade_rank","档位顺序",NUM),f("is_max_grade","最高档",BOOL),f("notes","备注",TXT)]),
 "stat_definitions":spec("属性词条","属性规则","攻击、暴击、暴伤、攻速等标准属性。",[f("stat_type","属性ID"),f("stat_name","属性名称"),f("stat_family","属性类别"),f("unit_type","单位"),f("stack_mode","叠加方式"),f("can_main_stat","可作主词条",BOOL),f("can_sub_stat","可作副词条",BOOL),f("ocr_priority","OCR优先级",NUM),f("description","说明",TXT),f("active","启用",BOOL)]),
-"sets":spec("装备套装","套装规则","套装名称、件数、层级和用途分类。",[f("set_id","套装ID"),f("set_name","套装名称"),f("set_tier_id","套装层级"),f("required_pieces","激活件数",NUM),f("slot_group","部位组"),f("category_id","装备类型"),f("output_set","输出套装",BOOL),f("active","启用",BOOL),f("game_version","游戏版本"),f("notes","备注",TXT)]),
+"sets":spec("装备套装","套装规则","套装名称、件数、层级和用途分类。",[
+    f("set_id","套装ID",readonly_on_edit=True,readonly_on_create=True), f("set_name","套装名称"),
+    f("set_tier_id","套装层级","select",options=[{"value":"inf","label":"inf"},{"value":"T0","label":"T0"},{"value":"T1","label":"T1"},{"value":"T2","label":"T2"},{"value":"T3","label":"T3"}]),
+    f("required_pieces","激活件数","select",options=[{"value":2,"label":"2"},{"value":3,"label":"3"}]),
+    f("slot_group","部位组","select",options=[{"value":"left","label":"left"},{"value":"right","label":"right"}]),
+    f("category_id","装备类型","select",options=[{"value":"output","label":"output"},{"value":"defense","label":"defense"},{"value":"healing","label":"healing"},{"value":"buff","label":"buff"}]),
+    f("output_set","输出套装",BOOL), f("active","启用",BOOL,default=True), f("game_version","游戏版本"), f("notes","备注",TXT),
+]),
 "set_effects":spec("套装效果","套装规则","套装激活后的属性、伤害和触发机制。",[f("set_id","套装ID"),f("effect_id","效果ID"),f("effect_type","效果类型"),f("value","效果数值",NUM),f("applies_to","作用对象"),f("trigger","触发方式"),f("duration","持续时间(s)",NUM),f("max_stacks","最大层数",NUM),f("proc_chance","触发概率",NUM),f("internal_cd","内部CD(s)",NUM),f("condition","触发条件",TXT),f("requires_dot","依赖DoT",BOOL),f("enabled_in_optimizer","优化器启用",BOOL),f("game_version","游戏版本"),f("notes","备注",TXT)]),
 "set_evolutions":spec("套装升华","套装规则","T1 到 T2 的升华关系。",[f("from_set_id","原套装"),f("to_set_id","目标套装"),f("material_type","材料类型"),f("notes","备注",TXT)]),
 "main_stat_max_values":spec("主词条上限","属性规则","不同品质和部位的满级主词条最大值。",[f("quality_id","品质"),f("slot_scope","部位范围"),f("stat_type","属性"),f("max_enhancement_level","强化上限",NUM),f("max_value_at_level_cap","满级最大值",NUM),f("observed_max","实测最大值",NUM),f("confirmation_count","确认次数",NUM),f("value_status","状态"),f("data_source","数据来源"),f("game_version","游戏版本"),f("confidence","置信度",NUM),f("notes","备注",TXT)]),
@@ -75,13 +83,27 @@ def _norm(c,r,values,creating):
     if not out: raise DataManagerError("没有可写入的字段")
     return out
 
+def _new_set_id(c):
+    while True:
+        value = f"set_user_{uuid.uuid4().hex[:16]}"
+        if not c.execute("SELECT 1 FROM sets WHERE set_id=?", (value,)).fetchone(): return value
+
 def _where(c,r,key):
     pks=_pks(c,r); missing=[x for x in pks if x not in key]
     if missing: raise DataManagerError("缺少主键: "+",".join(missing))
-    return " AND ".join(f'"{x}"=?' for x in pks),[key[x] for x in pks]
+    clauses=[]; params=[]
+    for name in pks:
+        if key[name] is None: clauses.append(f'"{name}" IS NULL')
+        else: clauses.append(f'"{name}"=?'); params.append(key[name])
+    return " AND ".join(clauses),params
 
 def create_resource(db,r,values):
     with _connect(db) as c:
+        values = dict(values)
+        if r == "sets":
+            if not str(values.get("set_id") or "").strip(): values["set_id"] = _new_set_id(c)
+            values.setdefault("active", 1)
+            if values.get("category_id") == "output": values["output_set"] = 1
         v=_norm(c,r,values,True); names=list(v)
         cur=c.execute(f'INSERT INTO "{r}" ({",".join(f"\"{n}\"" for n in names)}) VALUES ({",".join("?" for _ in names)})',[v[n] for n in names]); c.commit()
         pks=_pks(c,r); key={x:v.get(x) for x in pks}
@@ -89,6 +111,11 @@ def create_resource(db,r,values):
     return {"ok":True,"key":key}
 def update_resource(db,r,key,values):
     with _connect(db) as c:
+        values = dict(values)
+        if r == "sets":
+            if str(key.get("set_id") or "").strip(): values["set_id"] = key["set_id"]
+            else: values["set_id"] = _new_set_id(c)
+        if r == "sets" and values.get("category_id") == "output": values["output_set"] = 1
         v=_norm(c,r,values,False); where,params=_where(c,r,key)
         cur=c.execute(f'UPDATE "{r}" SET {",".join(f"\"{n}\"=?" for n in v)} WHERE {where}',[*v.values(),*params])
         if not cur.rowcount: raise DataManagerError("记录不存在或已被删除")

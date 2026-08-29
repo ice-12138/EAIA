@@ -31,6 +31,34 @@ class DataManagerTests(unittest.TestCase):
         payload = list_resource(self.database, "equipment_categories")
         self.assertFalse(any(row["category_id"] == "test_user" for row in payload["rows"]))
 
+    def test_user_set_gets_id_and_output_flag_automatically(self):
+        result = create_resource(self.database, "sets", {
+            "set_name": "用户套装", "set_tier_id": "T1", "required_pieces": 2,
+            "slot_group": "left", "category_id": "output",
+        })
+        set_id = result["key"]["set_id"]
+        self.assertTrue(set_id.startswith("set_user_"))
+        row = next(row for row in list_resource(self.database, "sets")["rows"] if row["set_id"] == set_id)
+        self.assertEqual(row["output_set"], 1)
+        self.assertEqual(row["active"], 1)
+        update_resource(self.database, "sets", {"set_id": set_id}, {"set_id": "other_id", "set_name": "用户套装改名"})
+        self.assertTrue(any(row["set_id"] == set_id and row["set_name"] == "用户套装改名" for row in list_resource(self.database, "sets")["rows"]))
+
+    def test_null_set_id_can_be_edited_and_deleted(self):
+        connection = sqlite3.connect(self.database)
+        try:
+            connection.execute(
+                "INSERT INTO sets(set_id,set_name,required_pieces) VALUES (NULL, '历史手动套装', 2)"
+            )
+            connection.commit()
+        finally:
+            connection.close()
+        update_resource(self.database, "sets", {"set_id": None}, {"set_name": "历史手动套装改名"})
+        row = next(row for row in list_resource(self.database, "sets")["rows"] if row["set_name"] == "历史手动套装改名")
+        self.assertTrue(row["set_id"].startswith("set_user_"))
+        delete_resource(self.database, "sets", {"set_id": row["set_id"]})
+        self.assertFalse(any(row["set_name"] == "历史手动套装改名" for row in list_resource(self.database, "sets")["rows"]))
+
     def test_equipment_round_trip(self):
         with sqlite3.connect(self.database) as connection:
             set_id = connection.execute("SELECT set_id FROM sets LIMIT 1").fetchone()[0]
