@@ -42,12 +42,16 @@ def _range_percentile(low: float, high: float, percentile: float) -> float:
     return float(low) + (float(high) - float(low)) * percentile
 
 
+def _percentile_source(prefix: str, percentile: float) -> str:
+    return f"{prefix}_p{int(round(float(percentile) * 100))}"
+
+
 def _normalize_optimizer_value(stat_type: str, value: float, data_source: str | None = None) -> float:
     """Normalize legacy OCR observations to optimizer units.
 
     Equipment persistence stores percentage stats as decimals, while historical
-    OCR learning rows may contain the UI percentage-point value.  New OCR
-    observations are normalized here as well.  A percentage observation above
+    OCR learning rows may contain the UI percentage-point value. New OCR
+    observations are normalized here as well. A percentage observation above
     1.0 from an OCR source is therefore interpreted as percentage points.
     """
     numeric = float(value)
@@ -58,7 +62,7 @@ def _normalize_optimizer_value(stat_type: str, value: float, data_source: str | 
 
 
 class SubStatEstimator:
-    """Learn empirical sub-stat ranges and estimate locked values at P90 by default."""
+    """Learn empirical sub-stat ranges and estimate locked values at P60 by default."""
 
     def __init__(
         self,
@@ -66,7 +70,7 @@ class SubStatEstimator:
         *,
         min_samples_for_estimation: int = 3,
         outlier_factor: float = 1.5,
-        percentile: float = 0.90,
+        percentile: float = 0.60,
     ):
         if not 0.0 <= percentile <= 1.0:
             raise ValueError("percentile must be between 0 and 1")
@@ -112,10 +116,10 @@ class SubStatEstimator:
         ).fetchone()
         if observation_table and equipment_stats_table:
             # equipment_stats already stores optimizer units, so these rows are
-            # the cleanest empirical population for P90.  The synthetic
-            # ``unknown`` roll grade lets a locked stat without a visible grade
-            # use the cross-grade population while exact-grade queries remain
-            # grade-specific.
+            # the cleanest empirical population for percentile estimation. The
+            # synthetic ``unknown`` roll grade lets a locked stat without a
+            # visible grade use the cross-grade population while exact-grade
+            # queries remain grade-specific.
             self.connection.execute(
                 """INSERT OR IGNORE INTO sub_stat_observations(
                      item_id,stat_type,roll_grade_id,stat_value,data_source,observed_at
@@ -242,12 +246,24 @@ class SubStatEstimator:
         if verified:
             low = min(_normalize_optimizer_value(stat_type, row["verified_min"], row["data_source"]) for row in verified)
             high = max(_normalize_optimizer_value(stat_type, row["verified_max"], row["data_source"]) for row in verified)
-            return SubStatEstimate(low, _range_percentile(low, high, self.percentile), high, "verified_p90", "verified")
+            return SubStatEstimate(
+                low,
+                _range_percentile(low, high, self.percentile),
+                high,
+                _percentile_source("verified", self.percentile),
+                "verified",
+            )
         eligible = [row for row in rows if int(row["sample_count"] or 0) >= self.min_samples and row["observed_min"] is not None and row["observed_max"] is not None]
         if eligible:
             low = min(_normalize_optimizer_value(stat_type, row["observed_min"], row["data_source"]) for row in eligible)
             high = max(_normalize_optimizer_value(stat_type, row["observed_max"], row["data_source"]) for row in eligible)
-            return SubStatEstimate(low, _range_percentile(low, high, self.percentile), high, "learned_range_p90", "provisional")
+            return SubStatEstimate(
+                low,
+                _range_percentile(low, high, self.percentile),
+                high,
+                _percentile_source("learned_range", self.percentile),
+                "provisional",
+            )
         return None
 
     def _dictionary_range(self, stat_type: str, roll_grade_id: str | None) -> SubStatEstimate | None:
@@ -284,7 +300,13 @@ class SubStatEstimator:
             return None
         low = min(bound[0] for bound in bounds)
         high = max(bound[1] for bound in bounds)
-        return SubStatEstimate(low, _range_percentile(low, high, self.percentile), high, "dictionary_range_p90", "provisional")
+        return SubStatEstimate(
+            low,
+            _range_percentile(low, high, self.percentile),
+            high,
+            _percentile_source("dictionary_range", self.percentile),
+            "provisional",
+        )
 
     def estimate(self, stat_type: str, roll_grade_id: str | None = None) -> SubStatEstimate:
         self.ensure_schema()
@@ -294,7 +316,7 @@ class SubStatEstimator:
                 min(observations),
                 _linear_percentile(observations, self.percentile),
                 max(observations),
-                f"empirical_p{int(round(self.percentile * 100))}",
+                _percentile_source("empirical", self.percentile),
                 "provisional",
             )
         learned = self._learned_range(stat_type, roll_grade_id)
