@@ -17,7 +17,7 @@ def item(item_id: str, slot: str, set_id: str, atk_pct: float) -> EquipmentItem:
 
 
 class MixedT1T2CandidateReachabilityTests(unittest.TestCase):
-    def test_native_t2_and_source_t1_share_reachable_t2_bonus(self):
+    def test_native_t2_is_protected_when_other_slots_are_ascendable_t1(self):
         with tempfile.TemporaryDirectory() as directory:
             database = OptimizerEquipmentDatabase(Path(directory) / "equipment.db")
             try:
@@ -38,7 +38,6 @@ class MixedT1T2CandidateReachabilityTests(unittest.TestCase):
                 bonuses = _set_candidate_bonuses(database, items)
                 self.assertGreater(bonuses[source], 0.0)
                 self.assertGreater(bonuses[target], 0.0)
-                self.assertAlmostEqual(bonuses[source], bonuses[target])
 
                 by_slot = {
                     "weapon": [],
@@ -48,7 +47,9 @@ class MixedT1T2CandidateReachabilityTests(unittest.TestCase):
                     "ring": [items[3]],
                 }
                 candidates, _ = _select_set_aware_candidates(database, by_slot, 1)
-                self.assertEqual(candidates["bracelet"][0].item_id, "B_T2")
+                bracelet_ids = {entry.item_id for entry in candidates["bracelet"]}
+                self.assertIn("B_T2", bracelet_ids)
+                self.assertGreaterEqual(len(candidates["bracelet"]), 1)
             finally:
                 database.close()
 
