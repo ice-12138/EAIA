@@ -71,12 +71,7 @@ def load_set_names(database) -> dict[str, str]:
 
 
 def _effect_enabled(row) -> bool:
-    """Legacy V1.1/classic-optimizer enable flag.
-
-    Historical dictionary rows were disabled when the old simulator could not
-    express their trigger/effect semantics. HeroCore now has a wider runtime,
-    so its loader intentionally does not use these implementation-era flags.
-    """
+    """Legacy V1.1/classic-optimizer enable flag."""
     keys = set(row.keys()) if hasattr(row, "keys") else set()
     if "enabled_in_optimizer" in keys and _row_value(row, "enabled_in_optimizer") is not None:
         return bool(_row_value(row, "enabled_in_optimizer"))
@@ -149,26 +144,26 @@ def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool)
     return result
 
 
-def load_optimizer_set_effects(database) -> list[SetEffect]:
-    """Normalize rows for the legacy/classic optimizer.
-
-    Keep historical enable flags here because the classic simulator still has a
-    smaller mechanics surface than HeroCore.
-    """
+def load_legacy_optimizer_set_effects(database) -> list[SetEffect]:
+    """Normalize only rows enabled for the historical V1.1 simulator."""
     return _load_normalized_set_effects(database, respect_legacy_enable_flags=True)
 
 
-def load_hero_core_set_effects(database) -> list[SetEffect]:
-    """Return every semantically normalizable current set effect for HeroCore.
+def load_optimizer_set_effects(database) -> list[SetEffect]:
+    """Return all semantically normalizable current set effects.
 
-    ``enabled_in_optimizer``/``enabled_in_v1_1`` were implementation-support
-    flags, not statements that the in-game effect is inactive. HeroCore now
-    models dynamic triggers, EXTRA_DAMAGE and penetration, so suppressing those
-    old-disabled rows would silently under-value sets such as Insight/Fatality.
-    Unsupported mechanics are kept visible to HeroCore so it can mark coverage
-    partial instead of pretending the effect does not exist.
+    Historical ``enabled_in_optimizer``/``enabled_in_v1_1`` flags described
+    implementation gaps in the old simulator; they are not game-state flags.
+    The current HeroCore recommendation path needs the complete semantic catalog
+    so effects such as Insight's fixed extra damage and Fatality penetration are
+    not silently removed before simulation.
     """
     return _load_normalized_set_effects(database, respect_legacy_enable_flags=False)
+
+
+def load_hero_core_set_effects(database) -> list[SetEffect]:
+    """Alias documenting the full-catalog HeroCore intent."""
+    return load_optimizer_set_effects(database)
 
 
 def iter_ascension_variants(
