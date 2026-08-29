@@ -1,14 +1,2 @@
 npm notice run eaia-equipment-library@0.1.0 dev
 npm notice run vite --host 127.0.0.1
-[2m11:36:07[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/heroes[39m
-Error: connect ECONNREFUSED 127.0.0.1:8000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
-[2m11:36:07[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/catalog[39m
-Error: connect ECONNREFUSED 127.0.0.1:8000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
-[2m11:36:07[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/manage/equipment[39m
-Error: connect ECONNREFUSED 127.0.0.1:8000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
-[2m11:36:07[22m [31m[1m[vite][22m[39m [31mhttp proxy error: /api/hero-cores/SUN_WUKONG[39m
-Error: connect ECONNREFUSED 127.0.0.1:8000
-    at TCPConnectWrap.afterConnect [as oncomplete] (node:net:1705:16)
