@@ -101,6 +101,32 @@ def delete_resource(db,r,key):
         c.commit()
     return {"ok":True}
 
+def _annotate_hero_core_calculability(db, rows):
+    """Annotate inventory rows with the same projection gate used by HeroCore."""
+    from optimizer_projection import OptimizerEquipmentDatabase
+
+    optimizer = OptimizerEquipmentDatabase(db, percentile=0.90)
+    try:
+        optimizer.initialize()
+        calculable_ids = {item.item_id for item in optimizer.load_equipment()}
+        exclusions = dict(optimizer.projection_exclusions)
+    finally:
+        optimizer.close()
+
+    for row in rows:
+        item_id = str(row["item_id"])
+        calculable = item_id in calculable_ids
+        row["hero_core_calculable"] = calculable
+        if calculable:
+            row["hero_core_reason"] = None
+        elif not bool(row.get("available")):
+            row["hero_core_reason"] = "available=0: equipment is disabled"
+        elif bool(row.get("locked")):
+            row["hero_core_reason"] = "locked=1: equipment is excluded from HeroCore"
+        else:
+            row["hero_core_reason"] = exclusions.get(item_id, "equipment is outside the HeroCore projection range")
+    return rows
+
 def list_equipment(db):
     with _connect(db) as c:
         q="""SELECT e.item_id,COALESCE(e.slot_id,e.slot) slot_id,sl.slot_name,e.set_id,s.set_name,COALESCE(e.quality_id,e.tier) quality_id,q.quality_name,COALESCE(e.enhancement_level,e.level,0) enhancement_level,COALESCE(e.item_locked,e.locked,0) locked,e.available,e.equipped_hero_id,e.source,e.notes,COALESCE(e.is_ancient,0) is_ancient FROM equipment e LEFT JOIN equipment_slots sl ON sl.slot_id=COALESCE(e.slot_id,e.slot) LEFT JOIN sets s ON s.set_id=e.set_id LEFT JOIN gear_qualities q ON q.quality_id=COALESCE(e.quality_id,e.tier) ORDER BY e.item_id"""
@@ -109,7 +135,7 @@ def list_equipment(db):
         for x in c.execute("SELECT item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes FROM equipment_stats ORDER BY item_id,stat_index"):
             if x["item_id"] in items:
                 st=dict(x); st["stat_name"]=names.get(st["stat_type"],st["stat_type"]); items[x["item_id"]]["stats"].append(st)
-    return {"rows":list(items.values())}
+    return {"rows":_annotate_hero_core_calculability(db,list(items.values()))}
 
 def _equipment_values(p):
     item=str(p.get("item_id") or "").strip(); slot=str(p.get("slot_id") or "").strip(); set_id=str(p.get("set_id") or "").strip(); quality=str(p.get("quality_id") or "").strip()
