@@ -26,8 +26,12 @@ from optimizer_projection import OptimizerEquipmentDatabase
 
 _SAFE_CORE_ID = re.compile(r"^[A-Za-z0-9_-]+$")
 _SLOTS = ("weapon", "armor", "bracelet", "necklace", "ring")
-_LEFT_SLOTS = {"weapon", "armor"}
-_RIGHT_SLOTS = {"bracelet", "necklace", "ring"}
+_LEFT_SLOT_ORDER = ("weapon", "armor")
+_RIGHT_SLOT_ORDER = ("bracelet", "necklace", "ring")
+_LEFT_SLOTS = set(_LEFT_SLOT_ORDER)
+_RIGHT_SLOTS = set(_RIGHT_SLOT_ORDER)
+_DEFAULT_LEFT_GROUP_CANDIDATES = 8
+_DEFAULT_RIGHT_GROUP_CANDIDATES = 16
 
 
 def hero_core_catalog(core_dir: str | Path = DEFAULT_CORE_DIR) -> dict[str, Any]:
@@ -216,13 +220,18 @@ def _eligible_slots(slot_group: str | None) -> set[str]:
     return set(_SLOTS)
 
 
+def _set_effect_scores(database: OptimizerEquipmentDatabase) -> dict[str, float]:
+    scores: defaultdict[str, float] = defaultdict(float)
+    for effect in database.load_set_effects():
+        if not effect.requires_dot:
+            scores[effect.set_id] += _effect_potential(effect)
+    return dict(scores)
+
+
 def _set_candidate_bonuses(database: OptimizerEquipmentDatabase, all_items: list[EquipmentItem]) -> dict[str, float]:
     definitions = database.load_sets()
     evolutions = load_set_evolutions(database)
-    effect_scores: defaultdict[str, float] = defaultdict(float)
-    for effect in database.load_set_effects():
-        if not effect.requires_dot:
-            effect_scores[effect.set_id] += _effect_potential(effect)
+    effect_scores = _set_effect_scores(database)
     slots_by_set: defaultdict[str, set[str]] = defaultdict(set)
     for item in all_items:
         slots_by_set[item.set_id].add(item.slot.value)
@@ -249,6 +258,66 @@ def _select_set_aware_candidates(database: OptimizerEquipmentDatabase, by_slot: 
             reverse=True,
         )[:candidate_per_slot]
     return candidates, bonuses
+
+
+def _active_set_score(items: tuple[EquipmentItem, ...], definitions: dict, effect_scores: dict[str, float]) -> float:
+    counts = Counter(item.set_id for item in items)
+    return sum(
+        effect_scores.get(set_id, 0.0)
+        for set_id, count in counts.items()
+        if set_id in definitions and count >= int(definitions[set_id].required_pieces)
+    )
+
+
+def _cheap_group_build_score(
+    items: tuple[EquipmentItem, ...],
+    *,
+    definitions: dict,
+    effect_scores: dict[str, float],
+    evolutions: dict[str, str],
+    set_names: dict[str, str],
+) -> float:
+    """Cheap left/right build score used before any HeroCore simulation.
+
+    The base score is the sum of item potentials. Completed set effects are then
+    evaluated over all mechanically distinct T1/T2 identities for this 2- or
+    3-piece group. This preserves left/right set value without paying the cost of
+    a full combat simulation.
+    """
+    base_score = sum(_item_potential(item) for item in items)
+    best_set_score = 0.0
+    for variant_items, _ in iter_ascension_variants(items, evolutions, set_names):
+        best_set_score = max(best_set_score, _active_set_score(variant_items, definitions, effect_scores))
+    return base_score + best_set_score
+
+
+def _select_group_build_candidates(
+    candidates: dict[str, list[EquipmentItem]],
+    slot_order: tuple[str, ...],
+    keep: int,
+    *,
+    definitions: dict,
+    effect_scores: dict[str, float],
+    evolutions: dict[str, str],
+    set_names: dict[str, str],
+) -> tuple[list[tuple[EquipmentItem, ...]], int]:
+    """Rank complete left/right sub-builds and keep only the best cheap candidates."""
+    raw_builds = product(*(candidates[slot] for slot in slot_order))
+    scored: list[tuple[float, str, tuple[EquipmentItem, ...]]] = []
+    raw_count = 0
+    for build in raw_builds:
+        raw_count += 1
+        physical_items = tuple(build)
+        score = _cheap_group_build_score(
+            physical_items,
+            definitions=definitions,
+            effect_scores=effect_scores,
+            evolutions=evolutions,
+            set_names=set_names,
+        )
+        scored.append((score, "|".join(item.item_id for item in physical_items), physical_items))
+    scored.sort(reverse=True)
+    return [row[2] for row in scored[:max(1, keep)]], raw_count
 
 
 def _variant_overrides(physical_items: tuple[EquipmentItem, ...], variant_items: tuple[EquipmentItem, ...]) -> dict[str, str]:
@@ -327,18 +396,19 @@ def _refine_physical_build(*, core, database, item_ids, evolutions, set_names, t
 
 
 def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], progress_callback: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
-    """Role-prefiltered, set-aware HeroCore recommendation search.
+    """Role-prefiltered, hierarchical set-aware HeroCore recommendation search.
 
-    Output heroes are reduced before any combinatorial search: only output sets
-    are retained and every item must meet the request's minimum number of
-    output-relevant substats (default 2). Tank/healing/support categories are
-    classified but currently pass through so their future policies can be added
-    without changing the search engine.
+    Output heroes are reduced before any combinatorial search. Per-slot candidates
+    are then combined into left (weapon+armor) and right (bracelet+necklace+ring)
+    sub-builds. Those small groups are cheaply ranked with completed T1/T2 set
+    value before the expensive HeroCore screening stage.
     """
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
     core = load_core(core_id)
     top_k = max(1, min(int(payload.get("top_k", 5)), 20))
     candidate_per_slot = max(1, min(int(payload.get("candidate_per_slot", 5)), 8))
+    left_group_candidates = max(1, min(int(payload.get("left_group_candidates", _DEFAULT_LEFT_GROUP_CANDIDATES)), 64))
+    right_group_candidates = max(1, min(int(payload.get("right_group_candidates", _DEFAULT_RIGHT_GROUP_CANDIDATES)), 128))
     refine_trials = max(1, min(int(payload.get("trials", 32)), 256))
     target_def = max(0.0, float(payload.get("target_def", 0.0)))
     enemy_count = max(1, int(payload.get("enemy_count", 1)))
@@ -381,13 +451,43 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             raise HeroCoreError("初筛后缺少可用装备部位: " + ", ".join(missing) + detail)
 
         candidates, set_candidate_bonuses = _select_set_aware_candidates(database, by_slot, candidate_per_slot)
-        combinations = 1
-        for values in candidates.values(): combinations *= len(values)
+        per_slot_cartesian = 1
+        for values in candidates.values():
+            per_slot_cartesian *= len(values)
+
         evolutions = load_set_evolutions(database)
         set_names = load_set_names(database)
+        definitions = database.load_sets()
+        effect_scores = _set_effect_scores(database)
+        group_pruning_applied = bool(
+            prefilter_report.get("policy_implemented")
+            and prefilter_report.get("category") == "output"
+        )
+        left_limit = left_group_candidates if group_pruning_applied else 10**9
+        right_limit = right_group_candidates if group_pruning_applied else 10**9
+        left_builds, left_raw = _select_group_build_candidates(
+            candidates,
+            _LEFT_SLOT_ORDER,
+            left_limit,
+            definitions=definitions,
+            effect_scores=effect_scores,
+            evolutions=evolutions,
+            set_names=set_names,
+        )
+        right_builds, right_raw = _select_group_build_candidates(
+            candidates,
+            _RIGHT_SLOT_ORDER,
+            right_limit,
+            definitions=definitions,
+            effect_scores=effect_scores,
+            evolutions=evolutions,
+            set_names=set_names,
+        )
+        combinations = len(left_builds) * len(right_builds)
 
         def report(**update: Any) -> None:
-            if progress_callback is not None: progress_callback(update)
+            if progress_callback is not None:
+                progress_callback(update)
 
         report(phase="screening", completed=0, total=combinations, overall_completed=0, overall_total=combinations)
         keep = max(top_k * 4, 16)
@@ -395,8 +495,8 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
         screening_warmup = max(0.0, float(payload.get("screening_warmup", 60.0)))
         screening_measurement = max(1.0, float(payload.get("screening_measurement", 240.0)))
         variant_simulations_screened = 0
-        for completed, build in enumerate(product(*(candidates[slot] for slot in _SLOTS)), 1):
-            physical_items = tuple(build)
+        for completed, (left_build, right_build) in enumerate(product(left_builds, right_builds), 1):
+            physical_items = tuple(left_build + right_build)
             item_ids = tuple(item.item_id for item in physical_items)
             score, variant_count = _screen_physical_build(
                 core=core, database=database, physical_items=physical_items,
@@ -405,8 +505,10 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             )
             variant_simulations_screened += variant_count
             entry = (score, "|".join(item_ids), item_ids)
-            if len(screening_heap) < keep: heapq.heappush(screening_heap, entry)
-            elif entry > screening_heap[0]: heapq.heapreplace(screening_heap, entry)
+            if len(screening_heap) < keep:
+                heapq.heappush(screening_heap, entry)
+            elif entry > screening_heap[0]:
+                heapq.heapreplace(screening_heap, entry)
             report(phase="screening", completed=completed, total=combinations, overall_completed=completed, overall_total=combinations)
 
         shortlisted = sorted(screening_heap, reverse=True)
@@ -431,6 +533,7 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             score = float(row["equivalent_60s"]["mean"])
             row["delta_vs_best"] = (best - score) / best if best else 0.0
 
+        reduction = 1.0 - (combinations / per_slot_cartesian) if per_slot_cartesian else 0.0
         return {
             "hero_core_id": core_id,
             "hero_name": core["hero"]["name"],
@@ -441,8 +544,23 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             "candidate_per_slot": candidate_per_slot,
             "min_relevant_substats": prefilter_report.get("min_relevant_substats"),
             "candidate_pruning": "set_aware",
+            "search_strategy": "left_right_group_pruning" if group_pruning_applied else "set_aware_cartesian",
+            "group_pruning_applied": group_pruning_applied,
             "equipment_prefilter": prefilter_report,
             "set_candidate_bonus_count": len(set_candidate_bonuses),
+            "per_slot_candidate_counts": {slot: len(candidates[slot]) for slot in _SLOTS},
+            "pre_group_combinations": per_slot_cartesian,
+            "left_group_candidates": {
+                "raw": left_raw,
+                "kept": len(left_builds),
+                "limit": left_group_candidates if group_pruning_applied else left_raw,
+            },
+            "right_group_candidates": {
+                "raw": right_raw,
+                "kept": len(right_builds),
+                "limit": right_group_candidates if group_pruning_applied else right_raw,
+            },
+            "group_pruning_reduction": reduction,
             "combinations_screened": combinations,
             "variant_simulations_screened": variant_simulations_screened,
             "variant_simulations_refined": variant_simulations_refined,
@@ -455,7 +573,12 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
                 "excluded_item_count": len(database.projection_exclusions),
                 "excluded_items": dict(sorted(database.projection_exclusions.items())),
             },
-            "set_model": {"normalized_v22_effects": True, "t1_t2_variants": True, "tie_prefers_no_ascension": True},
+            "set_model": {
+                "normalized_v22_effects": True,
+                "t1_t2_variants": True,
+                "tie_prefers_no_ascension": True,
+                "cheap_group_scoring_includes_completed_sets": True,
+            },
             "results": results,
         }
     finally:
