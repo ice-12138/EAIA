@@ -16,13 +16,20 @@ class HeroCoreSetCatalogTests(unittest.TestCase):
                 for loader in (load_optimizer_set_effects, load_hero_core_set_effects, lambda database: database.load_set_effects()):
                     by_id = {effect.effect_id: effect for effect in loader(db)}
                     self.assertIn("eff_insight_extra", by_id)
-                    self.assertEqual(by_id["eff_insight_extra"].effect_type, EffectType.EXTRA_DAMAGE)
-                    self.assertEqual(by_id["eff_insight_extra"].trigger, "on_basic_attack_damage")
-                    self.assertFalse(by_id["eff_insight_extra"].requires_dot)
+                    insight = by_id["eff_insight_extra"]
+                    self.assertEqual(insight.effect_type, EffectType.EXTRA_DAMAGE)
+                    self.assertEqual(insight.trigger, "on_basic_attack_damage")
+                    self.assertFalse(insight.requires_dot)
+                    self.assertIsNone(insight.condition, repr(insight))
+                    self.assertEqual(insight.applies_to, "single_target_basic")
+                    self.assertEqual(insight.proc_chance, 1.0)
+
                     self.assertIn("eff_fatality_pen", by_id)
-                    self.assertEqual(by_id["eff_fatality_pen"].effect_type, EffectType.PENETRATION)
-                    self.assertEqual(by_id["eff_fatality_pen"].trigger, "always")
-                    self.assertFalse(by_id["eff_fatality_pen"].requires_dot)
+                    fatality = by_id["eff_fatality_pen"]
+                    self.assertEqual(fatality.effect_type, EffectType.PENETRATION)
+                    self.assertIsNone(fatality.condition, repr(fatality))
+                    self.assertEqual(fatality.trigger, "always", repr(fatality))
+                    self.assertFalse(fatality.requires_dot)
             finally:
                 db.close()
 
