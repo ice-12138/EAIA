@@ -22,6 +22,11 @@
       "attack_interval": 2.0
     }
   },
+  "recommendation_profile": {
+    "category": "output",
+    "archetype": "damage",
+    "primary_scaling_stat": "ATK"
+  },
   "resources": {
     "rage": {
       "initial": 0,
@@ -73,6 +78,7 @@
   "assumptions": [
     "base_stats 记录游戏属性页白字原始值；atk_speed 是白字面板攻击速度，不是相对100的额外攻速。",
     "attack_interval 应与同一白字面板状态对应；装备和Buff攻速由引擎在运行时叠加。",
+    "recommendation_profile 只描述英雄固有的配装类别、细分类型和主缩放属性；团队模式、仅完整套装等搜索约束不得写入 HeroCore。",
     "target_cap 为正整数时，实际命中目标数=min(木桩目标数量,target_cap)；target_cap=null 且带 aoe 标签时视为可命中全部木桩目标。",
     "secondary_target_ratio 默认为1.0；若次目标伤害不同，总目标倍率=1+(实际目标数-1)*secondary_target_ratio。hit_count 表示每个目标承受的段数，与目标数量独立。"
   ],
