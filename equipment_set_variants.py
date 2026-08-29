@@ -1,8 +1,8 @@
 """Set-effect normalization and T1 -> T2 ascension variant expansion.
 
 The game keeps an equipment item's rolled stats when it is ascended, while its
-set identity/effect changes.  The optimizer therefore treats an evolvable T1
-item as one physical item with two calculation states.  Final recommendations
+set identity/effect changes. The optimizer therefore treats an evolvable T1
+item as one physical item with two calculation states. Final recommendations
 can then keep the better state without duplicating the same physical build.
 """
 
@@ -71,6 +71,12 @@ def load_set_names(database) -> dict[str, str]:
 
 
 def _effect_enabled(row) -> bool:
+    """Legacy V1.1/classic-optimizer enable flag.
+
+    Historical dictionary rows were disabled when the old simulator could not
+    express their trigger/effect semantics. HeroCore now has a wider runtime,
+    so its loader intentionally does not use these implementation-era flags.
+    """
     keys = set(row.keys()) if hasattr(row, "keys") else set()
     if "enabled_in_optimizer" in keys and _row_value(row, "enabled_in_optimizer") is not None:
         return bool(_row_value(row, "enabled_in_optimizer"))
@@ -83,7 +89,6 @@ def _normalize_effect_type(row) -> EffectType | None:
     raw_effect = str(_row_value(row, "effect_type", "") or "").strip()
     raw_stat = str(_row_value(row, "stat_type", "") or "").strip().lower()
 
-    # Legacy rows already store the optimizer-facing enum value directly.
     try:
         return EffectType(raw_effect.upper())
     except ValueError:
@@ -105,9 +110,6 @@ def _normalize_trigger(row, effect_type: EffectType) -> str:
     duration = float(_row_value(row, "duration", 0) or 0)
     condition = _row_value(row, "condition")
 
-    # Passive/permanent deployment effects are panel/static effects.  Keep
-    # conditional passives dynamic/unsupported instead of silently assuming
-    # their condition is always true.
     if not condition and trigger in {"passive", "while_deployed"}:
         return "always"
     if not condition and trigger == "on_deploy" and duration <= 0:
@@ -115,18 +117,11 @@ def _normalize_trigger(row, effect_type: EffectType) -> str:
     return trigger
 
 
-def load_optimizer_set_effects(database) -> list[SetEffect]:
-    """Normalize the V2.2 dictionary representation into optimizer SetEffect rows.
-
-    The packaged dictionary stores semantic categories such as ``stat_mod`` and
-    ``damage_mult`` plus a lower-case ``stat_type``.  Older optimizer code only
-    understood enum values such as ``ATK_PCT``.  This adapter lets both formats
-    coexist and is required for T1/T2 set comparisons to use the real effects.
-    """
+def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool) -> list[SetEffect]:
     rows = database.connection.execute("SELECT * FROM set_effects ORDER BY set_id, effect_id").fetchall()
     result: list[SetEffect] = []
     for row in rows:
-        if not _effect_enabled(row):
+        if respect_legacy_enable_flags and not _effect_enabled(row):
             continue
         effect_type = _normalize_effect_type(row)
         if effect_type is None:
@@ -154,6 +149,28 @@ def load_optimizer_set_effects(database) -> list[SetEffect]:
     return result
 
 
+def load_optimizer_set_effects(database) -> list[SetEffect]:
+    """Normalize rows for the legacy/classic optimizer.
+
+    Keep historical enable flags here because the classic simulator still has a
+    smaller mechanics surface than HeroCore.
+    """
+    return _load_normalized_set_effects(database, respect_legacy_enable_flags=True)
+
+
+def load_hero_core_set_effects(database) -> list[SetEffect]:
+    """Return every semantically normalizable current set effect for HeroCore.
+
+    ``enabled_in_optimizer``/``enabled_in_v1_1`` were implementation-support
+    flags, not statements that the in-game effect is inactive. HeroCore now
+    models dynamic triggers, EXTRA_DAMAGE and penetration, so suppressing those
+    old-disabled rows would silently under-value sets such as Insight/Fatality.
+    Unsupported mechanics are kept visible to HeroCore so it can mark coverage
+    partial instead of pretending the effect does not exist.
+    """
+    return _load_normalized_set_effects(database, respect_legacy_enable_flags=False)
+
+
 def iter_ascension_variants(
     items: tuple[EquipmentItem, ...],
     evolutions: dict[str, str],
@@ -161,11 +178,10 @@ def iter_ascension_variants(
 ) -> Iterable[tuple[tuple[EquipmentItem, ...], tuple[SetAscension, ...]]]:
     """Yield mechanically distinct current/T2 states for one physical build.
 
-    Items of the same source set are grouped.  Because ascension does not alter
+    Items of the same source set are grouped. Because ascension does not alter
     rolled stats, ascending any N pieces of the same source set has identical
-    combat math; only the source/target set piece counts matter.  Therefore we
-    evaluate N=0..K rather than all 2**K permutations, preserving exact set
-    behavior while avoiding redundant simulations.
+    combat math; only the source/target set piece counts matter. Therefore we
+    evaluate N=0..K rather than all 2**K permutations.
     """
     set_names = set_names or {}
     groups: dict[tuple[str, str], list[int]] = defaultdict(list)
