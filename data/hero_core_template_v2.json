@@ -1,6 +1,6 @@
 {
   "schema_version": "1.0",
-  "core_version": "1.1.0",
+  "core_version": "1.2.0",
   "game_version": "CN-YYYY-MM-DD",
   "hero": {
     "id": "HERO_ID",
@@ -38,6 +38,7 @@
         "description": "",
         "coefficient": 1.0,
         "target_cap": 1,
+        "secondary_target_ratio": 1.0,
         "direct_damage": true
       }
     ],
@@ -53,6 +54,8 @@
       "kind": "basic",
       "coefficient": 1.0,
       "hit_count": 1,
+      "target_cap": 1,
+      "secondary_target_ratio": 1.0,
       "can_crit": true,
       "affected_by_atk_speed": true,
       "initial_cooldown": 0,
@@ -69,7 +72,9 @@
   "default_policy": "default",
   "assumptions": [
     "base_stats 记录游戏属性页白字原始值；atk_speed 是白字面板攻击速度，不是相对100的额外攻速。",
-    "attack_interval 应与同一白字面板状态对应；装备和Buff攻速由引擎在运行时叠加。"
+    "attack_interval 应与同一白字面板状态对应；装备和Buff攻速由引擎在运行时叠加。",
+    "target_cap 为正整数时，实际命中目标数=min(木桩目标数量,target_cap)；target_cap=null 且带 aoe 标签时视为可命中全部木桩目标。",
+    "secondary_target_ratio 默认为1.0；若次目标伤害不同，总目标倍率=1+(实际目标数-1)*secondary_target_ratio。hit_count 表示每个目标承受的段数，与目标数量独立。"
   ],
   "validation_required": []
 }
