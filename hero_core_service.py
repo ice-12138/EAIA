@@ -38,6 +38,7 @@ _LEFT_SLOTS = set(_LEFT_SLOT_ORDER)
 _RIGHT_SLOTS = set(_RIGHT_SLOT_ORDER)
 _DEFAULT_LEFT_GROUP_CANDIDATES = 8
 _DEFAULT_RIGHT_GROUP_CANDIDATES = 16
+_DEFAULT_SCREENING_TRIALS = 3
 
 
 def _output_profile() -> dict[str, Any]:
@@ -162,18 +163,32 @@ def import_hero_core(payload: dict[str, Any], core_dir: str | Path = DEFAULT_COR
     }
 
 
+def _target_from_payload(payload: dict[str, Any]) -> tuple[float, float, int, dict[str, Any]]:
+    target_def = float(payload.get("target_def", 0.0))
+    if target_def < 0:
+        raise HeroCoreError("target_def must be non-negative")
+    raw_mres = payload.get("target_mres")
+    target_mres = target_def if raw_mres in (None, "") else float(raw_mres)
+    if target_mres < 0:
+        raise HeroCoreError("target_mres must be non-negative")
+    enemy_count = int(payload.get("enemy_count", 1))
+    if enemy_count < 1:
+        raise HeroCoreError("enemy_count must be at least 1")
+    return target_def, target_mres, enemy_count, {
+        "defense": target_def,
+        "mres": target_mres,
+        "control_immune": bool(payload.get("control_immune", True)),
+        "enemy_count": enemy_count,
+    }
+
+
 def simulate_hero_core(database_path: str | Path, payload: dict[str, Any]) -> dict[str, Any]:
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
     core = load_core(core_id)
     item_ids = [str(value) for value in (payload.get("item_ids") or []) if value]
     if len(item_ids) > 5 or len(set(item_ids)) != len(item_ids):
         raise HeroCoreError("item_ids must contain at most five unique equipment ids")
-    target_def = float(payload.get("target_def", 0.0))
-    if target_def < 0:
-        raise HeroCoreError("target_def must be non-negative")
-    enemy_count = int(payload.get("enemy_count", 1))
-    if enemy_count < 1:
-        raise HeroCoreError("enemy_count must be at least 1")
+    target_def, _, _, target = _target_from_payload(payload)
     trials = int(payload.get("trials", 64))
     warmup = float(payload.get("warmup", 120.0))
     measurement = float(payload.get("measurement", 600.0))
@@ -193,7 +208,7 @@ def simulate_hero_core(database_path: str | Path, payload: dict[str, Any]) -> di
             core,
             database=database,
             item_ids=item_ids,
-            target={"defense": target_def, "control_immune": bool(payload.get("control_immune", True)), "enemy_count": enemy_count},
+            target=target,
             policy=str(payload.get("policy") or core.get("default_policy") or ""),
             trials=trials,
             warmup=warmup,
@@ -232,24 +247,22 @@ def _set_effect_scores(
     return dict(scores)
 
 
-def _set_candidate_bonuses(
+def _reachable_set_context(
     database: OptimizerEquipmentDatabase,
     all_items: list[EquipmentItem],
     recommendation_profile: dict[str, Any] | None = None,
-) -> dict[str, float]:
+) -> tuple[dict, dict[str, str], dict[str, float], dict[str, set[str]], set[str]]:
     definitions = database.load_sets()
     evolutions = load_set_evolutions(database)
     effect_scores = _set_effect_scores(database, recommendation_profile)
-
     slots_by_current_set: defaultdict[str, set[str]] = defaultdict(set)
     for item in all_items:
         slots_by_current_set[item.set_id].add(item.slot.value)
-
     sources_by_target: defaultdict[str, set[str]] = defaultdict(set)
     for source, target in evolutions.items():
         sources_by_target[target].add(source)
 
-    feasible_final_bonus: dict[str, float] = {}
+    feasible_final_sets: set[str] = set()
     for final_set_id, definition in definitions.items():
         compatible_current_sets = {final_set_id, *sources_by_target.get(final_set_id, set())}
         reachable_slots: set[str] = set()
@@ -257,12 +270,26 @@ def _set_candidate_bonuses(
             reachable_slots.update(slots_by_current_set.get(current_set_id, set()))
         if len(reachable_slots & _eligible_slots(definition.slot_group)) < int(definition.required_pieces):
             continue
-        effect_score = effect_scores.get(final_set_id, 0.0)
-        if effect_score > 0:
-            feasible_final_bonus[final_set_id] = effect_score / max(1, int(definition.required_pieces))
+        if effect_scores.get(final_set_id, 0.0) > 0:
+            feasible_final_sets.add(final_set_id)
+    return definitions, evolutions, effect_scores, sources_by_target, feasible_final_sets
 
+
+def _set_candidate_bonuses(
+    database: OptimizerEquipmentDatabase,
+    all_items: list[EquipmentItem],
+    recommendation_profile: dict[str, Any] | None = None,
+) -> dict[str, float]:
+    definitions, evolutions, effect_scores, sources_by_target, feasible_final_sets = _reachable_set_context(
+        database, all_items, recommendation_profile
+    )
+    feasible_final_bonus = {
+        set_id: effect_scores[set_id] / max(1, int(definitions[set_id].required_pieces))
+        for set_id in feasible_final_sets
+    }
+    current_sets = {item.set_id for item in all_items}
     result: dict[str, float] = {}
-    for current_set_id in slots_by_current_set:
+    for current_set_id in current_sets:
         reachable_final_sets = {current_set_id}
         target = evolutions.get(current_set_id)
         if target:
@@ -279,11 +306,18 @@ def _select_set_aware_candidates(
     candidate_per_slot: int,
     recommendation_profile: dict[str, Any] | None = None,
 ) -> tuple[dict[str, list[EquipmentItem]], dict[str, float]]:
+    """Select strong individual items while hard-protecting every feasible set.
+
+    Protection is not limited to native T2 anymore. T3 sets and mixed
+    ``native T2 + evolvable T1`` final states receive one best representative in
+    every eligible slot, preventing a complete set from disappearing before the
+    group/HeroCore stages.
+    """
     profile = recommendation_profile or _output_profile()
     all_items = [item for values in by_slot.values() for item in values]
     bonuses = _set_candidate_bonuses(database, all_items, profile)
-    evolutions = load_set_evolutions(database)
-    native_t2_sets = set(evolutions.values())
+    definitions, _, _, sources_by_target, feasible_final_sets = _reachable_set_context(database, all_items, profile)
+
     candidates: dict[str, list[EquipmentItem]] = {}
     for slot, values in by_slot.items():
         ranked = sorted(
@@ -297,27 +331,40 @@ def _select_set_aware_candidates(
         )
         selected = list(ranked[:candidate_per_slot])
         selected_ids = {item.item_id for item in selected}
-        for target_set_id in sorted(native_t2_sets):
-            if bonuses.get(target_set_id, 0.0) <= 0:
+
+        for final_set_id in sorted(feasible_final_sets):
+            definition = definitions[final_set_id]
+            if slot not in _eligible_slots(definition.slot_group):
                 continue
-            native = [item for item in values if item.set_id == target_set_id]
-            if not native:
+            compatible = {final_set_id, *sources_by_target.get(final_set_id, set())}
+            representatives = [item for item in values if item.set_id in compatible]
+            if not representatives:
                 continue
-            best_native = max(native, key=lambda item: (_item_potential(item, profile), item.item_id))
-            if best_native.item_id not in selected_ids:
-                selected.append(best_native)
-                selected_ids.add(best_native.item_id)
+            best_item = max(
+                representatives,
+                key=lambda item: (
+                    _item_potential(item, profile) + bonuses.get(item.set_id, 0.0),
+                    _item_potential(item, profile),
+                    item.item_id,
+                ),
+            )
+            if best_item.item_id not in selected_ids:
+                selected.append(best_item)
+                selected_ids.add(best_item.item_id)
         candidates[slot] = selected
     return candidates, bonuses
 
 
-def _active_set_score(items: tuple[EquipmentItem, ...], definitions: dict, effect_scores: dict[str, float]) -> float:
+def _active_set_ids_for_items(items: tuple[EquipmentItem, ...], definitions: dict) -> set[str]:
     counts = Counter(item.set_id for item in items)
-    return sum(
-        effect_scores.get(set_id, 0.0)
-        for set_id, count in counts.items()
+    return {
+        set_id for set_id, count in counts.items()
         if set_id in definitions and count >= int(definitions[set_id].required_pieces)
-    )
+    }
+
+
+def _active_set_score(items: tuple[EquipmentItem, ...], definitions: dict, effect_scores: dict[str, float]) -> float:
+    return sum(effect_scores.get(set_id, 0.0) for set_id in _active_set_ids_for_items(items, definitions))
 
 
 def _cheap_group_build_score(
@@ -348,8 +395,10 @@ def _select_group_build_candidates(
     set_names: dict[str, str],
     recommendation_profile: dict[str, Any] | None = None,
 ) -> tuple[list[tuple[EquipmentItem, ...]], int]:
+    """Cheap-score group builds plus one protected build per completed set."""
     raw_builds = product(*(candidates[slot] for slot in slot_order))
     scored: list[tuple[float, str, tuple[EquipmentItem, ...]]] = []
+    best_by_active_set: dict[str, tuple[float, str, tuple[EquipmentItem, ...]]] = {}
     raw_count = 0
     for build in raw_builds:
         raw_count += 1
@@ -362,9 +411,29 @@ def _select_group_build_candidates(
             set_names=set_names,
             recommendation_profile=recommendation_profile,
         )
-        scored.append((score, "|".join(item.item_id for item in physical_items), physical_items))
+        key = "|".join(item.item_id for item in physical_items)
+        row = (score, key, physical_items)
+        scored.append(row)
+
+        reachable_active: set[str] = set()
+        for variant_items, _ in iter_ascension_variants(physical_items, evolutions, set_names):
+            reachable_active.update(_active_set_ids_for_items(variant_items, definitions))
+        for set_id in reachable_active:
+            if effect_scores.get(set_id, 0.0) <= 0:
+                continue
+            previous = best_by_active_set.get(set_id)
+            if previous is None or row > previous:
+                best_by_active_set[set_id] = row
+
     scored.sort(reverse=True)
-    return [row[2] for row in scored[:max(1, keep)]], raw_count
+    selected = list(scored[:max(1, keep)])
+    selected_keys = {row[1] for row in selected}
+    for row in sorted(best_by_active_set.values(), reverse=True):
+        if row[1] not in selected_keys:
+            selected.append(row)
+            selected_keys.add(row[1])
+    selected.sort(reverse=True)
+    return [row[2] for row in selected], raw_count
 
 
 def _variant_overrides(physical_items: tuple[EquipmentItem, ...], variant_items: tuple[EquipmentItem, ...]) -> dict[str, str]:
@@ -392,12 +461,7 @@ def _serialize_final_set_states(items: tuple[EquipmentItem, ...], set_names: dic
 
 
 def _active_set_ids(database: OptimizerEquipmentDatabase, items: tuple[EquipmentItem, ...]) -> list[str]:
-    definitions = database.load_sets()
-    counts = Counter(item.set_id for item in items)
-    return sorted(
-        set_id for set_id, count in counts.items()
-        if set_id in definitions and count >= definitions[set_id].required_pieces
-    )
+    return sorted(_active_set_ids_for_items(items, database.load_sets()))
 
 
 def _screen_physical_build(
@@ -412,8 +476,15 @@ def _screen_physical_build(
     seed,
     warmup,
     measurement,
+    screening_trials,
     recommendation_profile,
 ) -> tuple[float, int]:
+    """Screen with common random numbers across several seeds.
+
+    A single random path can discard the true best build for heroes or sets with
+    probabilistic procs. Averaging a small configurable number of shared seeds
+    is substantially more stable while preserving the cheap screening stage.
+    """
     best_score = float("-inf")
     best_ascensions = 10**9
     evaluations = 0
@@ -422,17 +493,21 @@ def _screen_physical_build(
         for variant_items, ascensions in iter_ascension_variants(physical_items, evolutions, set_names):
             database.set_variant_overrides(_variant_overrides(physical_items, variant_items))
             if category == "output":
-                trial = HeroCoreSimulator(
-                    core,
-                    database=database,
-                    item_ids=[item.item_id for item in physical_items],
-                    target=target,
-                    policy=policy,
-                    seed=seed,
-                    warmup=warmup,
-                    measurement=measurement,
-                ).run()
-                score = trial.total_damage / measurement * 60.0
+                scores: list[float] = []
+                for trial_index in range(max(1, int(screening_trials))):
+                    trial = HeroCoreSimulator(
+                        core,
+                        database=database,
+                        item_ids=[item.item_id for item in physical_items],
+                        target=target,
+                        policy=policy,
+                        seed=seed + trial_index,
+                        warmup=warmup,
+                        measurement=measurement,
+                    ).run()
+                    scores.append(trial.total_damage / measurement * 60.0)
+                    evaluations += 1
+                score = sum(scores) / len(scores)
             else:
                 evaluation = evaluate_role_build(
                     database,
@@ -441,7 +516,7 @@ def _screen_physical_build(
                     recommendation_profile,
                 )
                 score = float(evaluation["role_score"])
-            evaluations += 1
+                evaluations += 1
             if score > best_score or (score == best_score and len(ascensions) < best_ascensions):
                 best_score, best_ascensions = score, len(ascensions)
     finally:
@@ -553,8 +628,8 @@ def recommend_hero_core(
     left_group_candidates = max(1, min(int(payload.get("left_group_candidates", _DEFAULT_LEFT_GROUP_CANDIDATES)), 64))
     right_group_candidates = max(1, min(int(payload.get("right_group_candidates", _DEFAULT_RIGHT_GROUP_CANDIDATES)), 128))
     refine_trials = max(1, min(int(payload.get("trials", 32)), 256))
-    target_def = max(0.0, float(payload.get("target_def", 0.0)))
-    enemy_count = max(1, int(payload.get("enemy_count", 1)))
+    screening_trials = max(1, min(int(payload.get("screening_trials", _DEFAULT_SCREENING_TRIALS)), 16))
+    target_def, target_mres, enemy_count, target = _target_from_payload(payload)
     raw_min_relevant_substats = payload.get("min_relevant_substats")
     if raw_min_relevant_substats in (None, ""):
         min_relevant_substats = None
@@ -566,11 +641,6 @@ def recommend_hero_core(
 
     policy = str(payload.get("policy") or core.get("default_policy") or "")
     seed = int(payload.get("seed", 20260828))
-    target = {
-        "defense": target_def,
-        "control_immune": bool(payload.get("control_immune", True)),
-        "enemy_count": enemy_count,
-    }
 
     database = OptimizerEquipmentDatabase(database_path, percentile=0.90)
     try:
@@ -668,6 +738,7 @@ def recommend_hero_core(
                 seed=seed,
                 warmup=screening_warmup,
                 measurement=screening_measurement,
+                screening_trials=screening_trials,
                 recommendation_profile=recommendation_profile,
             )
             variant_evaluations_screened += variant_count
@@ -741,11 +812,12 @@ def recommend_hero_core(
             "ranking_metric": "equivalent_60s_damage" if category == "output" else "role_score",
             "policy": policy,
             "target_def": target_def,
+            "target_mres": target_mres,
             "enemy_count": enemy_count,
             "candidate_per_slot": candidate_per_slot,
             "min_relevant_substats": prefilter_report.get("min_relevant_substats"),
             "candidate_pruning": "set_aware",
-            "candidate_protection": "baseline_plus_native_t2_representatives",
+            "candidate_protection": "baseline_plus_all_feasible_set_representatives",
             "search_strategy": "left_right_group_pruning" if group_pruning_applied else "set_aware_cartesian",
             "group_pruning_applied": group_pruning_applied,
             "equipment_prefilter": prefilter_report,
@@ -765,6 +837,7 @@ def recommend_hero_core(
             },
             "group_pruning_reduction": reduction,
             "combinations_screened": combinations,
+            "screening_trials": screening_trials if category == "output" else 1,
             "variant_simulations_screened": variant_evaluations_screened,
             "variant_simulations_refined": variant_evaluations_refined,
             "variant_evaluations_screened": variant_evaluations_screened,
@@ -780,13 +853,19 @@ def recommend_hero_core(
             },
             "set_model": {
                 "normalized_v22_effects": True,
+                "dynamic_set_effects": True,
+                "extra_damage": True,
+                "penetration": True,
+                "damage_instance_single_aoe": True,
                 "t1_t2_variants": True,
                 "tie_prefers_no_ascension": True,
                 "cheap_group_scoring_includes_completed_sets": True,
                 "mixed_t1_t2_candidate_reachability": True,
-                "native_t2_candidate_protection": True,
+                "all_feasible_set_candidate_protection": True,
+                "completed_set_group_protection": True,
                 "role_aware_candidate_scoring": True,
                 "recommendation_profile_objective": True,
+                "multi_seed_screening": True,
             },
             "results": results,
         }
