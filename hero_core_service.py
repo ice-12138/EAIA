@@ -330,9 +330,10 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
     """Role-prefiltered, set-aware HeroCore recommendation search.
 
     Output heroes are reduced before any combinatorial search: only output sets
-    are retained and every item must have at least two output-relevant substats.
-    Tank/healing/support categories are classified but currently pass through so
-    their future policies can be added without changing the search engine.
+    are retained and every item must meet the request's minimum number of
+    output-relevant substats (default 2). Tank/healing/support categories are
+    classified but currently pass through so their future policies can be added
+    without changing the search engine.
     """
     core_id = str(payload.get("hero_core_id") or "SUN_WUKONG")
     core = load_core(core_id)
@@ -341,6 +342,14 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
     refine_trials = max(1, min(int(payload.get("trials", 32)), 256))
     target_def = max(0.0, float(payload.get("target_def", 0.0)))
     enemy_count = max(1, int(payload.get("enemy_count", 1)))
+    raw_min_relevant_substats = payload.get("min_relevant_substats")
+    if raw_min_relevant_substats in (None, ""):
+        min_relevant_substats = None
+    else:
+        try:
+            min_relevant_substats = max(0, min(int(raw_min_relevant_substats), 4))
+        except (TypeError, ValueError) as error:
+            raise HeroCoreError("min_relevant_substats must be an integer from 0 to 4") from error
     policy = str(payload.get("policy") or core.get("default_policy") or "")
     seed = int(payload.get("seed", 20260828))
     target = {"defense": target_def, "control_immune": bool(payload.get("control_immune", True)), "enemy_count": enemy_count}
@@ -350,7 +359,12 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
         database.initialize()
         database.clear_variant_overrides()
         projected_items = database.load_equipment()
-        all_items, prefilter_report = prefilter_equipment(database, core, projected_items)
+        all_items, prefilter_report = prefilter_equipment(
+            database,
+            core,
+            projected_items,
+            min_relevant_substats=min_relevant_substats,
+        )
 
         by_slot: dict[str, list[EquipmentItem]] = {slot: [] for slot in _SLOTS}
         for item in all_items:
@@ -360,7 +374,8 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
         if missing:
             detail = ""
             if prefilter_report.get("policy_implemented"):
-                detail = "；当前输出初筛仅保留输出类套装且要求至少2条输出相关副词条"
+                threshold = prefilter_report.get("min_relevant_substats", 0)
+                detail = f"；当前输出初筛仅保留输出类套装且要求至少{threshold}条输出相关副词条"
             elif database.projection_exclusions:
                 detail = "；部分装备因无法可靠投影到满级全解锁状态而被排除"
             raise HeroCoreError("初筛后缺少可用装备部位: " + ", ".join(missing) + detail)
@@ -424,6 +439,7 @@ def recommend_hero_core(database_path: str | Path, payload: dict[str, Any], prog
             "target_def": target_def,
             "enemy_count": enemy_count,
             "candidate_per_slot": candidate_per_slot,
+            "min_relevant_substats": prefilter_report.get("min_relevant_substats"),
             "candidate_pruning": "set_aware",
             "equipment_prefilter": prefilter_report,
             "set_candidate_bonus_count": len(set_candidate_bonuses),
