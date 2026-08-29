@@ -56,7 +56,14 @@ def classify_recommendation_category(core: dict[str, Any]) -> RecommendationCate
         return RecommendationCategory.HEALING
     if role in _SUPPORT_ROLES or folded in _SUPPORT_ROLES:
         return RecommendationCategory.SUPPORT
-    return RecommendationCategory.UNCLASSIFIED
+
+    # Keep prefilter semantics aligned with resolve_recommendation_profile().
+    # HeroCore files whose role metadata is missing/unknown are treated as
+    # output by the recommendation objective; previously the prefilter called
+    # them ``unclassified`` and disabled both filtering and group pruning. A
+    # single incomplete role field (Valkyra is one current example) could then
+    # expand a normal search into hundreds of thousands of simulations.
+    return RecommendationCategory.OUTPUT
 
 
 def policy_for(category: RecommendationCategory, core: dict[str, Any] | None = None) -> PrefilterPolicy:
