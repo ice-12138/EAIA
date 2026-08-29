@@ -326,7 +326,7 @@ class GridConfig:
     overlap_rows: int = 3
     swipe_start: tuple[int, int] = (1200, 950)
     # Calibrated on the device: one equipment row per drag.
-    swipe_end: tuple[int, int] = (1200, 752)
+    swipe_end: tuple[int, int] = (1200, 754)
     swipe_velocity: int = 200
     slot_width: int = 164
     slot_height: int = 205
@@ -405,7 +405,11 @@ class EquipmentScanner:
         half_height = self.grid.slot_height // 2
         crop = image.crop((x - half_width, y - half_height, x + half_width, y + half_height))
         mean = ImageStat.Stat(crop).mean
-        return sum(mean) / 3
+        # Inventory tile colors vary by quality: red tiles have a much lower
+        # RGB average than yellow tiles even when both are occupied. Use the
+        # strongest channel so color changes do not turn a real tile into an
+        # empty slot.
+        return max(mean)
 
     def _grid_snapshot(self, image: Image.Image) -> Image.Image:
         """Build a comparison image from equipment tiles only.
@@ -512,6 +516,11 @@ class EquipmentScanner:
         last_occupied = max(occupied_rows)
         all_columns = list(range(1, len(self.grid.x_centers) + 1))
         for row in occupied_by_row:
+            if occupied_by_row[row]:
+                # The inventory is filled left-to-right. A dim tile can be
+                # misclassified as empty, but a later tile cannot be occupied
+                # while an earlier tile is genuinely empty.
+                occupied_by_row[row] = list(range(1, max(occupied_by_row[row]) + 1))
             if row <= last_occupied and any(
                 occupied_by_row[later_row]
                 for later_row in occupied_by_row
@@ -530,12 +539,18 @@ class EquipmentScanner:
         try:
             initial_path = self.workflow.capture()
             initial = Image.open(initial_path).convert("RGB")
-            occupied_by_row = self._normalize_occupied_rows({
-                screen_row: self._row_occupied_columns(
-                    initial, self.grid.y_centers[screen_row], calibration
-                )
-                for screen_row in screen_rows
-            })
+            if self.equipment_count is not None:
+                occupied_by_row = {
+                    screen_row: list(range(1, self.grid.columns + 1))
+                    for screen_row in screen_rows
+                }
+            else:
+                occupied_by_row = self._normalize_occupied_rows({
+                    screen_row: self._row_occupied_columns(
+                        initial, self.grid.y_centers[screen_row], calibration
+                    )
+                    for screen_row in screen_rows
+                })
             for screen_row in screen_rows:
                 logical_row = logical_start + screen_row
                 first_column = initial_column if screen_row == screen_rows[0] else 1
@@ -559,7 +574,9 @@ class EquipmentScanner:
                     if column not in occupied_columns:
                         continue
                     y = self.grid.y_centers[screen_row]
-                    allow_unchanged = self._slot_selected(current, x, y)
+                    # Bounded scans are coordinate-driven. Never use tile
+                    # colors to decide whether this position needs a click.
+                    allow_unchanged = self.equipment_count is None and self._slot_selected(current, x, y)
                     if not threaded:
                         record = self.workflow.process_item(
                             logical_row, column, x, y, allow_unchanged=allow_unchanged,
@@ -600,13 +617,29 @@ class EquipmentScanner:
             time.sleep(self.workflow.poll_interval)
         return changed(before_grid, previous) if previous is not None else False
 
-    def scan_until_bottom(self, max_scrolls: int = 100, resume_row: int = 1, resume_column: int = 0) -> list[dict]:
+    def scan_until_bottom(
+        self,
+        max_scrolls: int = 100,
+        resume_row: int = 1,
+        resume_column: int = 0,
+        end_row: int = 0,
+        end_column: int = 0,
+    ) -> list[dict]:
         if resume_row < 1 or resume_column < 0 or resume_column > self.grid.columns:
             raise ValueError("resume position must be a valid 1-based row and 0-8 column")
+        if (end_row == 0) != (end_column == 0):
+            raise ValueError("end row and column must both be zero or both be set")
+        if end_row < 0 or end_column < 0 or end_column > self.grid.columns:
+            raise ValueError("end position must be zero or a valid row and 1-8 column")
+        if end_row and (end_row - 1) * self.grid.columns + end_column < (resume_row - 1) * self.grid.columns + resume_column + 1:
+            raise ValueError("end position must not precede the start position")
         if self.grid.overlap_rows >= self.grid.visible_rows:
             raise ValueError("overlap_rows must be smaller than visible_rows")
         first_path = self.workflow.capture()
         equipment_count = self._read_equipment_count(first_path)
+        if end_row:
+            requested_count = (end_row - 1) * self.grid.columns + end_column
+            equipment_count = requested_count if equipment_count is None else min(equipment_count, requested_count)
         self.equipment_count = equipment_count
         if resume_row == 1 and resume_column == 0:
             screen_start, logical_start, first_column, skipped = 0, 1, 1, 0

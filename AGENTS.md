@@ -11,3 +11,9 @@
 
 - This repository contains the EAIA HOScrcpy screen-capture, OCR, equipment database, and optimizer workflows.
 - Python dependencies and runtime behavior should be verified in the `EAIA` environment rather than the system or base Python installation.
+
+## Frontend Entry Architecture
+
+- `frontend/src/UnifiedWorkspace.vue` is the only frontend page shell and route-page entry.
+- `frontend/src/main.js` must mount only `UnifiedWorkspace.vue`.
+- Add new page modes to `UnifiedWorkspace.vue`'s hash-based routing; do not introduce alternate page-shell Vue entry components.

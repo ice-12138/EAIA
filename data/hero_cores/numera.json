@@ -1,0 +1,1375 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.1",
+  "game_version": "CN-2026-08-29",
+  "hero": {
+    "id": "NUMERA",
+    "name": "努梅拉",
+    "title": "荒棘守护者",
+    "faction": "贯星者 / 秘法会",
+    "role": "战士",
+    "damage_type": "magic",
+    "mechanic_summary": "普攻积累寄生之矛；满4枚后每2次普攻额外发射1枚。圣树风暴获得额外2枚并发射全部寄生之矛，寄生之矛附加中毒、寄生根须和伤害降低，并可触发毒爆。",
+    "base_stats": {
+      "atk": 4821,
+      "hp": 16586,
+      "def": 2871,
+      "mres": 835,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2.6
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 600,
+      "max": 900,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "observed_skill_levels": {
+      "natures_wrath": "3/5",
+      "basic_attack": "2/5",
+      "poisonwood_branch": "3/5",
+      "natures_grasp": "2/5"
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 16586,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 4821,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 2871,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 835,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 18,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 2,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 8,
+        "unit": "rage_per_attack",
+        "source": "white",
+        "notes": "截图为8+1，绿色+1不计入白字。"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "魔法攻击",
+        "type": "basic",
+        "description": "满级：对1名敌人造成120%魔法伤害。",
+        "coefficient": 1.2,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 8
+        }
+      },
+      {
+        "id": "natures_wrath",
+        "name": "圣树风暴",
+        "type": "ultimate",
+        "description": "满级：立即获得额外2枚寄生之矛，短暂蓄力后发射全部寄生之矛；每枚造成520%魔法伤害并附加1层中毒。",
+        "coefficient": 5.2,
+        "target_cap": 1,
+        "duration": 3,
+        "direct_damage": true,
+        "values": {
+          "bonus_spikes": 2,
+          "rage_cost": 900,
+          "initial_rage": 600
+        }
+      },
+      {
+        "id": "poisonwood_branch",
+        "name": "荒棘毒缚",
+        "type": "passive",
+        "description": "满级：圣树风暴发射的寄生之矛额外附加1.5秒眩晕；至少4枚寄生之矛短时间命中同一目标后触发毒爆，每消耗1层中毒造成50%魔法伤害，最多30层。",
+        "coefficient": null,
+        "target_cap": 1,
+        "duration": 1.5,
+        "direct_damage": false,
+        "values": {
+          "stun_duration": 1.5,
+          "toxic_surge_per_stack": 0.5,
+          "toxic_surge_max_stacks": 30,
+          "minimum_spikes_same_target": 4
+        }
+      },
+      {
+        "id": "natures_grasp",
+        "name": "寄生咒棘",
+        "type": "passive",
+        "description": "寄生之矛命中时附加寄生根须和伤害降低；满级寄生根须伤害相对基础累计+9%，伤害降低效果由30%提升至40%。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false,
+        "values": {
+          "grimthorn_roots_base_damage": null,
+          "grimthorn_roots_upgrade_bonus": 0.09,
+          "enemy_damage_reduction_base": 0.3,
+          "enemy_damage_reduction_max": 0.4
+        }
+      }
+    ],
+    "talents": [
+      {
+        "id": "grimthorn_spike_talent",
+        "name": "天赋",
+        "description": "普攻获得1枚寄生之矛，最多积累4枚。已有4枚时，每2次普攻额外发射1枚寄生之矛，造成400%伤害、附加1层中毒并回复40怒气。",
+        "values": {
+          "max_stored_spikes": 4,
+          "basic_attacks_per_extra_spike": 2,
+          "extra_spike_coefficient": 4,
+          "poison_stacks": 1,
+          "rage_restore": 40
+        }
+      }
+    ],
+    "statuses": {
+      "poison": {
+        "damage_per_second": 0.05,
+        "duration": 10,
+        "notes": "通用中毒规则；当前执行层未完整实现逐秒DOT/过期。"
+      },
+      "grimthorn_roots": {
+        "damage_type": "true",
+        "base_damage": null,
+        "notes": "截图未给出基础真伤倍率。"
+      }
+    }
+  },
+  "state": {
+    "grimthorn_spikes": {
+      "initial": 0,
+      "min": 0,
+      "max": 4
+    },
+    "full_spike_basic_counter": {
+      "initial": 0,
+      "min": 0,
+      "max": 2
+    },
+    "poison_stack_proxy": {
+      "initial": 0,
+      "min": 0,
+      "max": 30
+    }
+  },
+  "buffs": {},
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "魔法攻击",
+      "kind": "basic",
+      "coefficient": 1.2,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 8,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "magic",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "natures_wrath": {
+      "id": "natures_wrath",
+      "name": "圣树风暴",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "duration": 3,
+      "can_crit": false,
+      "blocks_basic_attack": true,
+      "resource": {
+        "name": "rage",
+        "cost": 900
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "magic",
+        "dynamic_spike_count"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "count_basic_while_spikes_full",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 10,
+      "condition": "state.grimthorn_spikes == 4 and state.full_spike_basic_counter < 2",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "full_spike_basic_counter",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "launch_extra_grimthorn_spike",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 20,
+      "condition": "state.grimthorn_spikes == 4 and state.full_spike_basic_counter == 2",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 4,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "grimthorn_spike_talent",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_resource",
+          "resource": "rage",
+          "value": 40,
+          "scale_with_regen": false
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 1
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        }
+      ]
+    },
+    {
+      "id": "gain_grimthorn_spike_from_basic",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 10,
+      "condition": "state.grimthorn_spikes < 4",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "grimthorn_spikes",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "natures_wrath_with_0_stored_spikes",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "condition": "state.grimthorn_spikes == 0",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.2,
+          "hit_count": 2,
+          "can_crit": true,
+          "source": "natures_wrath_grimthorn_spikes",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 2
+        },
+        {
+          "type": "reset_state",
+          "state": "grimthorn_spikes"
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        }
+      ]
+    },
+    {
+      "id": "natures_wrath_with_1_stored_spikes",
+      "event": "ULT_CAST_START",
+      "priority": 11,
+      "condition": "state.grimthorn_spikes == 1",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.2,
+          "hit_count": 3,
+          "can_crit": true,
+          "source": "natures_wrath_grimthorn_spikes",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 3
+        },
+        {
+          "type": "reset_state",
+          "state": "grimthorn_spikes"
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        }
+      ]
+    },
+    {
+      "id": "natures_wrath_with_2_stored_spikes",
+      "event": "ULT_CAST_START",
+      "priority": 12,
+      "condition": "state.grimthorn_spikes == 2",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.2,
+          "hit_count": 4,
+          "can_crit": true,
+          "source": "natures_wrath_grimthorn_spikes",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 4
+        },
+        {
+          "type": "reset_state",
+          "state": "grimthorn_spikes"
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        },
+        {
+          "type": "schedule_event",
+          "event": "NUMERA_TOXIC_SURGE_CHECK",
+          "delay": 0.001
+        }
+      ]
+    },
+    {
+      "id": "natures_wrath_with_3_stored_spikes",
+      "event": "ULT_CAST_START",
+      "priority": 13,
+      "condition": "state.grimthorn_spikes == 3",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.2,
+          "hit_count": 5,
+          "can_crit": true,
+          "source": "natures_wrath_grimthorn_spikes",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 5
+        },
+        {
+          "type": "reset_state",
+          "state": "grimthorn_spikes"
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        },
+        {
+          "type": "schedule_event",
+          "event": "NUMERA_TOXIC_SURGE_CHECK",
+          "delay": 0.001
+        }
+      ]
+    },
+    {
+      "id": "natures_wrath_with_4_stored_spikes",
+      "event": "ULT_CAST_START",
+      "priority": 14,
+      "condition": "state.grimthorn_spikes == 4",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.2,
+          "hit_count": 6,
+          "can_crit": true,
+          "source": "natures_wrath_grimthorn_spikes",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "grimthorn_spike"
+          ]
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stack_proxy",
+          "value": 6
+        },
+        {
+          "type": "reset_state",
+          "state": "grimthorn_spikes"
+        },
+        {
+          "type": "reset_state",
+          "state": "full_spike_basic_counter"
+        },
+        {
+          "type": "schedule_event",
+          "event": "NUMERA_TOXIC_SURGE_CHECK",
+          "delay": 0.001
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_1_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 101,
+      "condition": "state.poison_stack_proxy == 1",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_2_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 102,
+      "condition": "state.poison_stack_proxy == 2",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 1,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_3_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 103,
+      "condition": "state.poison_stack_proxy == 3",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 1.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_4_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 104,
+      "condition": "state.poison_stack_proxy == 4",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 2,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_5_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 105,
+      "condition": "state.poison_stack_proxy == 5",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 2.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_6_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 106,
+      "condition": "state.poison_stack_proxy == 6",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 3,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_7_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 107,
+      "condition": "state.poison_stack_proxy == 7",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 3.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_8_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 108,
+      "condition": "state.poison_stack_proxy == 8",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 4,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_9_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 109,
+      "condition": "state.poison_stack_proxy == 9",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 4.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_10_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 110,
+      "condition": "state.poison_stack_proxy == 10",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_11_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 111,
+      "condition": "state.poison_stack_proxy == 11",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 5.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_12_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 112,
+      "condition": "state.poison_stack_proxy == 12",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 6,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_13_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 113,
+      "condition": "state.poison_stack_proxy == 13",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 6.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_14_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 114,
+      "condition": "state.poison_stack_proxy == 14",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 7,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_15_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 115,
+      "condition": "state.poison_stack_proxy == 15",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 7.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_16_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 116,
+      "condition": "state.poison_stack_proxy == 16",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 8,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_17_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 117,
+      "condition": "state.poison_stack_proxy == 17",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 8.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_18_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 118,
+      "condition": "state.poison_stack_proxy == 18",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 9,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_19_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 119,
+      "condition": "state.poison_stack_proxy == 19",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 9.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_20_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 120,
+      "condition": "state.poison_stack_proxy == 20",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 10,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_21_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 121,
+      "condition": "state.poison_stack_proxy == 21",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 10.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_22_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 122,
+      "condition": "state.poison_stack_proxy == 22",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 11,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_23_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 123,
+      "condition": "state.poison_stack_proxy == 23",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 11.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_24_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 124,
+      "condition": "state.poison_stack_proxy == 24",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 12,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_25_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 125,
+      "condition": "state.poison_stack_proxy == 25",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 12.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_26_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 126,
+      "condition": "state.poison_stack_proxy == 26",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 13,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_27_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 127,
+      "condition": "state.poison_stack_proxy == 27",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 13.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_28_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 128,
+      "condition": "state.poison_stack_proxy == 28",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 14,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_29_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 129,
+      "condition": "state.poison_stack_proxy == 29",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 14.5,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    },
+    {
+      "id": "toxic_surge_30_stacks",
+      "event": "NUMERA_TOXIC_SURGE_CHECK",
+      "priority": 130,
+      "condition": "state.poison_stack_proxy == 30",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 15,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "toxic_surge",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "single_target",
+            "toxic_surge"
+          ]
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_stack_proxy"
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 900"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能建模；截图当前技能等级仅作为资料保存。",
+    "白字：HP16586、ATK4821、DEF2871、MRES835、攻击间隔2.6秒、攻速100、暴击0%、暴伤150%、自然回怒14、普攻回怒8、受击回怒6。",
+    "普攻截图2/5为105%，满级为120%。",
+    "圣树风暴截图3/5为480%/枚、消耗1000；满级为520%/枚、消耗900、初始怒气600、持续3秒。",
+    "当前国服截图明确为“已有4枚寄生之矛时每2次普攻发射1枚额外寄生之矛”，故采用确定性每2次触发。",
+    "圣树风暴按存量寄生之矛+额外2枚发射；若施放前4枚，则单目标下按6枚处理。",
+    "满级荒棘毒缚：眩晕1.5秒，毒爆50%/中毒层，最多30层。",
+    "寄生根须基础真伤倍率未知，不虚构执行系数。",
+    "poison_stack_proxy仅用于努梅拉自身单目标毒爆近似，不模拟中毒过期和队友中毒。",
+    "recommendation_profile.category=output，确保进入输出英雄快速推荐路径。"
+  ],
+  "validation_required": [
+    "补充寄生根须的基础持续真伤倍率、持续时间和跳伤频率。",
+    "扩展HeroCore引擎的DOT/目标Debuff对象，完整处理中毒逐秒伤害、10秒过期和毒爆消耗。",
+    "确认圣树风暴在4枚存量时是否确实发射6枚（4+2）。",
+    "群体目标下需要实现寄生之矛随机命中分布及“至少4枚命中同一目标”的概率。",
+    "若当前账号已觉醒，需要另行加入觉醒效果；本核心按0觉。"
+  ],
+  "recommendation_profile": {
+    "category": "output"
+  },
+  "simulation_coverage": {
+    "level": "partial",
+    "implemented": [
+      "满级普攻120%",
+      "普攻积累寄生之矛",
+      "满4枚后每2次普攻触发400%额外寄生之矛并回复40怒气",
+      "圣树风暴按存量+2动态结算，每枚520%",
+      "单目标下用自身中毒层数代理近似结算满级毒爆50%/层"
+    ],
+    "not_fully_implemented": [
+      "中毒逐秒DOT和10秒过期",
+      "寄生根须持续真实伤害",
+      "队友中毒层数参与毒爆",
+      "群体场景下寄生之矛随机分配"
+    ]
+  }
+}

@@ -27,6 +27,8 @@ from data_manager import (
     delete_resource,
     list_equipment,
     list_resource,
+    initialize_equipment_calculability,
+    refresh_equipment_calculability,
     resource_catalog,
     save_equipment,
     update_resource,
@@ -451,9 +453,18 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", "0"))
             payload = json.loads(self.rfile.read(length) or b"{}") if length else {}
-            resume_row = int(payload.get("resume_row", 1))
-            resume_column = int(payload.get("resume_column", 0))
+            resume_row = int(payload.get("resume_row", payload.get("start_row", 1)))
+            if "resume_column" in payload:
+                resume_column = int(payload["resume_column"])
+            else:
+                resume_column = int(payload.get("start_column", 1)) - 1
+            end_row = int(payload.get("end_row", 0))
+            end_column = int(payload.get("end_column", 0))
             if resume_row < 1 or resume_column < 0 or resume_column > 8:
+                raise ValueError
+            if end_row < 1 or end_column < 1 or end_column > 8:
+                raise ValueError
+            if end_row and (end_row - 1) * 8 + end_column < (resume_row - 1) * 8 + resume_column + 1:
                 raise ValueError
         except (TypeError, ValueError, json.JSONDecodeError):
             self._send_json({"error": "续扫位置必须是有效的行号和 0-8 列"}, HTTPStatus.BAD_REQUEST)
@@ -470,7 +481,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                                 "new_count": 0, "duplicate_count": 0, "updated_count": 0,
                                 "session_completed": 0,
                                 "started_at": time.monotonic()})
-        thread = threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column, cancel_event), daemon=True)
+        thread = threading.Thread(target=self._run_scan, args=(job_id, resume_row, resume_column, end_row, end_column, cancel_event), daemon=True)
         thread.start()
         self._send_json(scan_status(self.database), HTTPStatus.ACCEPTED)
 
@@ -511,7 +522,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         except (sqlite3.Error, OSError) as error:
             self._send_json({"error": str(error)}, HTTPStatus.INTERNAL_SERVER_ERROR)
 
-    def _run_scan(self, job_id: str, resume_row: int, resume_column: int, cancel_event: threading.Event) -> None:
+    def _run_scan(self, job_id: str, resume_row: int, resume_column: int, end_row: int, end_column: int, cancel_event: threading.Event) -> None:
         try:
             from run_equipment_scan import _build_fast_scanner, _build_legacy_scanner
 
@@ -533,6 +544,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     _set_scan_state(id=job_id, **normalized)
 
                 def import_result(result: dict) -> None:
+                    refresh_equipment_calculability(self.database, result["item_id"])
                     action = result.get("import_action")
                     key = {"created": "new_count", "duplicate": "duplicate_count", "updated": "updated_count"}.get(action)
                     if key:
@@ -546,7 +558,7 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                     scanner = _build_legacy_scanner(database, import_result)
                     scanner.progress_callback = progress
                 _set_scan_state(status="scanning")
-                records = scanner.scan_until_bottom(resume_row=resume_row, resume_column=resume_column)
+                records = scanner.scan_until_bottom(resume_row=resume_row, resume_column=resume_column, end_row=end_row, end_column=end_column)
                 skipped = (resume_row - 1) * scanner.grid.columns + resume_column
                 _set_scan_state(status="completed", completed=skipped + len(records),
                                 session_completed=len(records),
@@ -571,6 +583,7 @@ def create_server(host: str = "127.0.0.1", port: int = 8000, database: Path = DE
         seed_official_hero_catalog(initializer.connection)
     finally:
         initializer.close()
+    initialize_equipment_calculability(database)
     EAIARequestHandler.database = database
     EAIARequestHandler.frontend_root = FRONTEND_DIST
     return ThreadingHTTPServer((host, port), EAIARequestHandler)

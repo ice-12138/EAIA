@@ -29,7 +29,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(grid.x_centers[-1], 1843)
         self.assertEqual(grid.y_centers, (363, 594, 825, 1056))
         self.assertEqual(grid.overlap_rows, 3)
-        self.assertEqual(grid.swipe_end, (1200, 752))
+        self.assertEqual(grid.swipe_end, (1200, 754))
         self.assertEqual(grid.swipe_velocity, 200)
 
     def test_equipment_count_parser_uses_m_from_m_over_n(self):
@@ -72,6 +72,27 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(scanner._row_occupied_columns(image, 594, calibration), [])
         self.assertEqual(scanner._row_occupied_columns(image, 825, calibration), [])
 
+    def test_grid_occupancy_keeps_red_tiles_when_previous_tiles_are_yellow(self):
+        from equipment_workflow import EquipmentScanner
+
+        image = Image.new("RGB", (2720, 1260), (25, 25, 30))
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        draw = ImageDraw.Draw(image)
+        for x in scanner.grid.x_centers:
+            draw.rectangle((x - 82, 260, x + 82, 465), fill=(220, 190, 40))
+        for x in scanner.grid.x_centers[:4]:
+            draw.rectangle((x - 82, 491, x + 82, 696), fill=(220, 190, 40))
+        draw.rectangle((scanner.grid.x_centers[4] - 82, 491, scanner.grid.x_centers[4] + 82, 696), fill=(190, 35, 35))
+
+        calibration = {}
+        scanner._row_occupied_columns(image, scanner.grid.y_centers[0], calibration)
+
+        self.assertEqual(
+            scanner._row_occupied_columns(image, scanner.grid.y_centers[1], calibration),
+            list(range(1, 6)),
+        )
+
     def test_later_occupied_row_fills_previous_row_to_eight_columns(self):
         from equipment_workflow import EquipmentScanner
 
@@ -84,6 +105,26 @@ class EquipmentWorkflowTests(unittest.TestCase):
         self.assertEqual(normalized[0], list(range(1, 9)))
         self.assertEqual(normalized[1], [1])
         self.assertEqual(normalized[2], [])
+
+    def test_occupied_row_with_dimmed_leading_tiles_is_filled_to_detected_prefix(self):
+        from equipment_workflow import EquipmentScanner
+
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+
+        normalized = scanner._normalize_occupied_rows({0: list(range(1, 9)), 1: [6], 2: []})
+
+        self.assertEqual(normalized[1], list(range(1, 7)))
+
+    def test_scan_end_position_is_converted_to_an_inclusive_item_count(self):
+        from equipment_workflow import EquipmentScanner
+
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        scanner.workflow = object()
+
+        with self.assertRaises(ValueError):
+            scanner.scan_until_bottom(end_row=7, end_column=0)
 
     def test_selected_slot_is_detected_by_gold_highlight(self):
         from equipment_workflow import EquipmentScanner
@@ -148,6 +189,43 @@ class EquipmentWorkflowTests(unittest.TestCase):
 
         self.assertEqual(len(records), 12)
         self.assertEqual(swipes, [])
+
+    def test_fast_scan_uses_equipment_count_without_skipping_second_row(self):
+        from equipment_fast_scan import FastEquipmentScanner
+
+        image_path = Path(tempfile.mkdtemp()) / "grid.jpg"
+        image = Image.new("RGB", (2720, 1260), (50, 50, 55))
+        draw = ImageDraw.Draw(image)
+        for x in GridConfig().x_centers:
+            draw.rectangle((x - 82, 260, x + 82, 465), fill=(130, 90, 90))
+            draw.rectangle((x - 82, 491, x + 82, 696), fill=(130, 90, 90))
+        image.save(image_path)
+
+        class Workflow:
+            poll_interval = 0
+            timeout = 0.1
+
+            def capture(self):
+                return image_path
+
+            def capture_item(self, row, column, x, y, **kwargs):
+                return {"row": row, "column": column, "final_path": image_path}
+
+            def recognize_captured_item(self, captured):
+                return {"row": captured["row"], "column": captured["column"]}
+
+            def persist_record(self, record):
+                pass
+
+        scanner = FastEquipmentScanner(Workflow(), lambda *args: None)
+        scanner.equipment_count = 14
+        records, _ = scanner._process_rows(1, range(0, 2))
+
+        self.assertEqual(
+            [(record["row"], record["column"]) for record in records],
+            [(1, column) for column in range(1, 9)]
+            + [(2, column) for column in range(1, 7)],
+        )
 
     def test_detail_change_and_stability(self):
         first = Image.new("RGB", (100, 100), "black")

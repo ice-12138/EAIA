@@ -1,6 +1,7 @@
 """Allowlisted user-facing CRUD for EAIA SQLite data."""
 from __future__ import annotations
 import sqlite3
+import threading
 import uuid
 from contextlib import contextmanager
 from pathlib import Path
@@ -25,6 +26,8 @@ ANCIENT_QUALITY_CHOICES = {
     "ancient_mythic_red": ("mythic_red", "上古神话"),
 }
 ANCIENT_UI_BY_BASE = {base: (virtual, name) for virtual, (base, name) in ANCIENT_QUALITY_CHOICES.items()}
+_calculability_cache: dict[Path, dict[str, tuple[bool, str | None]]] = {}
+_calculability_cache_lock = threading.RLock()
 RESOURCE_SPECS={
 "equipment_categories":spec("装备类型","装备字典","输出、防御、治疗、增益等装备大类。",[f("category_id","类型ID"),f("category_name","类型名称"),f("description","说明",TXT),f("sort_order","显示顺序",NUM)]),
 "equipment_slots":spec("装备部位","装备字典","武器、护甲、手镯、项链、戒指。",[f("slot_id","部位ID"),f("slot_name","部位名称"),f("slot_group","区域"),f("set_piece_group","套装计件组",NUM),f("sort_order","显示顺序",NUM),f("notes","备注",TXT)]),
@@ -137,30 +140,91 @@ def delete_resource(db,r,key):
         c.commit()
     return {"ok":True}
 
-def _annotate_hero_core_calculability(db, rows):
-    """Annotate inventory rows with the same projection gate used by HeroCore."""
+def _calculate_equipment(db, item_ids=None):
+    """Calculate projection eligibility for all or selected equipment IDs."""
     from optimizer_projection import OptimizerEquipmentDatabase
 
+    db = Path(db).resolve()
     optimizer = OptimizerEquipmentDatabase(db, percentile=0.60)
     try:
         optimizer.initialize()
-        calculable_ids = {item.item_id for item in optimizer.load_equipment()}
+        selected = set(item_ids) if item_ids is not None else None
+        if selected is None:
+            optimizer.load_equipment()
+        else:
+            for item_id in selected:
+                try:
+                    optimizer.load_equipment([item_id])
+                except Exception:
+                    pass
         exclusions = dict(optimizer.projection_exclusions)
     finally:
         optimizer.close()
 
+    with _connect(db) as connection:
+        query = "SELECT item_id, available, locked FROM equipment"
+        params = ()
+        if selected is not None:
+            marks = ",".join("?" for _ in selected)
+            query += f" WHERE item_id IN ({marks})"
+            params = tuple(selected)
+        equipment_rows = connection.execute(query, params).fetchall()
+
+    results = {}
+    for row in equipment_rows:
+        item_id = str(row["item_id"])
+        if not bool(row["available"]):
+            reason = "available=0: equipment is disabled"
+            calculable = False
+        elif bool(row["locked"]):
+            reason = "locked=1: equipment is excluded from HeroCore"
+            calculable = False
+        else:
+            reason = exclusions.get(item_id)
+            calculable = item_id not in exclusions
+            if not calculable and reason is None:
+                reason = "equipment is outside the HeroCore projection range"
+        results[item_id] = (calculable, reason)
+    return db, results
+
+
+def initialize_equipment_calculability(db):
+    """Warm the process-local HeroCore eligibility cache once at service start."""
+    path, results = _calculate_equipment(db)
+    with _calculability_cache_lock:
+        _calculability_cache[path] = results
+
+
+def refresh_equipment_calculability(db, item_id):
+    """Refresh one equipment item's HeroCore eligibility after a mutation."""
+    path, results = _calculate_equipment(db, [str(item_id)])
+    with _calculability_cache_lock:
+        cache = _calculability_cache.setdefault(path, {})
+        cache.pop(str(item_id), None)
+        cache.update(results)
+
+
+def _annotate_hero_core_calculability(db, rows):
+    """Annotate inventory rows from the cached HeroCore projection gate."""
+    path = Path(db).resolve()
+    with _calculability_cache_lock:
+        missing = [row["item_id"] for row in rows if row["item_id"] not in _calculability_cache.get(path, {})]
+    if missing:
+        # This is only a compatibility fallback for callers that do not start
+        # the HTTP service through create_server().
+        if len(missing) == len(rows):
+            initialize_equipment_calculability(path)
+        else:
+            for item_id in missing:
+                refresh_equipment_calculability(path, item_id)
+    with _calculability_cache_lock:
+        cached = dict(_calculability_cache.get(path, {}))
+
     for row in rows:
         item_id = str(row["item_id"])
-        calculable = item_id in calculable_ids
+        calculable, reason = cached.get(item_id, (False, "equipment eligibility has not been calculated"))
         row["hero_core_calculable"] = calculable
-        if calculable:
-            row["hero_core_reason"] = None
-        elif not bool(row.get("available")):
-            row["hero_core_reason"] = "available=0: equipment is disabled"
-        elif bool(row.get("locked")):
-            row["hero_core_reason"] = "locked=1: equipment is excluded from HeroCore"
-        else:
-            row["hero_core_reason"] = exclusions.get(item_id, "equipment is outside the HeroCore projection range")
+        row["hero_core_reason"] = None if calculable else reason
     return rows
 
 def list_equipment(db):
@@ -231,6 +295,7 @@ def save_equipment(db,payload,*,original_item_id=None):
             names=[n for n in v if n!="item_id"]; cur=c.execute(f'UPDATE equipment SET {",".join(f"\"{n}\"=?" for n in names)} WHERE item_id=?',[v[n] for n in names]+[original_item_id])
             if not cur.rowcount: raise DataManagerError("装备不存在或已被删除")
         _replace_stats(c,v["item_id"],stats); c.commit()
+    refresh_equipment_calculability(db, v["item_id"])
     return {"ok":True,"item_id":v["item_id"]}
 def delete_equipment(db,item_id):
     if not item_id: raise DataManagerError("缺少装备ID")
@@ -238,4 +303,8 @@ def delete_equipment(db,item_id):
         cur=c.execute("DELETE FROM equipment WHERE item_id=?",(item_id,))
         if not cur.rowcount: raise DataManagerError("装备不存在或已被删除")
         c.commit()
+    with _calculability_cache_lock:
+        cache = _calculability_cache.get(Path(db).resolve())
+        if cache is not None:
+            cache.pop(item_id, None)
     return {"ok":True}

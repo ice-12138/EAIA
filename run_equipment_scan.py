@@ -87,8 +87,8 @@ def _build_fast_scanner(
         hdc=HDC,
         serial=SERIAL,
         session_root=SESSION_ROOT,
-        settle_delay=0.20,
-        recovery_delay=0.12,
+        settle_delay=0.06,
+        recovery_delay=0.05,
         scroll_settle_delay=0.0,
     )
     return SeparatedEquipmentScanner(
@@ -125,8 +125,8 @@ def _run_capture_only(resume_row: int, resume_column: int) -> int:
         hdc=HDC,
         serial=SERIAL,
         session_root=SESSION_ROOT,
-        settle_delay=0.20,
-        recovery_delay=0.12,
+        settle_delay=0.06,
+        recovery_delay=0.05,
         scroll_settle_delay=0.0,
     )
     started = perf_counter()

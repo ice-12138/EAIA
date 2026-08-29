@@ -215,19 +215,33 @@ class CaptureOnlyEquipmentScanner(FastEquipmentScanner):
         calibration: dict = {}
         current_path = self.workflow.capture()
         current = Image.open(current_path).convert("RGB")
-        occupied_by_row = self._normalize_occupied_rows(
-            {
-                screen_row: self._row_occupied_columns(
-                    current, self.grid.y_centers[screen_row], calibration
-                )
+        if self.equipment_count is not None:
+            occupied_by_row = {
+                screen_row: list(range(1, self.grid.columns + 1))
                 for screen_row in screen_rows
             }
-        )
+        else:
+            occupied_by_row = self._normalize_occupied_rows(
+                {
+                    screen_row: self._row_occupied_columns(
+                        current, self.grid.y_centers[screen_row], calibration
+                    )
+                    for screen_row in screen_rows
+                }
+            )
 
         for screen_row in screen_rows:
             logical_row = logical_start + screen_row
             first_column = initial_column if screen_row == screen_rows[0] else 1
             occupied_columns = occupied_by_row[screen_row]
+            if self.equipment_count is not None:
+                expected = min(
+                    self.grid.columns,
+                    max(0, self.equipment_count - (logical_row - 1) * self.grid.columns),
+                )
+                if screen_row == screen_rows[0]:
+                    expected = max(0, expected - first_column + 1)
+                occupied_columns = list(range(first_column, first_column + expected))
             if not occupied_columns:
                 reached_empty_row = True
                 break
@@ -242,7 +256,9 @@ class CaptureOnlyEquipmentScanner(FastEquipmentScanner):
                     row=logical_row,
                     column=column,
                 )
-                allow_unchanged = self._slot_selected(current, x, y)
+                # Bounded scans are coordinate-driven; color must not suppress
+                # a click at a requested position.
+                allow_unchanged = self.equipment_count is None and self._slot_selected(current, x, y)
                 captured = self.workflow.capture_item(
                     logical_row,
                     column,
@@ -340,6 +356,8 @@ class SeparatedEquipmentScanner:
         max_scrolls: int = 100,
         resume_row: int = 1,
         resume_column: int = 0,
+        end_row: int = 0,
+        end_column: int = 0,
     ) -> list[dict]:
         self.capture_scanner.progress_callback = self._progress
         try:
@@ -347,6 +365,8 @@ class SeparatedEquipmentScanner:
                 max_scrolls=max_scrolls,
                 resume_row=resume_row,
                 resume_column=resume_column,
+                end_row=end_row,
+                end_column=end_column,
             )
         except Exception as error:
             self.session.mark_capture_interrupted(str(error))
@@ -389,8 +409,8 @@ def build_capture_only_hdc_scanner(
     session_root: Path = DEFAULT_SESSION_ROOT,
     detail_region: Region = DEFAULT_DETAIL_REGION,
     grid: GridConfig = GridConfig(),
-    settle_delay: float = 0.20,
-    recovery_delay: float = 0.12,
+    settle_delay: float = 0.06,
+    recovery_delay: float = 0.05,
     scroll_settle_delay: float = 0.0,
     progress_callback: Callable[[dict], None] | None = None,
 ) -> CaptureOnlyEquipmentScanner:

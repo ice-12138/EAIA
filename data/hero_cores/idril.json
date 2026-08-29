@@ -1,0 +1,432 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.1",
+  "game_version": "CN-2026-08-29",
+  "hero": {
+    "id": "IDRIL",
+    "name": "伊德莉尔",
+    "title": "林间射手",
+    "faction": "守望者 / 贯星者",
+    "role": "射手",
+    "damage_type": "piercing",
+    "mechanic_summary": "单体穿刺射手。普通攻击为2连射并优先攻击空中单位；终结技“无距”持续期间将攻击改为3连射、攻击范围变为无限且不再优先攻击空中单位；被动“连携之箭”在友方释放终结技后强化自己的下一次攻击。",
+    "base_stats": {
+      "atk": 2999,
+      "hp": 8982,
+      "def": 706,
+      "mres": 691,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 500,
+      "max": 1000,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "observed_skill_levels": {
+      "limitless_shots": "MAX",
+      "basic_attack": "MAX",
+      "combo_shots": "MAX"
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 8982,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 2999,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 706,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 691,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 11,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 1,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white",
+        "notes": "截图显示10+1，其中绿色+1为额外加成；HeroCore基础值只记录白字10。"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "满级：每次攻击进行2连射，每箭造成80%伤害，优先攻击空中单位。",
+        "coefficient": 0.8,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 2,
+          "rage_gain": 10,
+          "prioritize_airborne": true
+        }
+      },
+      {
+        "id": "limitless_shots",
+        "name": "无距",
+        "type": "ultimate",
+        "description": "满级：持续25秒。技能开启后，每次攻击对1名敌人进行3连射，每箭造成80%伤害；终结技持续期间攻击范围变为无限，且攻击不再优先攻击空中单位。",
+        "coefficient": 0.8,
+        "target_cap": 1,
+        "duration": 25,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 3,
+          "rage_cost": 1000,
+          "initial_rage": 500,
+          "unlimited_range": true,
+          "prioritize_airborne": false
+        }
+      },
+      {
+        "id": "combo_shots",
+        "name": "连携之箭",
+        "type": "passive",
+        "description": "满级：当友方释放终结技时，自己的下一次攻击伤害+100%；对空伤害额外+70%。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false,
+        "values": {
+          "next_attack_damage_bonus": 1,
+          "extra_airborne_damage_bonus": 0.7,
+          "trigger": "ally_ultimate_cast"
+        }
+      }
+    ],
+    "talents": [],
+    "awakenings": [
+      {
+        "level": 1,
+        "description": "普攻攻击伤害增加10%。",
+        "implemented": false,
+        "notes": "截图技能详情显示觉醒I效果，但不能仅据此确认当前账号已觉醒，因此默认不写入执行层。"
+      }
+    ]
+  },
+  "state": {
+    "combo_shot_pending": {
+      "initial": 0,
+      "min": 0,
+      "max": 1
+    }
+  },
+  "buffs": {
+    "limitless_shots_active": {
+      "duration": 25,
+      "modifiers": {},
+      "metadata": {
+        "unlimited_range": true,
+        "basic_hit_count": 3,
+        "basic_coefficient_per_hit": 0.8,
+        "prioritize_airborne": false
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 0.8,
+      "hit_count": 2,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "piercing",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "limitless_shots": {
+      "id": "limitless_shots",
+      "name": "无距",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "duration": 25,
+      "can_crit": false,
+      "blocks_basic_attack": false,
+      "resource": {
+        "name": "rage",
+        "cost": 1000
+      },
+      "tags": [
+        "ultimate",
+        "self_buff",
+        "basic_attack_transform",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "limitless_shots_activate",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "limitless_shots_active",
+          "duration": 25
+        }
+      ]
+    },
+    {
+      "id": "limitless_shots_replace_basic",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 5,
+      "condition": "buff.limitless_shots_active == true",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0
+        },
+        {
+          "type": "deal_damage",
+          "coefficient": 0.8,
+          "hit_count": 3,
+          "can_crit": true,
+          "source": "limitless_shots_basic",
+          "tags": [
+            "basic_attack",
+            "ultimate",
+            "physical",
+            "piercing",
+            "direct_damage",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo_shots_on_ally_ultimate",
+      "event": "ALLY_ULT_CAST",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "set_state",
+          "state": "combo_shot_pending",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "combo_shots_bonus_normal",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 20,
+      "condition": "state.combo_shot_pending == 1 and buff.limitless_shots_active == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.8,
+          "hit_count": 2,
+          "can_crit": true,
+          "source": "combo_shots_bonus",
+          "tags": [
+            "basic_attack",
+            "skill",
+            "physical",
+            "piercing",
+            "direct_damage",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo_shots_bonus_ultimate",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 20,
+      "condition": "state.combo_shot_pending == 1 and buff.limitless_shots_active == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.8,
+          "hit_count": 3,
+          "can_crit": true,
+          "source": "combo_shots_bonus",
+          "tags": [
+            "basic_attack",
+            "ultimate",
+            "skill",
+            "physical",
+            "piercing",
+            "direct_damage",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "combo_shots_consume",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 100,
+      "condition": "state.combo_shot_pending == 1",
+      "actions": [
+        {
+          "type": "reset_state",
+          "state": "combo_shot_pending"
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 1000"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能建模；截图中的绿色面板加成不计入白字。",
+    "白字：HP8982、ATK2999、DEF706、MRES691、攻击间隔2.0秒、攻速100、暴击0%、暴伤150%、自然回怒14、普攻回怒10、受击回怒6。",
+    "截图普攻回怒为10+1；绿色+1不是白字，因此资源基础值使用10。",
+    "普通攻击满级为80%×2；截图中的觉醒I“普攻攻击伤害增加10%”单独保存在awakenings中，不与基础技能倍率混写。",
+    "无距当前已满级：每次攻击80%×3，持续25秒，怒气消耗1000，初始怒气500；技能期间攻击范围无限且不再优先空中单位。",
+    "无距属于普通攻击形态变化，不把终结技本身额外计算一次直接伤害；执行层通过将原普通攻击系数置0并追加0.8×3实现。",
+    "连携之箭满级按截图记录为友方释放终结技后，下次攻击伤害+100%，对空伤害额外+70%。",
+    "当前单英雄木桩模拟不会产生友方终结技事件，因此连携之箭不会凭空触发；团队模拟器未来可发送ALLY_ULT_CAST事件。",
+    "recommendation_profile.category=output，确保进入输出英雄快速装备推荐路径。"
+  ],
+  "validation_required": [
+    "确认当前账号伊德莉尔是否已觉醒I；若已觉醒，应将普攻攻击伤害+10%加入执行层。",
+    "需要在团队模拟器中定义ALLY_ULT_CAST事件，才能让连携之箭按队友终结技轴真实触发。",
+    "需要在target中加入稳定的airborne布尔状态，并明确“下次攻击+100%”与“对空额外+70%”是叠加还是替代关系，才能完整实现对空连携之箭。",
+    "确认无距期间普通攻击仍获得普攻回怒10；当前按普通攻击形态变化处理，因此默认仍获得。",
+    "如果后续模拟多目标/地图射程，需单独实现无限攻击范围和目标优先级；固定木桩ED60不需要。"
+  ],
+  "recommendation_profile": {
+    "category": "output"
+  },
+  "simulation_coverage": {
+    "level": "partial",
+    "implemented": [
+      "满级普通攻击80%×2",
+      "无距满级25秒/1000怒气/500初始怒气",
+      "无距期间普通攻击替换为80%×3",
+      "连携之箭的友方终结技事件接口ALLY_ULT_CAST",
+      "连携之箭下一次攻击+100%的地面单目标伤害"
+    ],
+    "not_fully_implemented": [
+      "无限攻击范围本身对固定木桩伤害没有数值贡献",
+      "普通攻击/终结技期间的空中优先级只保存为语义",
+      "连携之箭对空额外+70%尚未执行，因为当前单体木桩目标模型没有稳定的airborne状态语义",
+      "单英雄模拟不会自然产生ALLY_ULT_CAST，因此连携之箭需要未来团队模拟器向HeroCore发送该事件",
+      "觉醒I普攻伤害+10%未默认启用"
+    ]
+  }
+}

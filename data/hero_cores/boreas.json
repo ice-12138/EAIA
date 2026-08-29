@@ -1,0 +1,559 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.1",
+  "game_version": "CN-2026-08-29",
+  "hero": {
+    "id": "BOREAS",
+    "name": "波瑞斯",
+    "title": "冰霜之主",
+    "faction": "秘法会",
+    "role": "法师",
+    "damage_type": "magic",
+    "mechanic_summary": "群体魔法输出/冰冻控制英雄。天赋使攻击有概率附加冰冻；自动技能“冻结之触”周期性造成大范围魔法伤害并附加冰冻；终结技“霜父恩赐”激活永恒冰域，大幅提高自身造成伤害，并显著缩短冻结之触的触发间隔。",
+    "base_stats": {
+      "atk": 4616,
+      "hp": 10602,
+      "def": 734,
+      "mres": 2357,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2.6
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 700,
+      "max": 1000,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "observed_skill_levels": {
+      "frosty_endowment": "2/5",
+      "basic_attack": "4/5",
+      "chilling_blow": "3/5",
+      "frozen_purification": "1/5"
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 10602,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 4616,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 734,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 2357,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 19,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 1,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "魔法攻击",
+        "type": "basic",
+        "description": "满级：攻击1名敌人，造成120%的魔法伤害。",
+        "coefficient": 1.2,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 10
+        }
+      },
+      {
+        "id": "frosty_endowment",
+        "name": "霜父恩赐",
+        "type": "ultimate",
+        "description": "满级：激活永恒冰域，自身造成伤害提高175%；每次攻击使下一次冻结之触的触发时间额外减少1秒；持续25秒。",
+        "coefficient": 0,
+        "target_cap": 0,
+        "duration": 25,
+        "direct_damage": false,
+        "values": {
+          "damage_bonus": 1.75,
+          "rage_cost": 1000,
+          "initial_rage": 700,
+          "frozen_purification_interval_reduction": 9,
+          "per_attack_interval_reduction": 1
+        }
+      },
+      {
+        "id": "chilling_blow",
+        "name": "极寒冲击",
+        "type": "passive",
+        "description": "满级：场上敌人被附加冰冻时额外获得禁疗；攻击携带冰冻的敌人时，自身对其造成伤害提高40%。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false,
+        "values": {
+          "damage_bonus_vs_frozen": 0.4,
+          "anti_healing_duration": 4
+        }
+      },
+      {
+        "id": "frozen_purification",
+        "name": "冻结之触",
+        "type": "auto",
+        "description": "满级：上场时以及之后每15秒，对超大范围内最多10名敌人造成180%魔法伤害并附加冰冻。永恒冰域期间，基础触发间隔额外减少9秒。",
+        "coefficient": 1.8,
+        "target_cap": 10,
+        "duration": null,
+        "direct_damage": true,
+        "values": {
+          "base_interval": 15,
+          "interval_during_ultimate_before_attack_reduction": 6,
+          "freeze_duration": 1
+        }
+      }
+    ],
+    "talents": [
+      {
+        "id": "freeze_talent",
+        "name": "天赋",
+        "description": "攻击敌人时有10%的概率附加冰冻。",
+        "values": {
+          "trigger_chance": 0.1,
+          "freeze_duration": 3
+        }
+      }
+    ],
+    "statuses": {
+      "freeze": {
+        "description": "冰冻：无法行动。",
+        "duration_from_talent": 3,
+        "duration_from_frozen_purification": 1
+      },
+      "eternal_icehaven": {
+        "description": "永恒冰域期间，友方对敌人附加冰冻时会造成额外魔法伤害；公开资料记录额外伤害随冰冻时长由300%至900%变化，3秒冰冻达到900%，内部冷却1.5秒。",
+        "extra_damage_1s_freeze": 3,
+        "extra_damage_3s_freeze": 9,
+        "internal_cooldown": 1.5,
+        "source": "external_crosscheck"
+      }
+    }
+  },
+  "state": {
+    "frozen_purification_timer": {
+      "initial": 0,
+      "min": 0,
+      "max": 15
+    }
+  },
+  "buffs": {
+    "eternal_icehaven": {
+      "duration": 25,
+      "modifiers": {
+        "damage_pct": 1.75
+      }
+    },
+    "target_frozen_proxy_1s": {
+      "duration": 1,
+      "modifiers": {
+        "damage_pct": 0.4
+      }
+    },
+    "target_frozen_proxy_3s": {
+      "duration": 3,
+      "modifiers": {
+        "damage_pct": 0.4
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "魔法攻击",
+      "kind": "basic",
+      "coefficient": 1.2,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "magic",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "frosty_endowment": {
+      "id": "frosty_endowment",
+      "name": "霜父恩赐",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "duration": 25,
+      "can_crit": false,
+      "blocks_basic_attack": false,
+      "resource": {
+        "name": "rage",
+        "cost": 1000
+      },
+      "tags": [
+        "ultimate",
+        "self_buff",
+        "eternal_icehaven",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "frozen_purification_on_deploy",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "BOREAS_FROZEN_PURIFICATION",
+          "delay": 0
+        },
+        {
+          "type": "schedule_event",
+          "event": "BOREAS_PURIFICATION_CLOCK",
+          "delay": 1
+        }
+      ]
+    },
+    {
+      "id": "eternal_icehaven_start",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "eternal_icehaven",
+          "duration": 25
+        },
+        {
+          "type": "add_state",
+          "state": "frozen_purification_timer",
+          "value": -9
+        }
+      ]
+    },
+    {
+      "id": "ultimate_basic_reduces_purification_timer",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 5,
+      "condition": "buff.eternal_icehaven == true and state.frozen_purification_timer > 0",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "frozen_purification_timer",
+          "value": -1
+        }
+      ]
+    },
+    {
+      "id": "freeze_talent_on_basic",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 20,
+      "chance": 0.1,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "target_frozen_proxy_3s",
+          "duration": 3
+        }
+      ]
+    },
+    {
+      "id": "eternal_icehaven_talent_freeze_extra_damage",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 21,
+      "chance": 0.1,
+      "condition": "buff.eternal_icehaven == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 9,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "eternal_icehaven_talent_freeze",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "freeze_synergy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "frozen_purification_damage",
+      "event": "BOREAS_FROZEN_PURIFICATION",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 1.8,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "frozen_purification",
+          "tags": [
+            "skill",
+            "magic",
+            "direct_damage",
+            "aoe"
+          ]
+        },
+        {
+          "type": "apply_buff",
+          "buff": "target_frozen_proxy_1s",
+          "duration": 1
+        }
+      ]
+    },
+    {
+      "id": "eternal_icehaven_purification_freeze_extra_damage",
+      "event": "BOREAS_FROZEN_PURIFICATION",
+      "priority": 20,
+      "condition": "buff.eternal_icehaven == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 3,
+          "hit_count": 1,
+          "can_crit": true,
+          "source": "eternal_icehaven_purification_freeze",
+          "tags": [
+            "ultimate",
+            "skill",
+            "magic",
+            "direct_damage",
+            "aoe",
+            "freeze_synergy"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "purification_reset_timer_normal",
+      "event": "BOREAS_FROZEN_PURIFICATION",
+      "priority": 90,
+      "condition": "buff.eternal_icehaven == false",
+      "actions": [
+        {
+          "type": "set_state",
+          "state": "frozen_purification_timer",
+          "value": 15
+        }
+      ]
+    },
+    {
+      "id": "purification_reset_timer_ultimate",
+      "event": "BOREAS_FROZEN_PURIFICATION",
+      "priority": 90,
+      "condition": "buff.eternal_icehaven == true",
+      "actions": [
+        {
+          "type": "set_state",
+          "state": "frozen_purification_timer",
+          "value": 6
+        }
+      ]
+    },
+    {
+      "id": "purification_clock_tick",
+      "event": "BOREAS_PURIFICATION_CLOCK",
+      "priority": 10,
+      "condition": "state.frozen_purification_timer > 0",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "frozen_purification_timer",
+          "value": -1
+        }
+      ]
+    },
+    {
+      "id": "purification_clock_fire",
+      "event": "BOREAS_PURIFICATION_CLOCK",
+      "priority": 20,
+      "condition": "state.frozen_purification_timer == 0",
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "BOREAS_FROZEN_PURIFICATION",
+          "delay": 0
+        }
+      ]
+    },
+    {
+      "id": "purification_clock_reschedule",
+      "event": "BOREAS_PURIFICATION_CLOCK",
+      "priority": 100,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "BOREAS_PURIFICATION_CLOCK",
+          "delay": 1
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 1000"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能建模；截图当前技能等级只保存在codex.observed_skill_levels。",
+    "白字按截图记录：HP10602、ATK4616、DEF734、MRES2357、攻击间隔2.6秒、攻击速度100、暴击率0%、暴击伤害150%、自然回怒14、普攻回怒10、受击回怒6。",
+    "魔法攻击截图4/5为115%，Lv5再+5%，故满级为120%。",
+    "霜父恩赐基础为+150%伤害/21秒/消耗1100/初始怒气700；Lv2持续+2秒、Lv3伤害+25%、Lv4持续+2秒、Lv5消耗-100，因此满级为+175%伤害/25秒/消耗1000/初始怒气700。",
+    "极寒冲击基础对冰冻目标+30%伤害；Lv2/Lv3/Lv4各+2%、Lv5+4%，故满级为+40%。",
+    "冻结之触基础160%/18秒；Lv2冷却-1、Lv3伤害+20%、Lv4冷却-1、Lv5冷却-1，因此满级为180%/15秒；永恒冰域期间基础间隔额外-9秒，即6秒，再受每次攻击-1秒影响。",
+    "当前EAIA没有目标Debuff对象，因此“目标处于冰冻时+40%伤害”使用1秒/3秒自身damage_pct Buff作为数学代理。",
+    "冻结之触动态触发时间使用1秒离散时钟模拟；每次普通攻击在永恒冰域期间使timer-1，因此比固定6秒冷却更接近技能文本，但仍存在最多约1秒量化误差。",
+    "永恒冰域的冰冻联动额外伤害未在截图展开；执行层根据公开技能资料补充：1秒冰冻按300%额外伤害、3秒冰冻按900%额外伤害，内部冷却1.5秒。",
+    "当前核心只模拟波瑞斯自身造成的冰冻；队友冰冻触发永恒冰域的团队协同没有加入，因此团队场景会低估。",
+    "recommendation_profile.category=output，确保进入输出英雄预筛选与快速组合搜索路径。"
+  ],
+  "validation_required": [
+    "确认当前国服“永恒冰域”状态说明仍为冰冻1秒约300%、3秒900%、内部冷却1.5秒；该部分来自公开资料而非本次截图展开文本。",
+    "需要扩展HeroCore引擎的真实目标状态/控制系统，替代target_frozen_proxy，使极寒冲击仅在目标实际冰冻期间生效。",
+    "需要支持动态可取消/重排技能计时器，才能无1秒量化误差地实现“冻结之触基础间隔-9秒且每次攻击再-1秒”。",
+    "群体木桩需要确认当前引擎是否已经实现target_cap与enemy_count伤害展开；若未实现，冻结之触最多10目标仍只能按单份伤害计算。",
+    "如果账号已觉醒，需要另行加入觉醒效果；本核心按0觉英雄建模。"
+  ],
+  "recommendation_profile": {
+    "category": "output"
+  },
+  "simulation_coverage": {
+    "level": "partial",
+    "implemented": [
+      "满级普通攻击120%",
+      "霜父恩赐满级175%自身增伤/25秒/1000怒气",
+      "冻结之触满级180%",
+      "冻结之触部署立即触发",
+      "普通状态15秒基础触发间隔",
+      "永恒冰域期间基础间隔额外-9秒，并按每次普通攻击继续-1秒近似动态推进",
+      "极寒冲击对冰冻目标+40%伤害的单目标代理",
+      "天赋10%冰冻概率",
+      "永恒冰域中1秒/3秒冰冻对应300%/900%额外伤害的单目标近似"
+    ],
+    "not_fully_implemented": [
+      "冻结之触最多10目标的群体伤害展开",
+      "禁疗状态对木桩无输出贡献",
+      "永恒冰域1.5秒内部冷却在多来源友方冰冻场景下的严格竞争",
+      "队友施加冰冻触发永恒冰域额外伤害",
+      "真实目标冰冻状态对象及控制免疫",
+      "1秒离散时钟对冻结之触动态减CD存在最多约1秒量化误差"
+    ]
+  }
+}

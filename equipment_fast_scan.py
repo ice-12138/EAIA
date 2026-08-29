@@ -308,8 +308,8 @@ class FastEquipmentWorkflow(EquipmentWorkflow):
     def __init__(
         self,
         *args,
-        settle_delay: float = 0.20,
-        recovery_delay: float = 0.12,
+        settle_delay: float = 0.06,
+        recovery_delay: float = 0.05,
         persistence: Callable[[dict, Path], None] | None = None,
         **kwargs,
     ):
@@ -446,19 +446,25 @@ class FastEquipmentScanner(EquipmentScanner):
         current_path = self.workflow.capture()
         current = Image.open(current_path).convert("RGB")
         try:
-            occupied_by_row = self._normalize_occupied_rows({
-                screen_row: self._row_occupied_columns(
-                    current, self.grid.y_centers[screen_row], calibration
-                )
-                for screen_row in screen_rows
-            })
+            if self.equipment_count is not None:
+                occupied_by_row = {
+                    screen_row: list(range(1, self.grid.columns + 1))
+                    for screen_row in screen_rows
+                }
+            else:
+                occupied_by_row = self._normalize_occupied_rows({
+                    screen_row: self._row_occupied_columns(
+                        current, self.grid.y_centers[screen_row], calibration
+                    )
+                    for screen_row in screen_rows
+                })
             for screen_row in screen_rows:
                 logical_row = logical_start + screen_row
                 expected = None
-                if self.scan_limit is not None:
+                if self.equipment_count is not None:
                     expected = min(
                         self.grid.columns,
-                        max(0, self.scan_limit - (logical_row - 1) * self.grid.columns),
+                        max(0, self.equipment_count - (logical_row - 1) * self.grid.columns),
                     )
                     if screen_row == screen_rows[0]:
                         expected = max(0, expected - initial_column + 1)
@@ -483,7 +489,9 @@ class FastEquipmentScanner(EquipmentScanner):
                         self._report_progress(
                             status="scanning", row=logical_row, column=column
                         )
-                        allow_unchanged = self._slot_selected(current, x, y)
+                        # Bounded scans are coordinate-driven; color must not
+                        # suppress a click at a requested position.
+                        allow_unchanged = self.equipment_count is None and self._slot_selected(current, x, y)
                         captured = self.workflow.capture_item(
                             logical_row, column, x, y,
                             allow_unchanged=allow_unchanged,
@@ -545,8 +553,8 @@ def build_fast_hdc_scanner(
     fine_recognizer: FineEquipmentRecognizer | None = None,
     persistence: Callable[[dict, Path], None] | None = None,
     *,
-    settle_delay: float = 0.20,
-    recovery_delay: float = 0.12,
+    settle_delay: float = 0.06,
+    recovery_delay: float = 0.05,
     scroll_settle_delay: float = 0.25,
     count_ocr: OcrEngine | None = None,
     count_region: Region = DEFAULT_EQUIPMENT_COUNT_REGION,
