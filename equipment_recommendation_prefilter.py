@@ -143,15 +143,32 @@ def _substat_count(item: EquipmentItem, relevant: set[str]) -> int:
     )
 
 
+def _normalize_min_relevant_substats(value: int | None, default: int) -> int:
+    """Return a safe 0..4 threshold for the four equipment sub-stat slots."""
+    if value is None:
+        return max(0, min(int(default), 4))
+    return max(0, min(int(value), 4))
+
+
 def prefilter_equipment(
     database,
     core: dict[str, Any],
     items: list[EquipmentItem],
+    *,
+    min_relevant_substats: int | None = None,
 ) -> tuple[list[EquipmentItem], dict[str, Any]]:
-    """Apply the fast role-specific prefilter before candidate ranking/simulation."""
+    """Apply the fast role-specific prefilter before candidate ranking/simulation.
+
+    ``min_relevant_substats`` is a per-request override supplied by the frontend.
+    It is clamped to 0..4 because equipment has four sub-stat positions. When it
+    is omitted, each category policy keeps its own default. Reserved categories
+    report the requested value but do not apply it until their policies exist.
+    """
     category = classify_recommendation_category(core)
     policy = policy_for(category)
     before_by_slot = Counter(item.slot.value for item in items)
+    requested_min = None if min_relevant_substats is None else max(0, min(int(min_relevant_substats), 4))
+    effective_min = _normalize_min_relevant_substats(min_relevant_substats, policy.min_relevant_substats)
 
     if not policy.implemented:
         report = {
@@ -159,6 +176,8 @@ def prefilter_equipment(
             "hero_role": (core.get("hero") or {}).get("role"),
             "policy_implemented": False,
             "strategy": "reserved_passthrough",
+            "requested_min_relevant_substats": requested_min,
+            "min_relevant_substats": None,
             "input_item_count": len(items),
             "kept_item_count": len(items),
             "removed_item_count": 0,
@@ -180,7 +199,7 @@ def prefilter_equipment(
             detail["non_output_set"].append(item.item_id)
             continue
         count = _substat_count(item, relevant_stats)
-        if count < policy.min_relevant_substats:
+        if count < effective_min:
             removed["insufficient_output_substats"] += 1
             detail["insufficient_output_substats"].append(item.item_id)
             continue
@@ -193,7 +212,9 @@ def prefilter_equipment(
         "policy_implemented": True,
         "strategy": "output_sets_then_min_output_substats",
         "set_categories": list(policy.set_categories),
-        "min_relevant_substats": policy.min_relevant_substats,
+        "requested_min_relevant_substats": requested_min,
+        "min_relevant_substats": effective_min,
+        "default_min_relevant_substats": policy.min_relevant_substats,
         "stat_category": policy.stat_category,
         "min_relevance_weight": policy.min_relevance_weight,
         "relevant_stat_types": sorted(relevant_stats),
