@@ -17,10 +17,7 @@ from typing import Iterable
 from equipment_models import EffectType, EquipmentItem, SetAscension, SetEffect
 
 
-_TRIGGER_ALIASES = {
-    "on_ultimate": "on_ult",
-}
-
+_TRIGGER_ALIASES = {"on_ultimate": "on_ult"}
 _DAMAGE_STAT_TYPES = {
     "damage_bonus": EffectType.DAMAGE_PCT,
     "basic_damage_bonus": EffectType.BASIC_DMG,
@@ -29,7 +26,6 @@ _DAMAGE_STAT_TYPES = {
     "single_damage_bonus": EffectType.SINGLE_DMG,
     "aoe_damage_bonus": EffectType.AOE_DMG,
 }
-
 _STAT_EFFECT_TYPES = {
     "atk_flat": EffectType.ATK_FLAT,
     "atk_pct": EffectType.ATK_PCT,
@@ -44,16 +40,9 @@ _STAT_EFFECT_TYPES = {
     "healing_effect": EffectType.HEALING_EFFECT,
     "penetration": EffectType.PENETRATION,
 }
-
-# JSON carried in the historical ``condition`` column is sometimes effect
-# metadata rather than a boolean activation condition. These keys describe how
-# the already-resolved value is interpreted and must not prevent a passive from
-# becoming an always-on effect.
 _METADATA_CONDITION_KEYS = {
-    "formula", "max_hero_level",
-    "scaling_source", "damage_type",
-    "ignore_def", "ignore_mres",
-    "from", "to",
+    "formula", "max_hero_level", "scaling_source", "damage_type",
+    "ignore_def", "ignore_mres", "from", "to",
 }
 
 
@@ -65,7 +54,6 @@ def _row_value(row, key: str, default=None):
 
 
 def load_set_evolutions(database) -> dict[str, str]:
-    """Return all configured T1 -> T2 set mappings."""
     try:
         rows = database.connection.execute(
             "SELECT from_set_id, to_set_id FROM set_evolutions ORDER BY from_set_id, to_set_id"
@@ -83,7 +71,6 @@ def load_set_names(database) -> dict[str, str]:
 
 
 def _effect_enabled(row) -> bool:
-    """Legacy V1.1/classic-optimizer enable flag."""
     keys = set(row.keys()) if hasattr(row, "keys") else set()
     if "enabled_in_optimizer" in keys and _row_value(row, "enabled_in_optimizer") is not None:
         return bool(_row_value(row, "enabled_in_optimizer"))
@@ -110,20 +97,16 @@ def _condition_is_runtime_gate(row) -> bool:
         return False
     if payload is None:
         return True
-    keys = set(payload)
-    # Pure metadata objects describe effect scaling/type, not activation.
-    return not keys.issubset(_METADATA_CONDITION_KEYS)
+    return not set(payload).issubset(_METADATA_CONDITION_KEYS)
 
 
 def _normalize_effect_type(row) -> EffectType | None:
     raw_effect = str(_row_value(row, "effect_type", "") or "").strip()
     raw_stat = str(_row_value(row, "stat_type", "") or "").strip().lower()
-
     try:
         return EffectType(raw_effect.upper())
     except ValueError:
         pass
-
     raw_effect_lower = raw_effect.lower()
     if raw_effect_lower == "stat_mod":
         return _STAT_EFFECT_TYPES.get(raw_stat)
@@ -141,12 +124,25 @@ def _normalize_trigger(row, effect_type: EffectType) -> str:
     trigger = _TRIGGER_ALIASES.get(trigger, trigger)
     duration = float(_row_value(row, "duration", 0) or 0)
     runtime_condition = _condition_is_runtime_gate(row)
-
     if not runtime_condition and trigger in {"passive", "while_deployed"}:
         return "always"
     if not runtime_condition and trigger == "on_deploy" and duration <= 0:
         return "always"
     return trigger
+
+
+def _normalized_condition(row, effect_type: EffectType) -> str | None:
+    text, _ = _condition_payload(row)
+    if not text:
+        return None
+    if _condition_is_runtime_gate(row):
+        return text
+    # Stat conversion needs its source/target metadata at execution time.
+    if effect_type == EffectType.STAT_CONVERSION:
+        return text
+    # Other metadata conditions merely explain the already-resolved value
+    # (Insight 10*Lv60=600, max-HP true damage, penetration semantics, etc.).
+    return None
 
 
 def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool) -> list[SetEffect]:
@@ -158,46 +154,35 @@ def _load_normalized_set_effects(database, *, respect_legacy_enable_flags: bool)
         effect_type = _normalize_effect_type(row)
         if effect_type is None:
             continue
-        trigger = _normalize_trigger(row, effect_type)
-        condition, _ = _condition_payload(row)
-        result.append(
-            SetEffect(
-                set_id=str(_row_value(row, "set_id")),
-                effect_id=str(_row_value(row, "effect_id")),
-                effect_type=effect_type,
-                value=float(_row_value(row, "value", 0) or 0),
-                applies_to=str(_row_value(row, "applies_to", "all") or "all"),
-                trigger=trigger,
-                duration=(None if _row_value(row, "duration") is None else float(_row_value(row, "duration") or 0)),
-                max_stacks=max(1, int(_row_value(row, "max_stacks", 1) or 1)),
-                stack_rule=str(_row_value(row, "stack_rule", "add") or "add"),
-                proc_chance=float(_row_value(row, "proc_chance", 1) or 0),
-                internal_cd=float(_row_value(row, "internal_cd", 0) or 0),
-                condition=condition,
-                approximate=bool(_row_value(row, "approximate", 0)),
-                requires_dot=bool(_row_value(row, "requires_dot", 0)),
-                enabled_in_v1_1=True,
-            )
-        )
+        result.append(SetEffect(
+            set_id=str(_row_value(row, "set_id")),
+            effect_id=str(_row_value(row, "effect_id")),
+            effect_type=effect_type,
+            value=float(_row_value(row, "value", 0) or 0),
+            applies_to=str(_row_value(row, "applies_to", "all") or "all"),
+            trigger=_normalize_trigger(row, effect_type),
+            duration=(None if _row_value(row, "duration") is None else float(_row_value(row, "duration") or 0)),
+            max_stacks=max(1, int(_row_value(row, "max_stacks", 1) or 1)),
+            stack_rule=str(_row_value(row, "stack_rule", "add") or "add"),
+            proc_chance=float(_row_value(row, "proc_chance", 1) or 0),
+            internal_cd=float(_row_value(row, "internal_cd", 0) or 0),
+            condition=_normalized_condition(row, effect_type),
+            approximate=bool(_row_value(row, "approximate", 0)),
+            requires_dot=bool(_row_value(row, "requires_dot", 0)),
+            enabled_in_v1_1=True,
+        ))
     return result
 
 
 def load_legacy_optimizer_set_effects(database) -> list[SetEffect]:
-    """Normalize only rows enabled for the historical V1.1 simulator."""
     return _load_normalized_set_effects(database, respect_legacy_enable_flags=True)
 
 
 def load_optimizer_set_effects(database) -> list[SetEffect]:
-    """Return all semantically normalizable current set effects.
-
-    Historical ``enabled_in_optimizer``/``enabled_in_v1_1`` flags described
-    implementation gaps in the old simulator; they are not game-state flags.
-    """
     return _load_normalized_set_effects(database, respect_legacy_enable_flags=False)
 
 
 def load_hero_core_set_effects(database) -> list[SetEffect]:
-    """Alias documenting the full-catalog HeroCore intent."""
     return load_optimizer_set_effects(database)
 
 
@@ -206,22 +191,18 @@ def iter_ascension_variants(
     evolutions: dict[str, str],
     set_names: dict[str, str] | None = None,
 ) -> Iterable[tuple[tuple[EquipmentItem, ...], tuple[SetAscension, ...]]]:
-    """Yield mechanically distinct current/T2 states for one physical build."""
     set_names = set_names or {}
     groups: dict[tuple[str, str], list[int]] = defaultdict(list)
     for index, item in enumerate(items):
         target = evolutions.get(item.set_id)
         if target:
             groups[(item.set_id, target)].append(index)
-
     if not groups:
         yield items, ()
         return
-
     ordered_groups = sorted(groups.items(), key=lambda entry: entry[0])
     ranges = [range(len(indices) + 1) for _, indices in ordered_groups]
     seen_states: set[tuple[str, ...]] = set()
-
     for counts in product(*ranges):
         variant = list(items)
         ascensions: list[SetAscension] = []
@@ -229,16 +210,14 @@ def iter_ascension_variants(
             for index in indices[:count]:
                 original = variant[index]
                 variant[index] = replace(original, set_id=to_set)
-                ascensions.append(
-                    SetAscension(
-                        item_id=original.item_id,
-                        slot=original.slot.value,
-                        from_set_id=from_set,
-                        to_set_id=to_set,
-                        from_set_name=set_names.get(from_set, from_set),
-                        to_set_name=set_names.get(to_set, to_set),
-                    )
-                )
+                ascensions.append(SetAscension(
+                    item_id=original.item_id,
+                    slot=original.slot.value,
+                    from_set_id=from_set,
+                    to_set_id=to_set,
+                    from_set_name=set_names.get(from_set, from_set),
+                    to_set_name=set_names.get(to_set, to_set),
+                ))
         state = tuple(item.set_id for item in variant)
         if state in seen_states:
             continue
