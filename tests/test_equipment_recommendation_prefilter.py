@@ -48,8 +48,43 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
                 self.assertEqual([row.item_id for row in kept], ["GOOD"])
                 self.assertEqual(report["category"], "output")
                 self.assertEqual(report["min_relevant_substats"], 2)
+                self.assertEqual(report["default_min_relevant_substats"], 2)
+                self.assertIsNone(report["requested_min_relevant_substats"])
                 self.assertEqual(report["removed_by_reason"]["non_output_set"], 1)
                 self.assertEqual(report["removed_by_reason"]["insufficient_output_substats"], 1)
+            finally:
+                database.close()
+
+    def test_output_threshold_can_be_overridden_per_request(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = EquipmentDatabase(Path(directory) / "equipment.db")
+            try:
+                database.initialize()
+                items = [
+                    item("ONE", "weapon", "set_calamity", [(StatType.ATK_PCT, 0.1), (StatType.HP_PCT, 0.1)]),
+                    item("TWO", "armor", "set_calamity", [(StatType.ATK_PCT, 0.1), (StatType.CRIT_RATE, 0.1)]),
+                    item("THREE", "bracelet", "set_insight", [(StatType.ATK_PCT, 0.1), (StatType.CRIT_RATE, 0.1), (StatType.CRIT_DMG, 0.1)]),
+                ]
+                kept_one, report_one = prefilter_equipment(
+                    database, {"hero": {"role": "战士"}}, items, min_relevant_substats=1
+                )
+                self.assertEqual({row.item_id for row in kept_one}, {"ONE", "TWO", "THREE"})
+                self.assertEqual(report_one["requested_min_relevant_substats"], 1)
+                self.assertEqual(report_one["min_relevant_substats"], 1)
+
+                kept_three, report_three = prefilter_equipment(
+                    database, {"hero": {"role": "战士"}}, items, min_relevant_substats=3
+                )
+                self.assertEqual([row.item_id for row in kept_three], ["THREE"])
+                self.assertEqual(report_three["requested_min_relevant_substats"], 3)
+                self.assertEqual(report_three["min_relevant_substats"], 3)
+
+                kept_four, report_four = prefilter_equipment(
+                    database, {"hero": {"role": "战士"}}, items, min_relevant_substats=99
+                )
+                self.assertEqual(kept_four, [])
+                self.assertEqual(report_four["requested_min_relevant_substats"], 4)
+                self.assertEqual(report_four["min_relevant_substats"], 4)
             finally:
                 database.close()
 
@@ -59,11 +94,18 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
             try:
                 database.initialize()
                 items = [item("A", "weapon", "set_calamity", [(StatType.ATK_PCT, 0.1)])]
-                kept, report = prefilter_equipment(database, {"hero": {"role": "守护者"}}, items)
+                kept, report = prefilter_equipment(
+                    database,
+                    {"hero": {"role": "守护者"}},
+                    items,
+                    min_relevant_substats=4,
+                )
                 self.assertEqual(kept, items)
                 self.assertEqual(report["category"], "tank")
                 self.assertFalse(report["policy_implemented"])
                 self.assertEqual(report["strategy"], "reserved_passthrough")
+                self.assertEqual(report["requested_min_relevant_substats"], 4)
+                self.assertIsNone(report["min_relevant_substats"])
             finally:
                 database.close()
 
