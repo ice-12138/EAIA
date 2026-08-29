@@ -9,11 +9,100 @@ const visible = computed(() => route.value === 'recommendation')
 const setsOnly = ref(localStorage.getItem('eaia-sets-only') === '1')
 watch(setsOnly, value => localStorage.setItem('eaia-sets-only', value ? '1' : '0'))
 
+const ANCIENT_QUALITY_CHOICES = [
+  {
+    quality_id: 'ancient_legendary_gold',
+    quality_name: '上古传说',
+    quality_rank: 3.5,
+    max_enhancement_level: 12,
+    has_special_roll_rule: 1,
+    notes: '上古前缀；强化上限与主词条上限沿用传说品质。',
+  },
+  {
+    quality_id: 'ancient_mythic_red',
+    quality_name: '上古神话',
+    quality_rank: 4.5,
+    max_enhancement_level: 16,
+    has_special_roll_rule: 1,
+    notes: '上古前缀；强化上限与主词条上限沿用神话品质。',
+  },
+]
+const BASE_QUALITY_IDS = new Set(['rare_blue', 'epic_purple', 'legendary_gold', 'mythic_red'])
+
+function normalizedEquipmentPayload(payload) {
+  const root = { ...payload }
+  const wrapped = root.values && typeof root.values === 'object'
+  const values = { ...(wrapped ? root.values : root) }
+  if (values.quality_id === 'ancient_legendary_gold') {
+    values.quality_id = 'legendary_gold'
+    values.is_ancient = true
+  } else if (values.quality_id === 'ancient_mythic_red') {
+    values.quality_id = 'mythic_red'
+    values.is_ancient = true
+  } else if (BASE_QUALITY_IDS.has(values.quality_id)) {
+    values.is_ancient = false
+  }
+  if (Array.isArray(values.stats)) {
+    values.stats = values.stats.map((stat, index) => {
+      const valuePresent = stat?.stat_value !== null && stat?.stat_value !== undefined && stat?.stat_value !== ''
+      return {
+        ...stat,
+        stat_type: stat?.stat_type ? String(stat.stat_type).toUpperCase() : stat?.stat_type,
+        is_unlocked: index === 0 || valuePresent,
+      }
+    })
+  }
+  if (wrapped) {
+    root.values = values
+    return root
+  }
+  return values
+}
+
+function augmentedCatalog(data) {
+  const result = { ...data }
+  result.gear_qualities = [...(data.gear_qualities || [])]
+  for (const quality of ANCIENT_QUALITY_CHOICES) {
+    if (!result.gear_qualities.some(row => row.quality_id === quality.quality_id)) {
+      result.gear_qualities.push(quality)
+    }
+  }
+  // equipment_stats uses canonical uppercase StatType identifiers while the
+  // V2.2 dictionary seed stores lower-case IDs.  The editor select must use
+  // the canonical IDs or an existing item appears to have blank stat names.
+  result.stat_definitions = (data.stat_definitions || []).map(row => ({
+    ...row,
+    stat_type: row.stat_type ? String(row.stat_type).toUpperCase() : row.stat_type,
+  }))
+  return result
+}
+
+function replacedJsonResponse(response, payload) {
+  const headers = new Headers(response.headers)
+  headers.set('Content-Type', 'application/json; charset=utf-8')
+  headers.delete('Content-Length')
+  return new Response(JSON.stringify(payload), {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  })
+}
+
 const nativeFetch = window.fetch.bind(window)
 const enhancedFetch = async (input, init = {}) => {
   const url = typeof input === 'string' ? input : input?.url || ''
-  const isRecommendation = url.includes('/api/hero-core/recommend')
+  const method = String(init?.method || 'GET').toUpperCase()
   const hasBody = init?.body && typeof init.body === 'string'
+
+  if (url.includes('/api/manage/equipment') && ['POST', 'PATCH'].includes(method) && hasBody) {
+    try {
+      init = { ...init, body: JSON.stringify(normalizedEquipmentPayload(JSON.parse(init.body))) }
+    } catch {
+      // Preserve the original request when the body is not JSON.
+    }
+  }
+
+  const isRecommendation = url.includes('/api/hero-core/recommend')
   if (setsOnly.value && isRecommendation && hasBody) {
     try {
       const payload = JSON.parse(init.body)
@@ -24,7 +113,17 @@ const enhancedFetch = async (input, init = {}) => {
       // Keep the original request untouched if it is not JSON.
     }
   }
-  return nativeFetch(input, init)
+
+  const response = await nativeFetch(input, init)
+  if (response.ok && url.includes('/api/catalog')) {
+    try {
+      const data = await response.clone().json()
+      return replacedJsonResponse(response, augmentedCatalog(data))
+    } catch {
+      return response
+    }
+  }
+  return response
 }
 window.fetch = enhancedFetch
 
@@ -277,5 +376,10 @@ onUnmounted(() => {
 .hero-add select,.team-grid input{min-width:0;width:100%;box-sizing:border-box;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:#202632;color:#f6f7fb;padding:8px}.hero-add select{flex:1}.hero-add button{padding:8px 12px}
 .team-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:12px}.team-grid label{display:grid;gap:5px;font-size:12px;color:#b9c1d0}.team-grid .wide{grid-column:1/-1}.run-team{width:100%;margin-top:12px;border:0;border-radius:10px;padding:11px;font-weight:700;color:white;background:#5d7df5;cursor:pointer}.run-team:disabled{opacity:.5;cursor:default}.team-error{margin:10px 0 0;color:#ff9999;font-size:13px}
 .team-result{display:grid;gap:10px;margin-top:14px}.team-result>header{align-items:flex-start;flex-direction:column;gap:2px;padding-top:12px;border-top:1px solid rgba(255,255,255,.1)}.team-result article{padding:10px;border-radius:11px;background:rgba(255,255,255,.045)}.result-hero-head{gap:8px}.result-hero-head>span{display:grid;gap:1px}.result-sets{display:flex;gap:8px;margin:8px 0;font-size:12px;color:#b9c1d0}.result-items{display:grid;gap:3px;font-size:12px;color:#d8deea}
+/* UnifiedWorkspace's single-hero form lives inside this wrapper.  Prevent the
+   two numeric inputs from preserving their intrinsic width and overlapping. */
+:deep(.config-card .two-cols){grid-template-columns:minmax(0,1fr) minmax(0,1fr)}
+:deep(.config-card .two-cols>label){min-width:0}
+:deep(.config-card .two-cols input),:deep(.config-card .two-cols select){width:100%;min-width:0;max-width:100%}
 @media(max-width:720px){.team-enhancement{right:12px;bottom:12px;width:calc(100vw - 24px);max-height:70vh}}
 </style>
