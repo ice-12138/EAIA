@@ -24,7 +24,7 @@ def item(item_id, slot, set_id, substats):
 
 
 class EquipmentRecommendationPrefilterTests(unittest.TestCase):
-    def test_role_classifier_and_reserved_interfaces(self):
+    def test_role_classifier_and_profile_override(self):
         self.assertEqual(classify_recommendation_category({"hero": {"role": "战士"}}), RecommendationCategory.OUTPUT)
         self.assertEqual(classify_recommendation_category({"hero": {"role": "守护者"}}), RecommendationCategory.TANK)
         self.assertEqual(classify_recommendation_category({"hero": {"role": "医师"}}), RecommendationCategory.HEALING)
@@ -78,34 +78,65 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
                 self.assertEqual([row.item_id for row in kept_three], ["THREE"])
                 self.assertEqual(report_three["requested_min_relevant_substats"], 3)
                 self.assertEqual(report_three["min_relevant_substats"], 3)
-
-                kept_four, report_four = prefilter_equipment(
-                    database, {"hero": {"role": "战士"}}, items, min_relevant_substats=99
-                )
-                self.assertEqual(kept_four, [])
-                self.assertEqual(report_four["requested_min_relevant_substats"], 4)
-                self.assertEqual(report_four["min_relevant_substats"], 4)
             finally:
                 database.close()
 
-    def test_tank_policy_is_reserved_passthrough_for_now(self):
+    def test_tank_policy_uses_profile_and_defense_sets(self):
         with tempfile.TemporaryDirectory() as directory:
             database = EquipmentDatabase(Path(directory) / "equipment.db")
             try:
                 database.initialize()
-                items = [item("A", "weapon", "set_calamity", [(StatType.ATK_PCT, 0.1)])]
-                kept, report = prefilter_equipment(
-                    database,
-                    {"hero": {"role": "守护者"}},
-                    items,
-                    min_relevant_substats=4,
+                database.connection.execute(
+                    """INSERT OR REPLACE INTO sets
+                       (set_id,set_name,required_pieces,slot_group,output_set,category_id,active)
+                       VALUES ('TEST_DEF','测试防御',99,NULL,0,'defense',1)"""
                 )
-                self.assertEqual(kept, items)
-                self.assertEqual(report["category"], "tank")
-                self.assertFalse(report["policy_implemented"])
-                self.assertEqual(report["strategy"], "reserved_passthrough")
-                self.assertEqual(report["requested_min_relevant_substats"], 4)
-                self.assertIsNone(report["min_relevant_substats"])
+                database.connection.execute(
+                    """INSERT OR REPLACE INTO sets
+                       (set_id,set_name,required_pieces,slot_group,output_set,category_id,active)
+                       VALUES ('TEST_OUT','测试输出',99,NULL,1,'output',1)"""
+                )
+                database.connection.commit()
+                items = [
+                    item("DEF", "weapon", "TEST_DEF", [(StatType.DEF_PCT, 0.1), (StatType.HP_PCT, 0.1)]),
+                    item("OUT", "armor", "TEST_OUT", [(StatType.ATK_PCT, 0.2), (StatType.CRIT_RATE, 0.2)]),
+                ]
+                core = {
+                    "hero": {"role": "守护者"},
+                    "recommendation_profile": {
+                        "category": "tank",
+                        "primary_scaling_stat": "DEF",
+                    },
+                }
+                kept, report = prefilter_equipment(database, core, items, min_relevant_substats=1)
+                self.assertEqual([row.item_id for row in kept], ["DEF"])
+                self.assertTrue(report["policy_implemented"])
+                self.assertEqual(report["primary_scaling_stat"], "DEF")
+                self.assertEqual(report["archetype"], "defense")
+                self.assertIn("DEF_PCT", report["relevant_stat_types"])
+                self.assertEqual(report["strategy"], "profile_sets_then_min_relevant_substats")
+            finally:
+                database.close()
+
+    def test_healing_profile_can_select_attack_or_hp_scaling(self):
+        with tempfile.TemporaryDirectory() as directory:
+            database = EquipmentDatabase(Path(directory) / "equipment.db")
+            try:
+                database.initialize()
+                attack_core = {
+                    "hero": {"role": "医师"},
+                    "recommendation_profile": {"category": "healing", "primary_scaling_stat": "ATK"},
+                }
+                hp_core = {
+                    "hero": {"role": "医师"},
+                    "recommendation_profile": {"category": "healing", "primary_scaling_stat": "HP"},
+                }
+                _, attack_report = prefilter_equipment(database, attack_core, [], min_relevant_substats=1)
+                _, hp_report = prefilter_equipment(database, hp_core, [], min_relevant_substats=1)
+                self.assertEqual(attack_report["archetype"], "attack")
+                self.assertEqual(hp_report["archetype"], "hp")
+                self.assertIn("ATK_PCT", attack_report["relevant_stat_types"])
+                self.assertIn("HP_PCT", hp_report["relevant_stat_types"])
             finally:
                 database.close()
 

@@ -1,9 +1,4 @@
-"""Fast role-aware equipment prefilter for HeroCore recommendations.
-
-Only the output policy is enabled today. Tank/healing/support policies are
-classified and exposed as extension points, but intentionally remain pass-through
-until their game-specific rules are defined.
-"""
+"""Role-aware equipment prefilter for HeroCore recommendations."""
 from __future__ import annotations
 
 from collections import Counter, defaultdict
@@ -12,6 +7,7 @@ from enum import StrEnum
 from typing import Any
 
 from equipment_models import EquipmentItem
+from equipment_recommendation_profile import resolve_recommendation_profile, relevant_stat_types
 from equipment_set_variants import load_set_evolutions
 
 
@@ -33,17 +29,6 @@ class PrefilterPolicy:
     min_relevant_substats: int = 0
 
 
-_POLICIES = {
-    RecommendationCategory.OUTPUT: PrefilterPolicy(
-        RecommendationCategory.OUTPUT, True, ("output",), "output", 0.60, 2
-    ),
-    # Reserved interfaces. Do not guess these rules before the user defines them.
-    RecommendationCategory.TANK: PrefilterPolicy(RecommendationCategory.TANK, False, ("defense",)),
-    RecommendationCategory.HEALING: PrefilterPolicy(RecommendationCategory.HEALING, False, ("healing",)),
-    RecommendationCategory.SUPPORT: PrefilterPolicy(RecommendationCategory.SUPPORT, False, ("buff",)),
-    RecommendationCategory.UNCLASSIFIED: PrefilterPolicy(RecommendationCategory.UNCLASSIFIED, False),
-}
-
 _OUTPUT_ROLES = {"战士", "法师", "射手", "fighter", "mage", "marksman", "ranger"}
 _TANK_ROLES = {"守护者", "defender", "guardian", "tank"}
 _HEALING_ROLES = {"医师", "healer", "medic"}
@@ -51,12 +36,6 @@ _SUPPORT_ROLES = {"战术大师", "support", "tactician", "tactical master"}
 
 
 def classify_recommendation_category(core: dict[str, Any]) -> RecommendationCategory:
-    """Classify a HeroCore into an equipment recommendation category.
-
-    An explicit ``recommendation_profile.category`` or ``hero.equipment_category``
-    always wins. This is the stable interface for future tank/healer/support
-    implementations. Role mapping is only a fallback.
-    """
     explicit = (
         (core.get("recommendation_profile") or {}).get("category")
         or (core.get("hero") or {}).get("equipment_category")
@@ -80,11 +59,21 @@ def classify_recommendation_category(core: dict[str, Any]) -> RecommendationCate
     return RecommendationCategory.UNCLASSIFIED
 
 
-def policy_for(category: RecommendationCategory) -> PrefilterPolicy:
-    return _POLICIES[category]
+def policy_for(category: RecommendationCategory, core: dict[str, Any] | None = None) -> PrefilterPolicy:
+    if category == RecommendationCategory.UNCLASSIFIED:
+        return PrefilterPolicy(category, False)
+    profile = resolve_recommendation_profile(core or {"recommendation_profile": {"category": category.value}})
+    return PrefilterPolicy(
+        category=category,
+        implemented=True,
+        set_categories=tuple(profile.get("set_categories") or ()),
+        stat_category=str(profile.get("stat_category") or category.value),
+        min_relevance_weight=float(profile.get("min_relevance_weight", 0.60)),
+        min_relevant_substats=int(profile.get("min_relevant_substats", 0)),
+    )
 
 
-def _set_category_rows(database) -> dict[str, tuple[str | None, bool]]:
+def _set_category_rows(database) -> dict[str, tuple[str | None, bool, bool]]:
     columns = {row[1] for row in database.connection.execute("PRAGMA table_info(sets)").fetchall()}
     category_expr = "category_id" if "category_id" in columns else "NULL"
     active_expr = "active" if "active" in columns else "1"
@@ -94,7 +83,8 @@ def _set_category_rows(database) -> dict[str, tuple[str | None, bool]]:
     return {
         str(row["set_id"]): (
             None if row["category_id"] is None else str(row["category_id"]).lower(),
-            bool(row["active"]) and bool(row["output_set"]),
+            bool(row["active"]),
+            bool(row["output_set"]),
         )
         for row in rows
     }
@@ -104,36 +94,31 @@ def _allowed_sets(database, policy: PrefilterPolicy) -> set[str]:
     rows = _set_category_rows(database)
     allowed = {
         set_id
-        for set_id, (category, legacy_output) in rows.items()
-        if category in policy.set_categories
-        or (category is None and policy.category == RecommendationCategory.OUTPUT and legacy_output)
+        for set_id, (category, active, legacy_output) in rows.items()
+        if active and (
+            category in policy.set_categories
+            or (category is None and policy.category == RecommendationCategory.OUTPUT and legacy_output)
+        )
     }
-    # Keep an evolvable T1 source if its reachable T2 belongs to the same allowed
-    # category. This protects T1 -> T2 recommendation without admitting unrelated sets.
     for source, target in load_set_evolutions(database).items():
         if target in allowed:
             allowed.add(source)
     return allowed
 
 
-def _relevant_stat_types(database, policy: PrefilterPolicy) -> set[str]:
-    if not policy.stat_category:
-        return set()
-    try:
-        rows = database.connection.execute(
-            """SELECT stat_type,relevance_weight FROM stat_category_map
-               WHERE category_id=? AND relevance_weight>=?""",
-            (policy.stat_category, policy.min_relevance_weight),
-        ).fetchall()
-        values = {str(row["stat_type"]).upper() for row in rows}
-        if values:
-            return values
-    except Exception:
-        pass
-    # Defensive fallback matching the current output dictionary semantics.
-    if policy.category == RecommendationCategory.OUTPUT:
-        return {"ATK_FLAT", "ATK_PCT", "CRIT_RATE", "CRIT_DMG", "ATK_SPEED", "RAGE_REGEN"}
-    return set()
+def _relevant_stat_types(database, policy: PrefilterPolicy, profile: dict[str, Any]) -> set[str]:
+    values = set(relevant_stat_types(profile))
+    if policy.stat_category:
+        try:
+            rows = database.connection.execute(
+                """SELECT stat_type,relevance_weight FROM stat_category_map
+                   WHERE category_id=? AND relevance_weight>=?""",
+                (policy.stat_category, policy.min_relevance_weight),
+            ).fetchall()
+            values.update(str(row["stat_type"]).upper() for row in rows)
+        except Exception:
+            pass
+    return values
 
 
 def _substat_count(item: EquipmentItem, relevant: set[str]) -> int:
@@ -144,7 +129,6 @@ def _substat_count(item: EquipmentItem, relevant: set[str]) -> int:
 
 
 def _normalize_min_relevant_substats(value: int | None, default: int) -> int:
-    """Return a safe 0..4 threshold for the four equipment sub-stat slots."""
     if value is None:
         return max(0, min(int(default), 4))
     return max(0, min(int(value), 4))
@@ -157,25 +141,17 @@ def prefilter_equipment(
     *,
     min_relevant_substats: int | None = None,
 ) -> tuple[list[EquipmentItem], dict[str, Any]]:
-    """Apply the fast role-specific prefilter before candidate ranking/simulation.
-
-    ``min_relevant_substats`` is a per-request override supplied by the frontend.
-    It is clamped to 0..4 because equipment has four sub-stat positions. When it
-    is omitted, each category policy keeps its own default. Reserved categories
-    report the requested value but do not apply it until their policies exist.
-    """
+    """Filter by role-compatible set categories and profile-relevant substats."""
     category = classify_recommendation_category(core)
-    policy = policy_for(category)
     before_by_slot = Counter(item.slot.value for item in items)
     requested_min = None if min_relevant_substats is None else max(0, min(int(min_relevant_substats), 4))
-    effective_min = _normalize_min_relevant_substats(min_relevant_substats, policy.min_relevant_substats)
 
-    if not policy.implemented:
-        report = {
+    if category == RecommendationCategory.UNCLASSIFIED:
+        return list(items), {
             "category": category.value,
             "hero_role": (core.get("hero") or {}).get("role"),
             "policy_implemented": False,
-            "strategy": "reserved_passthrough",
+            "strategy": "unclassified_passthrough",
             "requested_min_relevant_substats": requested_min,
             "min_relevant_substats": None,
             "input_item_count": len(items),
@@ -184,33 +160,39 @@ def prefilter_equipment(
             "before_by_slot": dict(sorted(before_by_slot.items())),
             "after_by_slot": dict(sorted(before_by_slot.items())),
             "removed_by_reason": {},
-            "reserved_categories": ["tank", "healing", "support"],
         }
-        return list(items), report
 
+    profile = resolve_recommendation_profile(core)
+    policy = policy_for(category, core)
+    effective_min = _normalize_min_relevant_substats(min_relevant_substats, policy.min_relevant_substats)
     allowed_sets = _allowed_sets(database, policy)
-    relevant_stats = _relevant_stat_types(database, policy)
+    relevant_stats = _relevant_stat_types(database, policy, profile)
+
     kept: list[EquipmentItem] = []
     removed = Counter()
     detail = defaultdict(list)
     for item in items:
         if item.set_id not in allowed_sets:
-            removed["non_output_set"] += 1
-            detail["non_output_set"].append(item.item_id)
+            reason = f"non_{category.value}_set"
+            removed[reason] += 1
+            detail[reason].append(item.item_id)
             continue
         count = _substat_count(item, relevant_stats)
         if count < effective_min:
-            removed["insufficient_output_substats"] += 1
-            detail["insufficient_output_substats"].append(item.item_id)
+            reason = f"insufficient_{category.value}_substats"
+            removed[reason] += 1
+            detail[reason].append(item.item_id)
             continue
         kept.append(item)
 
     after_by_slot = Counter(item.slot.value for item in kept)
-    report = {
+    return kept, {
         "category": category.value,
         "hero_role": (core.get("hero") or {}).get("role"),
         "policy_implemented": True,
-        "strategy": "output_sets_then_min_output_substats",
+        "strategy": "profile_sets_then_min_relevant_substats",
+        "archetype": profile.get("archetype"),
+        "primary_scaling_stat": profile.get("primary_scaling_stat"),
         "set_categories": list(policy.set_categories),
         "requested_min_relevant_substats": requested_min,
         "min_relevant_substats": effective_min,
@@ -226,6 +208,5 @@ def prefilter_equipment(
         "after_by_slot": dict(sorted(after_by_slot.items())),
         "removed_by_reason": dict(sorted(removed.items())),
         "removed_item_ids": {key: sorted(value) for key, value in sorted(detail.items())},
-        "reserved_categories": ["tank", "healing", "support"],
+        "recommendation_profile": profile,
     }
-    return kept, report
