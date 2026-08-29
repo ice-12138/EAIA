@@ -16,6 +16,15 @@ EQUIPMENT_STAT_TYPES = (
     "ATK_FLAT", "ATK_PCT", "HP_FLAT", "HP_PCT", "DEF_FLAT", "DEF_PCT",
     "CRIT_RATE", "CRIT_DMG", "ATK_SPEED", "RAGE_REGEN", "HEALING_EFFECT",
 )
+# Ancient gear is a prefix/variant of Legendary or Mythic rather than a new
+# enhancement curve.  The UI exposes explicit choices while persistence keeps
+# the canonical base quality plus equipment.is_ancient so main-stat caps remain
+# tied to the verified base-quality data.
+ANCIENT_QUALITY_CHOICES = {
+    "ancient_legendary_gold": ("legendary_gold", "上古传说"),
+    "ancient_mythic_red": ("mythic_red", "上古神话"),
+}
+ANCIENT_UI_BY_BASE = {base: (virtual, name) for virtual, (base, name) in ANCIENT_QUALITY_CHOICES.items()}
 RESOURCE_SPECS={
 "equipment_categories":spec("装备类型","装备字典","输出、防御、治疗、增益等装备大类。",[f("category_id","类型ID"),f("category_name","类型名称"),f("description","说明",TXT),f("sort_order","显示顺序",NUM)]),
 "equipment_slots":spec("装备部位","装备字典","武器、护甲、手镯、项链、戒指。",[f("slot_id","部位ID"),f("slot_name","部位名称"),f("slot_group","区域"),f("set_piece_group","套装计件组",NUM),f("sort_order","显示顺序",NUM),f("notes","备注",TXT)]),
@@ -132,7 +141,7 @@ def _annotate_hero_core_calculability(db, rows):
     """Annotate inventory rows with the same projection gate used by HeroCore."""
     from optimizer_projection import OptimizerEquipmentDatabase
 
-    optimizer = OptimizerEquipmentDatabase(db, percentile=0.90)
+    optimizer = OptimizerEquipmentDatabase(db, percentile=0.60)
     try:
         optimizer.initialize()
         calculable_ids = {item.item_id for item in optimizer.load_equipment()}
@@ -156,19 +165,48 @@ def _annotate_hero_core_calculability(db, rows):
 
 def list_equipment(db):
     with _connect(db) as c:
-        q="""SELECT e.item_id,COALESCE(e.slot_id,e.slot) slot_id,sl.slot_name,e.set_id,s.set_name,COALESCE(e.quality_id,e.tier) quality_id,q.quality_name,COALESCE(e.enhancement_level,e.level,0) enhancement_level,COALESCE(e.item_locked,e.locked,0) locked,e.available,e.equipped_hero_id,e.source,e.notes,COALESCE(e.is_ancient,0) is_ancient FROM equipment e LEFT JOIN equipment_slots sl ON sl.slot_id=COALESCE(e.slot_id,e.slot) LEFT JOIN sets s ON s.set_id=e.set_id LEFT JOIN gear_qualities q ON q.quality_id=COALESCE(e.quality_id,e.tier) ORDER BY e.item_id"""
+        q="""SELECT e.item_id,COALESCE(e.slot_id,e.slot) slot_id,sl.slot_name,e.set_id,s.set_name,
+                    COALESCE(e.quality_id,e.tier) quality_id,q.quality_name,
+                    COALESCE(e.enhancement_level,e.level,0) enhancement_level,
+                    COALESCE(e.item_locked,e.locked,0) locked,e.available,e.equipped_hero_id,e.source,e.notes,
+                    CASE WHEN COALESCE(e.is_ancient,0)=1 OR instr(COALESCE(er.quality_text,''),'上古')>0 THEN 1 ELSE 0 END is_ancient
+             FROM equipment e
+             LEFT JOIN equipment_slots sl ON sl.slot_id=COALESCE(e.slot_id,e.slot)
+             LEFT JOIN sets s ON s.set_id=e.set_id
+             LEFT JOIN gear_qualities q ON q.quality_id=COALESCE(e.quality_id,e.tier)
+             LEFT JOIN equipment_recognition er ON er.item_id=e.item_id
+             ORDER BY e.item_id"""
         items={x["item_id"]:{**dict(x),"stats":[]} for x in c.execute(q)}
-        names={x["stat_type"]:x["stat_name"] for x in c.execute("SELECT stat_type,stat_name FROM stat_definitions")}
+        names={str(x["stat_type"]).casefold():x["stat_name"] for x in c.execute("SELECT stat_type,stat_name FROM stat_definitions")}
         for x in c.execute("SELECT item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes FROM equipment_stats ORDER BY item_id,stat_index"):
             if x["item_id"] in items:
-                st=dict(x); st["stat_name"]=names.get(st["stat_type"],st["stat_type"]); items[x["item_id"]]["stats"].append(st)
-    return {"rows":_annotate_hero_core_calculability(db,list(items.values()))}
+                st=dict(x)
+                raw_type=str(st["stat_type"] or "").strip()
+                st["stat_type"]=raw_type.upper()
+                st["stat_name"]=names.get(raw_type.casefold(),raw_type)
+                # A visible numeric value is the authoritative signal that the
+                # stat has already unlocked.  A missing value is treated as
+                # locked/unknown even if legacy rows contain an inverted flag.
+                st["is_unlocked"]=1 if st["stat_source"]=="main" or st["stat_value"] is not None else 0
+                items[x["item_id"]]["stats"].append(st)
+        rows=list(items.values())
+        for row in rows:
+            base_quality=str(row.get("quality_id") or "")
+            if row.get("is_ancient") and base_quality in ANCIENT_UI_BY_BASE:
+                virtual_id, display_name=ANCIENT_UI_BY_BASE[base_quality]
+                row["quality_id"]=virtual_id
+                row["quality_name"]=display_name
+    return {"rows":_annotate_hero_core_calculability(db,rows)}
 
 def _equipment_values(p):
     item=str(p.get("item_id") or "").strip(); slot=str(p.get("slot_id") or "").strip(); set_id=str(p.get("set_id") or "").strip(); quality=str(p.get("quality_id") or "").strip()
     if not item or not slot or not set_id: raise DataManagerError("装备ID、部位和套装不能为空")
+    ancient=bool(p.get("is_ancient",False))
+    if quality in ANCIENT_QUALITY_CHOICES:
+        quality,_=ANCIENT_QUALITY_CHOICES[quality]
+        ancient=True
     level=int(p.get("enhancement_level") or 0); locked=int(bool(p.get("locked",False)))
-    return {"item_id":item,"slot":slot,"slot_id":slot,"set_id":set_id,"tier":quality or None,"quality_id":quality or None,"level":level,"enhancement_level":level,"locked":locked,"item_locked":locked,"available":int(bool(p.get("available",True))),"equipped_hero_id":p.get("equipped_hero_id") or None,"source":p.get("source") or "manual","notes":p.get("notes") or None,"is_ancient":int(bool(p.get("is_ancient",False)))}
+    return {"item_id":item,"slot":slot,"slot_id":slot,"set_id":set_id,"tier":quality or None,"quality_id":quality or None,"level":level,"enhancement_level":level,"locked":locked,"item_locked":locked,"available":int(bool(p.get("available",True))),"equipped_hero_id":p.get("equipped_hero_id") or None,"source":p.get("source") or "manual","notes":p.get("notes") or None,"is_ancient":int(ancient)}
 def _replace_stats(c,item,stats):
     c.execute("DELETE FROM equipment_stats WHERE item_id=?",(item,)); used=set()
     canonical_stats = {value.casefold(): value for value in EQUIPMENT_STAT_TYPES}
@@ -179,7 +217,10 @@ def _replace_stats(c,item,stats):
         used.add(idx); source=x.get("stat_source") or ("main" if idx==0 else "sub")
         stat_type = str(x["stat_type"]).strip()
         stat_type = canonical_stats.get(stat_type.casefold(), stat_type)
-        c.execute("INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(item,idx,source,stat_type,x.get("stat_value"),int(x.get("unlock_level") or 0),int(bool(x.get("is_unlocked",True))),x.get("roll_grade_id") or None,x.get("estimate_override"),float(x.get("value_confidence",1.0)),x.get("notes") or None))
+        value=x.get("stat_value")
+        if value=="": value=None
+        is_unlocked = source=="main" or value is not None
+        c.execute("INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked,roll_grade_id,estimate_override,value_confidence,notes) VALUES (?,?,?,?,?,?,?,?,?,?,?)",(item,idx,source,stat_type,value,int(x.get("unlock_level") or 0),int(is_unlocked),x.get("roll_grade_id") or None,x.get("estimate_override"),float(x.get("value_confidence",1.0)),x.get("notes") or None))
 def save_equipment(db,payload,*,original_item_id=None):
     v=_equipment_values(payload); stats=list(payload.get("stats") or [])
     with _connect(db) as c:
