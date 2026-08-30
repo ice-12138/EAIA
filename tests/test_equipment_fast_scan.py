@@ -6,7 +6,11 @@ from pathlib import Path
 
 from PIL import Image
 
-from equipment_fast_scan import FastEquipmentWorkflow, PaddleTextRecognitionV5Mobile
+from equipment_fast_scan import (
+    FastEquipmentWorkflow,
+    FastFineEquipmentRecognizer,
+    PaddleTextRecognitionV5Mobile,
+)
 from equipment_workflow import OcrResult, Region
 
 
@@ -29,6 +33,17 @@ class DummyFineRecognizer:
 
 
 class FastEquipmentScanTests(unittest.TestCase):
+    def test_generic_quality_text_is_invalid_and_triggers_full_ocr_fallback(self):
+        recognizer = object.__new__(FastFineEquipmentRecognizer)
+        recognizer.min_confidence = 0.55
+
+        self.assertFalse(
+            recognizer._field_valid("装备品质", OcrResult("装备", 0.99))
+        )
+        self.assertTrue(
+            recognizer._field_valid("装备品质", OcrResult("传说级装备", 0.99))
+        )
+
     def test_text_recognition_result_parser_accepts_nested_result(self):
         data = PaddleTextRecognitionV5Mobile._result_data(
             {"res": {"rec_text": "攻击 +16%", "rec_score": 0.97}}

@@ -149,6 +149,21 @@ class FastFineEquipmentRecognizer(FineEquipmentRecognizer):
         "治疗",
     )
     SLOT_TERMS = ("武器", "护甲", "铠甲", "防具", "手镯", "手环", "项链", "戒指")
+    QUALITY_TERMS = (
+        "红色",
+        "神话",
+        "金色",
+        "传奇",
+        "传说",
+        "紫色",
+        "史诗",
+        "蓝色",
+        "稀有",
+        "mythic",
+        "legendary",
+        "epic",
+        "rare",
+    )
 
     def __init__(
         self,
@@ -184,7 +199,9 @@ class FastFineEquipmentRecognizer(FineEquipmentRecognizer):
         if name == "强化等级":
             return self._has_number(text)
         if name == "装备品质":
-            return bool(text)
+            # The fast ROI often recognizes only the generic suffix "装备".
+            # Treat that as incomplete so the original full OCR can retry.
+            return any(term in text for term in self.QUALITY_TERMS)
         if name == "装备部位":
             return any(term in text for term in self.SLOT_TERMS)
         if name == "主词条与数值":
