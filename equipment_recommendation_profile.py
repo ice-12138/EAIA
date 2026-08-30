@@ -38,6 +38,17 @@ _PANEL_EFFECT_TYPES = {
     "ATK_FLAT", "ATK_PCT", "HP_FLAT", "HP_PCT", "DEF_FLAT", "DEF_PCT",
     "CRIT_RATE", "CRIT_DMG", "ATK_SPEED", "RAGE_REGEN", "HEALING_EFFECT",
 }
+# HeroCore accepts both role-oriented names (tank/support) and the equipment
+# taxonomy used by the game-data tables (defense/buff). Internally the scoring
+# code keeps tank/support as the canonical recommendation categories.
+_RECOMMENDATION_CATEGORY_ALIASES = {
+    "output": "output",
+    "tank": "tank",
+    "defense": "tank",
+    "healing": "healing",
+    "support": "support",
+    "buff": "support",
+}
 
 
 def _upper_mapping(value: Any) -> dict[str, float]:
@@ -64,16 +75,22 @@ def _objective_mapping(value: Any) -> dict[str, float]:
     return result
 
 
+def normalize_recommendation_category(value: Any) -> str:
+    """Normalize external recommendation category aliases to scorer categories."""
+    normalized = str(value).strip().lower()
+    try:
+        return _RECOMMENDATION_CATEGORY_ALIASES[normalized]
+    except KeyError as error:
+        raise ValueError(f"unsupported recommendation category: {value}") from error
+
+
 def _category_from_core(core: dict[str, Any]) -> str:
     explicit = (
         (core.get("recommendation_profile") or {}).get("category")
         or (core.get("hero") or {}).get("equipment_category")
     )
     if explicit:
-        value = str(explicit).strip().lower()
-        if value in {"output", "tank", "healing", "support"}:
-            return value
-        raise ValueError(f"unsupported recommendation category: {explicit}")
+        return normalize_recommendation_category(explicit)
 
     role = str((core.get("hero") or {}).get("role") or "").strip().casefold()
     if role in {"守护者", "defender", "guardian", "tank"}:

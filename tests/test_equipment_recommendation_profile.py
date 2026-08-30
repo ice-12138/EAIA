@@ -38,6 +38,19 @@ class RecommendationProfileTests(unittest.TestCase):
         self.assertGreater(hp["stat_weights"]["HP_PCT"], hp["stat_weights"]["DEF_PCT"])
         self.assertGreater(defense["stat_weights"]["DEF_PCT"], defense["stat_weights"]["HP_PCT"])
 
+    def test_game_data_category_aliases_resolve_to_role_profiles(self):
+        defense = resolve_recommendation_profile({
+            "recommendation_profile": {"category": "defense", "primary_scaling_stat": "DEF"}
+        })
+        buff = resolve_recommendation_profile({
+            "recommendation_profile": {"category": "buff"}
+        })
+        self.assertEqual(defense["category"], "tank")
+        self.assertEqual(defense["stat_category"], "defense")
+        self.assertEqual(defense["archetype"], "defense")
+        self.assertEqual(buff["category"], "support")
+        self.assertEqual(buff["stat_category"], "buff")
+
     def test_healer_defaults_follow_attack_or_hp_scaling(self):
         attack = resolve_recommendation_profile({
             "hero": {"role": "医师"},
