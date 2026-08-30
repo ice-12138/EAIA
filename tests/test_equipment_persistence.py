@@ -3,6 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from PIL import Image
+
 from equipment_db import EquipmentDatabase
 from equipment_persistence import build_database_rows, is_upgrade_of
 
@@ -80,6 +82,35 @@ class EquipmentPersistenceTests(unittest.TestCase):
                 self.assertEqual(view["main_stat_name"], "攻击")
                 self.assertIsNone(view["sub_stat_4_value"])
                 self.assertEqual(database.connection.execute("SELECT COUNT(*) FROM equipment").fetchone()[0], 1)
+            finally:
+                database.close()
+
+    def test_generic_quality_text_uses_detail_header_color(self):
+        record = fine_record("quality_from_color")
+        record["quality"] = {"raw_text": "装备", "confidence": 0.99}
+        with tempfile.TemporaryDirectory() as directory:
+            screenshot = Path(directory) / "screen.jpeg"
+            image = Image.new("RGB", (2720, 1260), (0, 0, 0))
+            for x in range(2500, 2550):
+                for y in range(270, 330):
+                    image.putpixel((x, y), (164, 38, 39))
+            image.save(screenshot)
+            database = EquipmentDatabase(Path(directory) / "equipment.db")
+            try:
+                database.initialize()
+                database.upsert_recognized_equipment(
+                    record, source_screenshot=screenshot
+                )
+                item = database.connection.execute(
+                    "SELECT quality_id FROM equipment WHERE item_id=?",
+                    (record["item_id"],),
+                ).fetchone()
+                recognition = database.connection.execute(
+                    "SELECT quality_text FROM equipment_recognition WHERE item_id=?",
+                    (record["item_id"],),
+                ).fetchone()
+                self.assertEqual(item["quality_id"], "mythic_red")
+                self.assertEqual(recognition["quality_text"], "红色品质")
             finally:
                 database.close()
 

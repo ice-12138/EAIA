@@ -54,6 +54,47 @@ def _quality_id(field: object) -> str | None:
     return None
 
 
+def _quality_id_from_screenshot(source_screenshot: str | Path | None) -> str | None:
+    """Infer quality from the stable color of the detail-panel header.
+
+    The fine OCR quality ROI can contain only the generic suffix ``装备``.
+    The right edge of the colored header is text-free and is stable across
+    item names, so it is a better fallback than guessing from the item title.
+    """
+    if not source_screenshot:
+        return None
+    path = Path(source_screenshot)
+    if not path.is_file():
+        return None
+    try:
+        from PIL import Image
+
+        image = Image.open(path).convert("RGB")
+        samples = [image.getpixel((2520, y)) for y in (285, 300, 315)]
+    except (OSError, ValueError):
+        return None
+    red = sum(pixel[0] for pixel in samples) / len(samples)
+    green = sum(pixel[1] for pixel in samples) / len(samples)
+    blue = sum(pixel[2] for pixel in samples) / len(samples)
+    if red > green * 1.45 and red > blue * 1.45:
+        return "mythic_red"
+    if red > 100 and green > 75 and blue < green * 0.82:
+        return "legendary_gold"
+    if blue > green * 1.20 and red > blue * 0.70:
+        return "epic_purple"
+    if blue > red * 1.15 and blue > green * 1.08:
+        return "rare_blue"
+    return None
+
+
+_QUALITY_TEXT = {
+    "mythic_red": "红色品质",
+    "legendary_gold": "金色品质",
+    "epic_purple": "紫色品质",
+    "rare_blue": "蓝色品质",
+}
+
+
 def _set_name_key(value: object) -> str:
     return normalize_set_name(value).casefold()
 
@@ -255,7 +296,11 @@ class EquipmentDatabase:
             item = (*item[:2], resolved_set_id, *item[3:])
             recognition = (*recognition[:16], set_name, *recognition[17:])
         self.connection.execute("""INSERT INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES (?, ?, 1, NULL, 0) ON CONFLICT(set_id) DO UPDATE SET set_name=excluded.set_name""", (item[2], set_name))
-        quality_id = _quality_id(stored_record.get("quality")); enhancement_level = item[4] or 0
+        quality_id = _quality_id(stored_record.get("quality")) or _quality_id_from_screenshot(source_screenshot)
+        if quality_id is not None:
+            item = (*item[:3], quality_id, item[4])
+            recognition = (*recognition[:3], _QUALITY_TEXT[quality_id], *recognition[4:])
+        enhancement_level = item[4] or 0
         self.connection.execute("""INSERT INTO equipment(item_id,slot,set_id,tier,level,locked,available,slot_id,quality_id,enhancement_level,item_locked,source,updated_at) VALUES (?, ?, ?, ?, ?, ?, 1, ?, ?, ?, ?, 'ocr', datetime('now')) ON CONFLICT(item_id) DO UPDATE SET slot=excluded.slot,set_id=excluded.set_id,tier=excluded.tier,level=excluded.level,locked=excluded.locked,available=1,slot_id=excluded.slot_id,quality_id=COALESCE(excluded.quality_id,equipment.quality_id),enhancement_level=excluded.enhancement_level,item_locked=excluded.item_locked,source='ocr',updated_at=datetime('now')""", (*item[:5], 0, item[1], quality_id, enhancement_level, 0))
         self.connection.execute("DELETE FROM equipment_stats WHERE item_id=?", (item[0],)); self.connection.executemany("""INSERT INTO equipment_stats(item_id,stat_index,stat_source,stat_type,stat_value,unlock_level,is_unlocked) VALUES (?, ?, ?, ?, ?, ?, ?)""", stats)
         self.connection.execute("""INSERT INTO equipment_recognition(item_id,profile,fully_unlocked,quality_text,slot_text,primary_text,main_stat_name,main_stat_value,sub_stat_1_name,sub_stat_1_value,sub_stat_2_name,sub_stat_2_value,sub_stat_3_name,sub_stat_3_value,sub_stat_4_name,sub_stat_4_value,set_name_text,raw_result,source_screenshot,recognized_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now')) ON CONFLICT(item_id) DO UPDATE SET profile=excluded.profile,fully_unlocked=excluded.fully_unlocked,quality_text=excluded.quality_text,slot_text=excluded.slot_text,primary_text=excluded.primary_text,main_stat_name=excluded.main_stat_name,main_stat_value=excluded.main_stat_value,sub_stat_1_name=excluded.sub_stat_1_name,sub_stat_1_value=excluded.sub_stat_1_value,sub_stat_2_name=excluded.sub_stat_2_name,sub_stat_2_value=excluded.sub_stat_2_value,sub_stat_3_name=excluded.sub_stat_3_name,sub_stat_3_value=excluded.sub_stat_3_value,sub_stat_4_name=excluded.sub_stat_4_name,sub_stat_4_value=excluded.sub_stat_4_value,set_name_text=excluded.set_name_text,raw_result=excluded.raw_result,source_screenshot=excluded.source_screenshot,recognized_at=excluded.recognized_at""", recognition)
