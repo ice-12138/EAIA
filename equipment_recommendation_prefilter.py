@@ -7,7 +7,11 @@ from enum import StrEnum
 from typing import Any
 
 from equipment_models import EquipmentItem
-from equipment_recommendation_profile import resolve_recommendation_profile, relevant_stat_types
+from equipment_recommendation_profile import (
+    normalize_recommendation_category,
+    relevant_stat_types,
+    resolve_recommendation_profile,
+)
 from equipment_set_variants import load_set_evolutions
 
 
@@ -42,7 +46,7 @@ def classify_recommendation_category(core: dict[str, Any]) -> RecommendationCate
     )
     if explicit:
         try:
-            return RecommendationCategory(str(explicit).strip().lower())
+            return RecommendationCategory(normalize_recommendation_category(explicit))
         except ValueError:
             return RecommendationCategory.UNCLASSIFIED
 
