@@ -18,7 +18,7 @@ from collections import OrderedDict
 from http import HTTPStatus
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from data_manager import (
     DataManagerError,
@@ -139,14 +139,17 @@ def _set_scan_state(**values: object) -> None:
         _scan_state.update(values)
 
 
-def recommend_status() -> dict:
+def recommend_status(job_id: str | None = None) -> dict:
     with _recommend_lock:
         jobs = []
         for job in _recommend_jobs.values():
             item = {key: value for key, value in job.items() if key not in {"payload", "result", "started_at"}}
             started_at = job.get("started_at")
             item["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
-            if job.get("status") in {"completed", "failed"}:
+            # Completed results are part of the queue item as well.  The
+            # frontend can therefore render a finished job immediately after
+            # polling, without racing a second request for the same job.
+            if job.get("status") == "completed":
                 item["result"] = job.get("result")
             jobs.append(item)
         return {"jobs": jobs, "active_id": next((x for x in _recommend_queue if _recommend_jobs[x]["status"] in {"starting", "screening", "refining"}), None)}
@@ -369,7 +372,8 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
                 elif path == "/api/scan/status":
                     self._send_json(scan_status(self.database))
                 elif path == "/api/hero-core/recommend/status":
-                    self._send_json(recommend_status())
+                    requested_job_id = parse_qs(urlparse(self.path).query).get("job_id", [None])[0]
+                    self._send_json(recommend_status(requested_job_id))
                 elif path == "/api/hero-cores":
                     self._send_json(hero_core_catalog())
                 elif path.startswith("/api/hero-cores/"):

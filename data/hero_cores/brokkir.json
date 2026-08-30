@@ -1,0 +1,328 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.1",
+  "game_version": "CN-2026-08-29",
+  "hero": {
+    "id": "BROKKIR",
+    "name": "布洛基尔",
+    "title": "冰霜之锤",
+    "faction": "北境王座",
+    "role": "守护者",
+    "damage_type": "physical",
+    "mechanic_summary": "高生存守护者；霜雪圣甲提供高额护盾并令自身冰冻，盾寒受击概率冰冻敌人，无暇冰身首次致死时进入冰冻并免疫伤害。",
+    "base_stats": {
+      "atk": 3024,
+      "hp": 28761,
+      "def": 4050,
+      "mres": 904,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "attack_interval": 2.4
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 400,
+      "max": 900,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 28761,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 3024,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 4050,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 904,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 19,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 3,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.4,
+        "unit": "second",
+        "source": "base_reference",
+        "notes": "截图装备状态显示1.6秒，且攻击速度为100+151，因此1.6秒不是裸装攻击间隔。"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 4,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 9,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "observed_skill_levels": {
+      "frost_armor": "4/5",
+      "basic_attack": "MAX",
+      "shield_chill": "2/5",
+      "immaculate_ice_body": "3/5"
+    },
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "攻击对1名敌人造成伤害。普通攻击无法升级。",
+        "coefficient": 1,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 4
+        }
+      },
+      {
+        "id": "frost_armor",
+        "name": "霜雪圣甲",
+        "type": "ultimate",
+        "description": "满级：自身附加冰冻，在冰冻期间获得自身最大生命值120%的护盾；护盾消失时会提前结束自身冰冻。Lv5技能消耗-100、初始怒气+400。",
+        "coefficient": 0,
+        "target_cap": 0,
+        "duration": 10,
+        "direct_damage": false,
+        "values": {
+          "shield_max_hp_ratio": 1.2,
+          "rage_cost": 900,
+          "initial_rage": 400,
+          "freeze_duration": 10
+        }
+      },
+      {
+        "id": "shield_chill",
+        "name": "盾寒",
+        "type": "passive",
+        "description": "满级：自身受到伤害时，15%概率对范围内2名敌人附加冰冻；自身有冰冻时触发概率额外+20个百分点，即35%。",
+        "coefficient": null,
+        "target_cap": 2,
+        "direct_damage": false,
+        "values": {
+          "base_trigger_chance": 0.15,
+          "frozen_extra_chance": 0.2,
+          "trigger_chance_while_frozen": 0.35
+        }
+      },
+      {
+        "id": "immaculate_ice_body",
+        "name": "无暇冰身",
+        "type": "passive",
+        "description": "满级：首次受到致死伤害时，自身附加冰冻并免疫受到的所有伤害，持续12秒。",
+        "coefficient": null,
+        "target_cap": 0,
+        "duration": 12,
+        "direct_damage": false,
+        "values": {
+          "once_per_deployment": true,
+          "invulnerability_duration": 12
+        }
+      }
+    ],
+    "talents": [
+      {
+        "id": "adjacent_damage_reduction",
+        "name": "天赋",
+        "description": "自身周围一圈友方单位获得物理减伤和魔法减伤；自身有冰冻时，减伤效果增强。",
+        "values": {
+          "normal_physical_damage_reduction": 0.1,
+          "normal_magic_damage_reduction": 0.1,
+          "frozen_physical_damage_reduction": 0.3,
+          "frozen_magic_damage_reduction": 0.3
+        },
+        "notes": "截图只显示减伤状态名；10%/30%按公开技能资料补充。"
+      }
+    ]
+  },
+  "state": {},
+  "buffs": {
+    "frost_armor_frozen": {
+      "duration": 10,
+      "modifiers": {},
+      "metadata": {
+        "status": "freeze",
+        "shield_max_hp_ratio": 1.2,
+        "shield_break_ends_buff_early": true
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 1,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 4,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "frost_armor": {
+      "id": "frost_armor",
+      "name": "霜雪圣甲",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "duration": 10,
+      "can_crit": false,
+      "blocks_basic_attack": true,
+      "resource": {
+        "name": "rage",
+        "cost": 900
+      },
+      "tags": [
+        "ultimate",
+        "defensive",
+        "freeze",
+        "shield",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "frost_armor_apply_frozen",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "frost_armor_frozen",
+          "duration": 10
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 900"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能建模；截图中的当前技能等级仅保存在codex.observed_skill_levels。",
+    "基础白字：生命28761、攻击3024、防御4050、魔抗904、攻击速度100、暴击率0%、暴击伤害150%、怒气恢复效率0%。",
+    "截图装备状态攻击速度为100+151、攻击间隔1.6秒，所以1.6秒不是裸装攻击间隔；HeroCore按白字语义使用2.4秒裸装攻击间隔。",
+    "当前国服截图的自然回怒14、普攻回怒4、受击回怒9按截图记录。",
+    "普通攻击未显示伤害倍率，执行层暂按1.0×ATK。",
+    "霜雪圣甲4/5时已是120%最大生命护盾；Lv5仅使消耗1000降至900并增加初始怒气400，因此满级护盾仍为120%。",
+    "霜雪圣甲冰冻按10秒处理，冰冻时不能行动，因此执行层blocks_basic_attack=true；当前引擎不能模拟护盾提前破裂从而提前解除冰冻。",
+    "盾寒2/5时为11%；Lv3+1%、Lv4+1%、Lv5+2%，故满级15%，自身冰冻时额外+20个百分点，即35%。",
+    "无暇冰身3/5时持续10秒；Lv4、Lv5各+1秒，故满级12秒。",
+    "天赋减伤数值10%/30%来自公开资料交叉核对，截图本身未展开具体数值。",
+    "recommendation_profile.category显式设为defense，避免守护者被误归类为output。"
+  ],
+  "validation_required": [
+    "确认当前国服裸装攻击间隔是否仍为2.4秒；截图只能直接确认装备后为1.6秒。",
+    "确认天赋物理/魔法减伤在当前国服仍为普通10%、自身冰冻时30%。",
+    "当前HeroCore引擎不模拟敌方入伤、护盾、受击触发和致死事件，因此盾寒、无暇冰身、霜雪圣甲护盾提前破裂等防御机制目前主要作为codex数据保存。",
+    "后续若实现defense推荐算法，应以HP、DEF、减伤、护盾、怒气循环和生存事件为评分依据，不能复用output英雄的纯伤害评分。"
+  ],
+  "recommendation_profile": {
+    "category": "defense"
+  }
+}
