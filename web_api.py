@@ -146,10 +146,9 @@ def recommend_status(job_id: str | None = None) -> dict:
             item = {key: value for key, value in job.items() if key not in {"payload", "result", "started_at"}}
             started_at = job.get("started_at")
             item["elapsed_seconds"] = round(time.monotonic() - started_at, 2) if started_at else 0.0
-            # Completed results are part of the queue item as well.  The
-            # frontend can therefore render a finished job immediately after
-            # polling, without racing a second request for the same job.
-            if job.get("status") == "completed":
+            # Keep queue polling lightweight. Attach the potentially large result
+            # only when the caller explicitly requests that completed job.
+            if job.get("status") == "completed" and job_id and job.get("id") == job_id:
                 item["result"] = job.get("result")
             jobs.append(item)
         return {"jobs": jobs, "active_id": next((x for x in _recommend_queue if _recommend_jobs[x]["status"] in {"starting", "screening", "refining"}), None)}
