@@ -1,4 +1,4 @@
-"""Run capture-first equipment scanning with fully offline OCR."""
+"""Run row-by-row equipment scanning with on-device capture and OCR."""
 
 from __future__ import annotations
 
@@ -6,12 +6,7 @@ import argparse
 from pathlib import Path
 from time import perf_counter
 
-from equipment_capture_session import (
-    CaptureSession,
-    OfflineEquipmentRecognizer,
-    SeparatedEquipmentScanner,
-    build_capture_only_hdc_scanner,
-)
+from equipment_capture_session import CaptureSession, OfflineEquipmentRecognizer, build_capture_only_hdc_scanner
 from equipment_db import EquipmentDatabase
 from equipment_fast_scan import (
     FastEquipmentWorkflow,
@@ -81,21 +76,26 @@ def _build_offline_recognizer(
 def _build_fast_scanner(
     database: EquipmentDatabase,
     result_callback=None,
-) -> SeparatedEquipmentScanner:
-    """Build the default pipeline without constructing any OCR model yet."""
-    capture_scanner = build_capture_only_hdc_scanner(
+):
+    """Build the default scanner with recognition completed after each row."""
+    ocr = PaddleOcrV5Mobile(cache_dir=CACHE_DIR)
+    fine = FineEquipmentRecognizer(
+        ocr=ocr,
+        regions=load_fine_regions(Path("captures")),
+        output_dir=Path("fine_ocr_results"),
+    )
+    from equipment_fast_scan import build_fast_hdc_scanner
+    return build_fast_hdc_scanner(
         hdc=HDC,
         serial=SERIAL,
-        session_root=SESSION_ROOT,
+        screen_dir=Path("captures/scan_run5"),
+        ocr=ocr,
+        output_dir=Path("ocr_results_run5"),
+        fine_recognizer=fine,
+        persistence=_persistence(database, result_callback),
         settle_delay=0.06,
         recovery_delay=0.05,
         scroll_settle_delay=0.0,
-    )
-    return SeparatedEquipmentScanner(
-        capture_scanner,
-        recognizer_factory=lambda session: _build_offline_recognizer(
-            database, session, result_callback
-        ),
     )
 
 
@@ -120,7 +120,7 @@ def _build_legacy_scanner(database: EquipmentDatabase, result_callback=None):
     )
 
 
-def _run_capture_only(resume_row: int, resume_column: int) -> int:
+def _run_capture_only(resume_row: int, resume_column: int, end_row: int, end_column: int) -> int:
     scanner = build_capture_only_hdc_scanner(
         hdc=HDC,
         serial=SERIAL,
@@ -134,6 +134,8 @@ def _run_capture_only(resume_row: int, resume_column: int) -> int:
         captures = scanner.scan_until_bottom(
             resume_row=resume_row,
             resume_column=resume_column,
+            end_row=end_row,
+            end_column=end_column,
         )
     except Exception as error:
         scanner.session.mark_capture_interrupted(str(error))
@@ -182,13 +184,19 @@ def main() -> int:
     )
     parser.add_argument("--resume-row", type=int, default=1)
     parser.add_argument("--resume-column", type=int, default=0)
+    parser.add_argument("--end-row", type=int, required=True)
+    parser.add_argument("--end-column", type=int, required=True)
     args = parser.parse_args()
 
     if args.resume_row < 1 or args.resume_column < 0 or args.resume_column > 8:
         parser.error("resume position must be a valid 1-based row and 0-8 column")
+    if args.end_row < 1 or args.end_column < 1 or args.end_column > 8:
+        parser.error("end position must be a valid 1-based row and 1-8 column")
+    if (args.end_row - 1) * 8 + args.end_column < (args.resume_row - 1) * 8 + args.resume_column + 1:
+        parser.error("end position must not precede the start position")
 
     if args.capture_only:
-        return _run_capture_only(args.resume_row, args.resume_column)
+        return _run_capture_only(args.resume_row, args.resume_column, args.end_row, args.end_column)
 
     database = EquipmentDatabase(Path("data/equipment.db"))
     database.initialize()
@@ -210,19 +218,21 @@ def main() -> int:
                 )
 
         scanner.progress_callback = progress
-        print("SCAN_MODE=capture_then_offline_ocr", flush=True)
+        print("SCAN_MODE=row_by_row_ocr", flush=True)
         started = perf_counter()
         records = scanner.scan_until_bottom(
             resume_row=args.resume_row,
             resume_column=args.resume_column,
+            end_row=args.end_row,
+            end_column=args.end_column,
         )
         elapsed = perf_counter() - started
         rate = len(records) / elapsed if elapsed > 0 else 0.0
         average_item_time = elapsed / len(records) if records else 0.0
         print(
-            f"SCAN_COMPLETE mode=capture_then_offline_ocr records={len(records)} "
+            f"SCAN_COMPLETE mode=row_by_row_ocr records={len(records)} "
             f"elapsed_s={elapsed:.3f} items_per_s={rate:.3f} "
-            f"average_item_s={average_item_time:.3f} session={scanner.session.path}",
+            f"average_item_s={average_item_time:.3f}",
             flush=True,
         )
         return 0

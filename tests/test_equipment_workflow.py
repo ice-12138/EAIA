@@ -126,6 +126,16 @@ class EquipmentWorkflowTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             scanner.scan_until_bottom(end_row=7, end_column=0)
 
+    def test_scan_requires_user_supplied_end_position(self):
+        from equipment_workflow import EquipmentScanner
+
+        scanner = EquipmentScanner.__new__(EquipmentScanner)
+        scanner.grid = GridConfig()
+        scanner.workflow = type("Workflow", (), {"capture": lambda self: None})()
+
+        with self.assertRaisesRegex(ValueError, "end row and column are required"):
+            scanner.scan_until_bottom()
+
     def test_selected_slot_is_detected_by_gold_highlight(self):
         from equipment_workflow import EquipmentScanner
 
@@ -185,7 +195,7 @@ class EquipmentWorkflowTests(unittest.TestCase):
 
         swipes = []
         scanner = EquipmentScanner(Workflow(), lambda *args: swipes.append(args))
-        records = scanner.scan_until_bottom()
+        records = scanner.scan_until_bottom(end_row=2, end_column=4)
 
         self.assertEqual(len(records), 12)
         self.assertEqual(swipes, [])

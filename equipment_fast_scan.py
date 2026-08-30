@@ -415,7 +415,7 @@ class FastEquipmentWorkflow(EquipmentWorkflow):
 
 
 class FastEquipmentScanner(EquipmentScanner):
-    """Scanner that carries the latest frame forward across items and rows."""
+    """Scanner that recognizes and persists one complete row at a time."""
 
     def __init__(
         self,

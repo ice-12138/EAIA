@@ -197,6 +197,13 @@ class EquipmentDatabase:
 
     def close(self) -> None: self.connection.close()
 
+    def clear_equipment(self) -> int:
+        """Delete all player equipment and dependent OCR/stat records."""
+        count = int(self.connection.execute("SELECT COUNT(*) FROM equipment").fetchone()[0])
+        self.connection.execute("DELETE FROM equipment")
+        self.connection.commit()
+        return count
+
     def find_upgrade_match(self, record: dict) -> str | None:
         from equipment_persistence import is_upgrade_of
         rows = self.connection.execute("SELECT item_id, raw_result FROM equipment_recognition ORDER BY recognized_at DESC").fetchall()

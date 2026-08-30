@@ -635,11 +635,13 @@ class EquipmentScanner:
             raise ValueError("end position must not precede the start position")
         if self.grid.overlap_rows >= self.grid.visible_rows:
             raise ValueError("overlap_rows must be smaller than visible_rows")
-        first_path = self.workflow.capture()
-        equipment_count = self._read_equipment_count(first_path)
+        # The scan boundary is supplied by the user. Do not infer the item
+        # count from OCR or tile colors.
         if end_row:
             requested_count = (end_row - 1) * self.grid.columns + end_column
-            equipment_count = requested_count if equipment_count is None else min(equipment_count, requested_count)
+            equipment_count = requested_count
+        else:
+            raise ValueError("end row and column are required; enter the last equipment position")
         self.equipment_count = equipment_count
         if resume_row == 1 and resume_column == 0:
             screen_start, logical_start, first_column, skipped = 0, 1, 1, 0
