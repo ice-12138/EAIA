@@ -33,6 +33,14 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
             classify_recommendation_category({"recommendation_profile": {"category": "healing"}, "hero": {"role": "战士"}}),
             RecommendationCategory.HEALING,
         )
+        self.assertEqual(
+            classify_recommendation_category({"recommendation_profile": {"category": "defense"}}),
+            RecommendationCategory.TANK,
+        )
+        self.assertEqual(
+            classify_recommendation_category({"recommendation_profile": {"category": "buff"}}),
+            RecommendationCategory.SUPPORT,
+        )
 
     def test_missing_role_follows_output_profile_default(self):
         # Valkyra's current HeroCore has an empty role field. The objective
@@ -117,13 +125,14 @@ class EquipmentRecommendationPrefilterTests(unittest.TestCase):
                 core = {
                     "hero": {"role": "守护者"},
                     "recommendation_profile": {
-                        "category": "tank",
+                        "category": "defense",
                         "primary_scaling_stat": "DEF",
                     },
                 }
                 kept, report = prefilter_equipment(database, core, items, min_relevant_substats=1)
                 self.assertEqual([row.item_id for row in kept], ["DEF"])
                 self.assertTrue(report["policy_implemented"])
+                self.assertEqual(report["category"], "tank")
                 self.assertEqual(report["primary_scaling_stat"], "DEF")
                 self.assertEqual(report["archetype"], "defense")
                 self.assertIn("DEF_PCT", report["relevant_stat_types"])
