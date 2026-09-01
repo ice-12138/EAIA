@@ -2,7 +2,7 @@ const STORAGE_KEY = 'eaia-support-recommendation-mode'
 const MANUAL_PRIORITY = 'manual_priority'
 const AUTO_UTILITY = 'auto_utility'
 
-let selectedMode = localStorage.getItem(STORAGE_KEY) || MANUAL_PRIORITY
+let selectedMode = localStorage.getItem(STORAGE_KEY) === AUTO_UTILITY ? AUTO_UTILITY : MANUAL_PRIORITY
 let currentSupportHero = false
 let renderQueued = false
 
@@ -32,6 +32,10 @@ function helperText(zh) {
     : 'Assumes manual burst alignment and ranks gear by this hero\'s HeroCore stat priority.'
 }
 
+function setText(node, value) {
+  if (node && node.textContent !== value) node.textContent = value
+}
+
 function buildField() {
   const label = document.createElement('label')
   label.className = 'support-recommendation-mode-field'
@@ -57,6 +61,11 @@ function buildField() {
 
   const helper = document.createElement('small')
   helper.className = 'support-recommendation-mode-helper'
+  helper.style.display = 'block'
+  helper.style.marginTop = '6px'
+  helper.style.fontSize = '11px'
+  helper.style.lineHeight = '1.45'
+  helper.style.color = '#81919a'
   label.appendChild(helper)
   return label
 }
@@ -82,11 +91,11 @@ function renderSelector() {
   const select = field.querySelector('.support-recommendation-mode-select')
   const options = select?.options || []
   const helper = field.querySelector('.support-recommendation-mode-helper')
-  if (title) title.textContent = zh ? '辅助推荐算法' : 'Support Recommendation'
-  if (options[0]) options[0].textContent = zh ? '手动爆发 / 词条优先级' : 'Manual burst / stat priority'
-  if (options[1]) options[1].textContent = zh ? '自动战斗 / 综合收益' : 'Auto battle / utility'
-  if (select) select.value = selectedMode
-  if (helper) helper.textContent = helperText(zh)
+  setText(title, zh ? '辅助推荐算法' : 'Support Recommendation')
+  setText(options[0], zh ? '手动爆发 / 词条优先级' : 'Manual burst / stat priority')
+  setText(options[1], zh ? '自动战斗 / 综合收益' : 'Auto battle / utility')
+  if (select && select.value !== selectedMode) select.value = selectedMode
+  setText(helper, helperText(zh))
 }
 
 function queueRender() {
@@ -130,6 +139,8 @@ window.fetch = async (input, init = {}) => {
 }
 
 const observer = new MutationObserver(queueRender)
-observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+if (document.documentElement) {
+  observer.observe(document.documentElement, { childList: true, subtree: true, characterData: true })
+}
 window.addEventListener('hashchange', queueRender)
 queueRender()
