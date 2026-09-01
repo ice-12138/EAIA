@@ -9,7 +9,14 @@ from optimizer_projection import EquipmentProjectionError, OptimizerEquipmentDat
 
 class OptimizerProjectionTests(unittest.TestCase):
     def _database(self, directory: str) -> OptimizerEquipmentDatabase:
-        database = OptimizerEquipmentDatabase(Path(directory) / "equipment.db", percentile=0.60)
+        # This legacy fixture intentionally has no set_tier_id. Keep its small
+        # five-sample distribution explicit so the test continues to focus on
+        # +16 projection semantics rather than the production >=10 tier rule.
+        database = OptimizerEquipmentDatabase(
+            Path(directory) / "equipment.db",
+            percentile=0.60,
+            min_samples_for_percentile=5,
+        )
         database.initialize()
         database.connection.execute(
             "INSERT OR IGNORE INTO sets(set_id,set_name,required_pieces,slot_group,output_set) VALUES ('TEST_NONE','测试无套装',99,NULL,1)"
@@ -102,7 +109,7 @@ class OptimizerProjectionTests(unittest.TestCase):
                 self.assertFalse(report["uses_current_main_fallback"])
                 self.assertTrue(report["projection_complete"])
                 self.assertEqual(report["stats"][0]["projection_source"], "main_stat_cap")
-                self.assertEqual(report["stats"][1]["projection_source"], "empirical_p60")
+                self.assertEqual(report["stats"][1]["projection_source"], "empirical_unknown_tier_iqr_p60")
 
                 stored = database.connection.execute(
                     "SELECT enhancement_level FROM equipment WHERE item_id='TARGET'"
