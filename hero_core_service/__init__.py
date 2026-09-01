@@ -13,6 +13,15 @@ from itertools import product
 from pathlib import Path
 from typing import Any, Callable
 
+from support_recommendation import (
+    AUTO_UTILITY,
+    evaluate_support_build,
+    is_support_profile,
+    normalize_support_recommendation_mode,
+    resolve_support_profile,
+    support_uses_simulation,
+)
+
 _LEGACY_PATH = Path(__file__).resolve().parent.parent / "hero_core_service.py"
 _SPEC = importlib.util.spec_from_file_location("_eaia_hero_core_service_legacy", _LEGACY_PATH)
 if _SPEC is None or _SPEC.loader is None:
@@ -87,6 +96,10 @@ def _group_can_reach_complete_set(
     return False
 
 
+def _support_evaluation_count(profile, requested_trials):
+    return max(1, int(requested_trials)) if support_uses_simulation(profile) else 1
+
+
 def _screen_physical_build(
     *, core, database, physical_items, evolutions, set_names, definitions,
     target, policy, seed, warmup, measurement, screening_trials,
@@ -119,6 +132,21 @@ def _screen_physical_build(
                     scores.append(trial.total_damage / measurement * 60.0)
                     evaluations += 1
                 score = sum(scores) / len(scores)
+            elif category == "support" and recommendation_profile.get("support_recommendation_mode"):
+                requested_trials = _support_evaluation_count(recommendation_profile, screening_trials)
+                evaluation = evaluate_support_build(
+                    database,
+                    core,
+                    [item.item_id for item in physical_items],
+                    recommendation_profile,
+                    target=target,
+                    policy=policy,
+                    trials=requested_trials,
+                    seed=seed,
+                    seconds=60.0,
+                )
+                score = float(evaluation["role_score"])
+                evaluations += requested_trials
             else:
                 evaluation = _legacy.evaluate_role_build(
                     database, core, [item.item_id for item in physical_items], recommendation_profile
@@ -185,6 +213,32 @@ def _refine_physical_build(
                     "role_contributions": {"damage_60s": score},
                     "evaluation_mode": "hero_core_damage_simulation",
                 }
+                evaluations += max(1, int(trials))
+            elif category == "support" and recommendation_profile.get("support_recommendation_mode"):
+                requested_trials = _support_evaluation_count(recommendation_profile, trials)
+                evaluation = evaluate_support_build(
+                    database,
+                    core,
+                    list(item_ids),
+                    recommendation_profile,
+                    target=target,
+                    policy=policy,
+                    trials=requested_trials,
+                    seed=seed,
+                    seconds=60.0,
+                )
+                score = float(evaluation["role_score"])
+                utility_std = float((evaluation.get("utility_60s") or {}).get("std", 0.0))
+                row = {
+                    **common,
+                    **evaluation,
+                    "equivalent_60s": {
+                        "mean": score,
+                        "std": utility_std,
+                        "semantic": "support_role_score_compatibility_alias",
+                    },
+                }
+                evaluations += requested_trials
             else:
                 evaluation = _legacy.evaluate_role_build(
                     database, core, list(item_ids), recommendation_profile
@@ -199,7 +253,7 @@ def _refine_physical_build(
                         "semantic": "role_score_compatibility_alias",
                     },
                 }
-            evaluations += 1
+                evaluations += 1
             key = (score, -len(ascensions), "|".join(item.set_id for item in variant_items))
             if best_key is None or key > best_key:
                 best_key, best_row = key, row
@@ -217,6 +271,10 @@ def _recommend_single(database_path, payload, progress_callback=None, *, top_k_o
     core = _legacy.load_core(core_id)
     try:
         recommendation_profile = _legacy.resolve_recommendation_profile(core)
+        support_mode = None
+        if is_support_profile(recommendation_profile) and payload.get("support_recommendation_mode") not in (None, ""):
+            support_mode = normalize_support_recommendation_mode(payload.get("support_recommendation_mode"))
+            recommendation_profile = resolve_support_profile(core, recommendation_profile, support_mode)
     except (TypeError, ValueError) as error:
         raise HeroCoreError(f"recommendation_profile 无效: {error}") from error
 
@@ -249,8 +307,15 @@ def _recommend_single(database_path, payload, progress_callback=None, *, top_k_o
         database.initialize()
         database.clear_variant_overrides()
         projected_items = [item for item in database.load_equipment() if item.item_id not in excluded]
+        prefilter_core = core
+        if support_mode:
+            prefilter_core = dict(core)
+            prefilter_core["recommendation_profile"] = {
+                **(core.get("recommendation_profile") or {}),
+                **recommendation_profile,
+            }
         all_items, prefilter_report = _legacy.prefilter_equipment(
-            database, core, projected_items, min_relevant_substats=min_relevant_substats
+            database, prefilter_core, projected_items, min_relevant_substats=min_relevant_substats
         )
         by_slot = {slot: [] for slot in _SLOTS}
         for item in all_items:
@@ -366,13 +431,21 @@ def _recommend_single(database_path, payload, progress_callback=None, *, top_k_o
             row["delta_vs_best"] = (best - score) / best if best else 0.0
         reduction = 1.0 - (combinations / per_slot_cartesian) if per_slot_cartesian else 0.0
         category = recommendation_profile.get("category", "output")
+        support_simulation = bool(support_mode and support_uses_simulation(recommendation_profile))
+        if category == "output":
+            ranking_metric = "equivalent_60s_damage"
+        elif category == "support" and support_mode:
+            ranking_metric = "support_auto_utility" if support_mode == AUTO_UTILITY else "support_manual_priority"
+        else:
+            ranking_metric = "role_score"
         return {
             "hero_core_id": core_id,
             "hero_name": core["hero"]["name"],
             "hero_role": core["hero"].get("role"),
             "recommendation_category": category,
             "recommendation_profile": recommendation_profile,
-            "ranking_metric": "equivalent_60s_damage" if category == "output" else "role_score",
+            "support_recommendation_mode": support_mode,
+            "ranking_metric": ranking_metric,
             "policy": policy,
             "target_def": target_def,
             "target_mres": target_mres,
@@ -397,12 +470,12 @@ def _recommend_single(database_path, payload, progress_callback=None, *, top_k_o
                 "limit": right_group_candidates if group_pruning_applied else right_raw},
             "group_pruning_reduction": reduction,
             "combinations_screened": combinations,
-            "screening_trials": screening_trials if category == "output" else 1,
+            "screening_trials": screening_trials if (category == "output" or support_simulation) else 1,
             "variant_simulations_screened": variant_evaluations_screened,
             "variant_simulations_refined": variant_evaluations_refined,
             "variant_evaluations_screened": variant_evaluations_screened,
             "variant_evaluations_refined": variant_evaluations_refined,
-            "refine_trials": refine_trials if category == "output" else 1,
+            "refine_trials": refine_trials if (category == "output" or support_simulation) else 1,
             "equipment_projection": {
                 "mode": "max_enhancement_p60",
                 "locked_substat_percentile": 0.60,
@@ -583,6 +656,10 @@ def _recommend_team(database_path, payload, progress_callback=None):
 def recommend_hero_core(database_path, payload, progress_callback=None):
     if payload.get("team") or payload.get("hero_core_ids"):
         return _recommend_team(database_path, payload, progress_callback)
-    if not payload.get("sets_only") and not payload.get("exclude_item_ids"):
+    if (
+        not payload.get("sets_only")
+        and not payload.get("exclude_item_ids")
+        and not payload.get("support_recommendation_mode")
+    ):
         return _legacy.recommend_hero_core(database_path, payload, progress_callback)
     return _recommend_single(database_path, payload, progress_callback)
