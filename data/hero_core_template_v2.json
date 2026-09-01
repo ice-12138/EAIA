@@ -25,7 +25,31 @@
   "recommendation_profile": {
     "category": "output",
     "archetype": "damage",
-    "primary_scaling_stat": "ATK"
+    "primary_scaling_stat": "ATK",
+    "support_modes": {
+      "manual_priority": {
+        "stat_priority": [
+          "ATK_PCT",
+          "ATK_FLAT",
+          "RAGE_REGEN",
+          "ATK_SPEED",
+          "HP_PCT"
+        ],
+        "ignored_stats": [],
+        "set_utility_weight": 0.25
+      },
+      "auto_utility": {
+        "utility_model": {
+          "activation_event": "ultimate_cast",
+          "source_stat": "atk",
+          "buff_ratio": 0.0,
+          "duration_seconds": 0,
+          "target_count": 1,
+          "team_response": 1.0,
+          "panel_secondary_weight": 0.0
+        }
+      }
+    }
   },
   "resources": {
     "rage": {
@@ -79,6 +103,9 @@
     "base_stats 记录游戏属性页白字原始值；atk_speed 是白字面板攻击速度，不是相对100的额外攻速。",
     "attack_interval 应与同一白字面板状态对应；装备和Buff攻速由引擎在运行时叠加。",
     "recommendation_profile 只描述英雄固有的配装类别、细分类型和主缩放属性；团队模式、仅完整套装等搜索约束不得写入 HeroCore。",
+    "当 recommendation_profile.category=\"support\"/\"buff\" 时，可在 support_modes 中分别定义 manual_priority 与 auto_utility。manual_priority 用于手动对齐爆发窗口的词条优先级；auto_utility 用现有事件引擎计算怒气/攻速/大招次数，并通过 utility_model 换算团队收益。",
+    "support_modes.manual_priority.stat_priority 是从高到低的词条优先级；ignored_stats 可声明英雄机制明确无效的词条，例如某些英雄的 ATK_SPEED。",
+    "support_modes.auto_utility.utility_model.activation_event 默认使用 ultimate_cast；source_stat/buff_ratio/duration_seconds/target_count 用于描述一次增益的来源属性、倍率、持续时间与覆盖人数。若不填写 utility_model，自动模式会明确回退到原角色面板代理评分。",
     "target_cap 为正整数时，实际命中目标数=min(木桩目标数量,target_cap)；target_cap=null 且带 aoe 标签时视为可命中全部木桩目标。",
     "secondary_target_ratio 默认为1.0；若次目标伤害不同，总目标倍率=1+(实际目标数-1)*secondary_target_ratio。hit_count 表示每个目标承受的段数，与目标数量独立。"
   ],
