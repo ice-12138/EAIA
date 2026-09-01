@@ -18,7 +18,7 @@ from typing import Any
 from equipment_db import EquipmentDatabase, STAT_TYPES
 from equipment_models import EquipmentItem, EquipmentStat, Slot, StatType
 from equipment_set_variants import load_hero_core_set_effects
-from sub_stat_estimator import SubStatEstimator
+from sub_stat_estimator import SubStatEstimator, normalize_set_tier
 
 
 class EquipmentProjectionError(ValueError):
@@ -37,12 +37,12 @@ def _slot_scope(slot: str) -> str:
 
 
 class OptimizerEquipmentDatabase(EquipmentDatabase):
-    """Read-only optimizer view using max enhancement and P60 locked sub-stats.
+    """Read-only optimizer view using max enhancement and tier-aware P60 sub-stats.
 
     Main stats use the known value at the quality enhancement cap when one is
     available. Unlocked sub-stats keep their observed value. Locked sub-stats
-    use an explicit override when present, otherwise the empirical/canonical
-    configured percentile estimate from :class:`SubStatEstimator`.
+    use an explicit override when present, otherwise a robust empirical P60
+    estimated from the same set tier and stat type. INF is grouped into T3.
 
     When the max-level main-stat value is not yet known, an item with a known
     current enhancement level and observed main-stat value remains usable. The
@@ -66,7 +66,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         path: str | Path = "data/equipment.db",
         *,
         percentile: float = 0.60,
-        min_samples_for_percentile: int = 3,
+        min_samples_for_percentile: int = 10,
     ):
         if not 0.0 <= percentile <= 1.0:
             raise ValueError("percentile must be between 0 and 1")
@@ -136,11 +136,22 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         ).fetchone()
         return None if row is None or row[0] is None else float(row[0])
 
+    def _set_tier(self, row) -> str | None:
+        set_id = self._row_value(row, "set_id")
+        if not set_id:
+            return None
+        tier = self.connection.execute(
+            "SELECT set_tier_id FROM sets WHERE set_id=?",
+            (set_id,),
+        ).fetchone()
+        return normalize_set_tier(None if tier is None else tier[0])
+
     def _project_item(self, row) -> EquipmentItem:
         item_id = str(row["item_id"])
         slot_value = self._row_value(row, "slot_id") or row["slot"]
         slot = Slot(slot_value)
         quality_id = self._row_value(row, "quality_id") or self._row_value(row, "tier")
+        set_tier_id = self._set_tier(row)
         current_level = self._current_level(row)
         target_level = self._target_level(row)
         stat_rows = self.connection.execute(
@@ -220,9 +231,9 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                 main_stat_level_used = stat_level_used
             else:
                 # Some historical/manual rows contain an inverted or stale
-                # is_unlocked flag.  A numeric observed value is definitive:
-                # use it as actual.  NULL means the roll is still unknown and
-                # should use override/P60.  Do not let metadata overwrite data.
+                # is_unlocked flag. A numeric observed value is definitive:
+                # use it as actual. NULL means the roll is still unknown and
+                # should use override/P60. Do not let metadata overwrite data.
                 unlocked = actual is not None
                 override = stat["estimate_override"]
                 if unlocked:
@@ -234,15 +245,21 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                     projection_source = "override"
                     stat_level_used = target_level
                 else:
-                    estimate = estimator.estimate(stat_type_raw, stat["roll_grade_id"])
+                    estimate = estimator.estimate(
+                        stat_type_raw,
+                        stat["roll_grade_id"],
+                        set_tier_id=set_tier_id,
+                        item_id=item_id,
+                    )
                     projected = estimate.expected
                     projection_source = estimate.source
                     stat_level_used = target_level
                     if projected is None:
-                        grade = stat["roll_grade_id"] or "all-grades"
+                        tier_text = set_tier_id or "unknown-tier"
                         raise EquipmentProjectionError(
                             f"{item_id}: no P{int(round(self.percentile * 100))} estimate for locked "
-                            f"{stat_type_raw} ({grade})"
+                            f"{stat_type_raw} ({tier_text}; representative samples "
+                            f"<{self.min_samples_for_percentile})"
                         )
 
             projected_stats.append(
@@ -264,12 +281,14 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                 "value_level": stat_level_used,
                 "is_unlocked": normalized_unlocked,
                 "roll_grade_id": stat["roll_grade_id"],
+                "set_tier_id": set_tier_id,
             })
 
         projected_level = target_level if target_level is not None else current_level
         self.projection_reports[item_id] = {
             "item_id": item_id,
             "quality_id": quality_id,
+            "set_tier_id": set_tier_id,
             "slot": slot.value,
             "current_level": current_level,
             "projected_level": projected_level,
@@ -333,6 +352,10 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         return {
             "mode": f"max_enhancement_p{percentile_label}",
             "locked_substat_percentile": self.percentile,
+            "locked_substat_grouping": "set_tier_id+stat_type",
+            "locked_substat_robust_filter": "IQR_1.5",
+            "locked_substat_min_representative_samples": self.min_samples_for_percentile,
+            "inf_tier_mapping": "T3",
             "main_stat_fallback_policy": "use_current_observed_value_when_max_cap_unknown",
             "current_main_fallback_item_count": len(fallback_items),
             "items": reports,
