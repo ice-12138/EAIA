@@ -1,0 +1,419 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.1",
+  "game_version": "CN-2026-09-02",
+  "hero": {
+    "id": "OLAGUE",
+    "name": "奥拉格",
+    "title": "",
+    "faction": "北境王座",
+    "role": "守护者",
+    "damage_type": "normal",
+    "mechanic_summary": "生命型护盾守护者。终结技“不破壁垒”进入30秒防御姿态，停止攻击并提高物理减伤与阻挡数；被动“白银护盾”按最大生命值周期生成高额护盾，因此装备推荐以生命值为第一优先级、兼顾防御与怒气循环。",
+    "base_stats": {
+      "atk": 2436,
+      "hp": 21355,
+      "def": 3229,
+      "mres": 734,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "healing_effect": 0,
+      "attack_interval": 2.4
+    }
+  },
+  "recommendation_profile": {
+    "category": "defense",
+    "archetype": "hp_shield",
+    "primary_scaling_stat": "HP",
+    "set_categories": [
+      "defense",
+      "buff"
+    ],
+    "stat_category": "defense",
+    "min_relevance_weight": 0.6,
+    "min_relevant_substats": 2,
+    "stat_weights": {
+      "HP_PCT": 1.0,
+      "HP_FLAT": 0.6,
+      "DEF_PCT": 0.4,
+      "DEF_FLAT": 0.25,
+      "RAGE_REGEN": 0.15
+    },
+    "objective_weights": {
+      "hp_gain": 1.0,
+      "defense_gain": 0.4,
+      "rage_regen": 0.15,
+      "set_utility": 0.4
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 0,
+      "max": 900,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "observed_capture": {
+      "date": "2026-09-02",
+      "level": "60/60",
+      "white_stats": {
+        "hp": 21355,
+        "atk": 2436,
+        "def": 3229,
+        "mres": 734,
+        "cost": 18,
+        "block": 3,
+        "redeploy_time": 60,
+        "atk_speed": 100,
+        "crit_rate": 0,
+        "crit_dmg": 1.5,
+        "healing_effect": 0,
+        "rage_regen": 0,
+        "auto_rage": 14,
+        "basic_rage": 4
+      },
+      "equipment_or_external_bonuses": {
+        "hp": 39365,
+        "atk": 3831,
+        "def": 1830,
+        "redeploy_time_reduction": 5,
+        "atk_speed": 72,
+        "crit_dmg": 0.315,
+        "healing_effect": 43,
+        "rage_regen": 0.375,
+        "basic_rage": 1.5
+      },
+      "displayed_attack_interval_with_bonus_atk_speed": 1.9
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 21355,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 2436,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 3229,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 734,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 18,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 3,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.4,
+        "unit": "second",
+        "source": "white",
+        "notes": "当前截图因攻击速度100+72显示1.9秒；裸装白字攻击间隔2.4秒由英雄数据库交叉核对。"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 4,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 12,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "observed_skill_levels": {
+      "unbreakable": "MAX",
+      "basic_attack": "MAX",
+      "silver_shield": "MAX"
+    },
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "攻击对1名敌人造成伤害。普通攻击无法升级。",
+        "coefficient": 1.0,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 4
+        }
+      },
+      {
+        "id": "unbreakable",
+        "name": "不破壁垒",
+        "type": "ultimate",
+        "description": "满级：转为防御姿态，在30秒内停止攻击敌人，同时物理减伤提高50%，阻挡数提高1。Lv2、Lv3各使物理减伤提高5个百分点，Lv4持续时间+5秒，Lv5技能消耗-100。",
+        "coefficient": 0,
+        "target_cap": null,
+        "duration": 30,
+        "direct_damage": false,
+        "values": {
+          "rage_cost": 900,
+          "initial_rage": 0,
+          "physical_damage_reduction": 0.5,
+          "block_bonus": 1,
+          "stops_attacking": true
+        }
+      },
+      {
+        "id": "silver_shield",
+        "name": "白银护盾",
+        "type": "passive",
+        "description": "满级：每过11秒，为自身添加一个可吸收自身最大生命值85%伤害的护盾。基础护盾50%，Lv2+10%、Lv3+10%、Lv4+15%，Lv5冷却时间-1秒。",
+        "coefficient": null,
+        "target_cap": null,
+        "duration": null,
+        "direct_damage": false,
+        "values": {
+          "base_shield_max_hp_ratio": 0.5,
+          "shield_max_hp_ratio": 0.85,
+          "base_cooldown": 12,
+          "cooldown": 11
+        }
+      }
+    ],
+    "talents": [],
+    "awakenings": [
+      {
+        "level": 1,
+        "description": "获得护盾时，护盾强度提高10%。"
+      },
+      {
+        "level": 2,
+        "description": "防御+100。"
+      },
+      {
+        "level": 3,
+        "description": "生命值+1200。"
+      },
+      {
+        "level": 4,
+        "description": "所有伤害减免+5%。"
+      },
+      {
+        "level": 5,
+        "description": "释放终结技时，使相邻友方单位获得与终结技持续时间相同的物理减伤。"
+      }
+    ]
+  },
+  "state": {},
+  "buffs": {
+    "unbreakable_stance": {
+      "duration": 30,
+      "modifiers": {},
+      "metadata": {
+        "physical_damage_reduction": 0.5,
+        "block_bonus": 1,
+        "stops_attacking": true
+      }
+    },
+    "silver_shield_proxy": {
+      "duration": 11,
+      "modifiers": {},
+      "metadata": {
+        "effect": "shield",
+        "scaling_source": "max_hp",
+        "shield_max_hp_ratio": 0.85,
+        "refresh_interval": 11,
+        "consumed_by_incoming_damage": true
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 1.0,
+      "hit_count": 1,
+      "target_cap": 1,
+      "secondary_target_ratio": 1.0,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 4,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "unbreakable": {
+      "id": "unbreakable",
+      "name": "不破壁垒",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "target_cap": null,
+      "duration": 30,
+      "can_crit": false,
+      "blocks_basic_attack": true,
+      "resource": {
+        "name": "rage",
+        "cost": 900
+      },
+      "tags": [
+        "ultimate",
+        "defensive",
+        "damage_reduction",
+        "block",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "unbreakable_apply_stance",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "unbreakable_stance",
+          "duration": 30
+        }
+      ]
+    },
+    {
+      "id": "silver_shield_timer_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "OLAGUE_SILVER_SHIELD",
+          "delay": 11
+        }
+      ]
+    },
+    {
+      "id": "silver_shield_refresh",
+      "event": "OLAGUE_SILVER_SHIELD",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "silver_shield_proxy",
+          "duration": 11
+        },
+        {
+          "type": "schedule_event",
+          "event": "OLAGUE_SILVER_SHIELD",
+          "delay": 11
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 900"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "HeroCore基础属性严格只记录满级英雄裸装白字；截图中的绿色装备/神器/其他加成全部排除。",
+    "本次截图英雄为60/60，生命21355、攻击2436、防御3229、魔抗734、费用18、阻挡3、攻击速度100、暴击率0%、暴击伤害150%、自然回怒14、普攻回怒4均按白字录入。",
+    "截图中的生命+39365、攻击+3831、防御+1830、再部署-5、攻击速度+72、暴击伤害+31.5%、治疗效果+43、怒气恢复效率+37.5%、普攻回怒+1.5均属于外部加成，不进入base_stats。",
+    "截图装备状态显示攻击间隔1.9秒且攻击速度为100+72；裸装白字攻击间隔按当前英雄数据库的2.4秒录入。",
+    "白银护盾按满级技能85%最大生命值、11秒周期录入；推荐算法因此明确使用HP作为第一缩放属性。",
+    "不破壁垒按满级900怒气、30秒、50%物理减伤、阻挡+1建模，持续期间blocks_basic_attack=true。",
+    "普通攻击未显示伤害倍率，执行层暂按1.0×ATK；该近似不会影响当前defense类别的装备推荐主逻辑。",
+    "觉醒效果仅保存在codex.awakenings，本HeroCore执行层默认不额外叠加任何觉醒属性或机制。",
+    "当前HeroCore引擎没有敌方入伤、真实护盾耐久与阻挡压力模拟，因此白银护盾和物理减伤主要以codex/metadata保存；当前defense装备推荐仍以HP、DEF、怒气与防御套装效用评分。"
+  ],
+  "validation_required": [
+    "若后续实现入伤/生存事件模拟，应将白银护盾的85%最大生命值护盾、11秒刷新、护盾被打破以及不破壁垒50%物理减伤/阻挡+1接入通用防御事件模型。",
+    "普通攻击精确伤害倍率仍需木桩或游戏数据进一步确认；当前按1.0×ATK占位。",
+    "若要按具体觉醒等级推荐装备，应由未来的awakening参数显式启用A1-A5，而不是静默写入基础属性。"
+  ]
+}
