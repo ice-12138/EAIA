@@ -308,3 +308,34 @@ def delete_equipment(db,item_id):
         if cache is not None:
             cache.pop(item_id, None)
     return {"ok":True}
+
+
+def set_equipment_availability(db, item_ids, available):
+    """Set build participation for a group of existing equipment items."""
+    ids = [str(item_id).strip() for item_id in (item_ids or []) if str(item_id).strip()]
+    if not ids:
+        raise DataManagerError("至少需要一个装备ID")
+    value = int(bool(available))
+    with _connect(db) as c:
+        marks = ",".join("?" for _ in ids)
+        cur = c.execute(
+            f"UPDATE equipment SET available=? WHERE item_id IN ({marks})",
+            [value, *ids],
+        )
+        missing = [item_id for item_id in ids if not c.execute(
+            "SELECT 1 FROM equipment WHERE item_id=?", (item_id,)
+        ).fetchone()]
+        if missing:
+            raise DataManagerError("装备不存在: " + ",".join(missing))
+        c.commit()
+    initialize_equipment_calculability(db)
+    return {"ok": True, "updated_count": cur.rowcount, "item_ids": ids, "available": bool(value)}
+
+
+def reset_equipment_availability(db):
+    """Make every equipment item eligible for future build recommendations."""
+    with _connect(db) as c:
+        cur = c.execute("UPDATE equipment SET available=1 WHERE available<>1 OR available IS NULL")
+        c.commit()
+    initialize_equipment_calculability(db)
+    return {"ok": True, "updated_count": cur.rowcount, "available": True}

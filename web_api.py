@@ -30,7 +30,9 @@ from data_manager import (
     initialize_equipment_calculability,
     refresh_equipment_calculability,
     resource_catalog,
+    reset_equipment_availability,
     save_equipment,
+    set_equipment_availability,
     update_resource,
 )
 from equipment_db import EquipmentDatabase
@@ -438,6 +440,15 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
             if path == "/api/manage/equipment":
                 payload = self._read_json()
                 self._send_json(save_equipment(self.database, payload.get("values") or payload), HTTPStatus.CREATED)
+                return
+            if path == "/api/manage/equipment/availability":
+                payload = self._read_json()
+                self._send_json(set_equipment_availability(
+                    self.database, payload.get("item_ids"), payload.get("available", False)
+                ))
+                return
+            if path == "/api/manage/equipment/reset-availability":
+                self._send_json(reset_equipment_availability(self.database))
                 return
             resource = _managed_resource(path)
             if resource is not None:

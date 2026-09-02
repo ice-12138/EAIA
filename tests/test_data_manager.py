@@ -3,7 +3,17 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from data_manager import create_resource, delete_equipment, delete_resource, list_equipment, list_resource, save_equipment, update_resource
+from data_manager import (
+    create_resource,
+    delete_equipment,
+    delete_resource,
+    list_equipment,
+    list_resource,
+    reset_equipment_availability,
+    save_equipment,
+    set_equipment_availability,
+    update_resource,
+)
 from equipment_db import EquipmentDatabase
 
 
@@ -87,6 +97,32 @@ class DataManagerTests(unittest.TestCase):
         self.assertEqual(row["stats"][0]["stat_value"], 456.0)
         delete_equipment(self.database, "UI_TEST_ITEM")
         self.assertFalse(any(row["item_id"] == "UI_TEST_ITEM" for row in list_equipment(self.database)["rows"]))
+
+    def test_equipment_availability_bulk_updates_and_resets(self):
+        connection = sqlite3.connect(self.database)
+        try:
+            set_id = connection.execute("SELECT set_id FROM sets LIMIT 1").fetchone()[0]
+            slot_id = connection.execute("SELECT slot_id FROM equipment_slots LIMIT 1").fetchone()[0]
+            quality_id = connection.execute("SELECT quality_id FROM gear_qualities LIMIT 1").fetchone()[0]
+        finally:
+            connection.close()
+        for item_id in ("BULK_A", "BULK_B"):
+            save_equipment(self.database, {
+                "item_id": item_id, "slot_id": slot_id, "set_id": set_id,
+                "quality_id": quality_id, "available": True, "stats": [],
+            })
+
+        result = set_equipment_availability(self.database, ["BULK_A", "BULK_B"], False)
+        self.assertEqual(result["updated_count"], 2)
+        rows = {row["item_id"]: row for row in list_equipment(self.database)["rows"]}
+        self.assertFalse(rows["BULK_A"]["available"])
+        self.assertFalse(rows["BULK_B"]["available"])
+
+        result = reset_equipment_availability(self.database)
+        self.assertEqual(result["available"], True)
+        rows = {row["item_id"]: row for row in list_equipment(self.database)["rows"]}
+        self.assertTrue(rows["BULK_A"]["available"])
+        self.assertTrue(rows["BULK_B"]["available"])
 
 
 if __name__ == "__main__":
