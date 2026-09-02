@@ -145,6 +145,34 @@ def ensure_v22_schema(connection: sqlite3.Connection) -> None:
     """)
 
 
+def _refresh_canonical_set_row(connection: sqlite3.Connection, row: dict[str, object]) -> None:
+    """Repair authoritative set metadata without touching inventory/OCR-only sets.
+
+    Older databases may already contain a canonical set id that was created by
+    OCR/import code with placeholder metadata (required_pieces=1,
+    slot_group=NULL or legacy left2/right3 values).  INSERT OR IGNORE cannot
+    repair such rows, so complete-set recommendation later sees a real 3-piece
+    set as structurally invalid.  The packaged V2.2 dictionary is authoritative
+    for canonical set structure; refresh those fields on every initialization.
+    """
+    set_id = row.get("set_id")
+    if not set_id:
+        return
+    authoritative_columns = (
+        "set_name", "set_tier_id", "required_pieces", "slot_group",
+        "category_id", "active", "game_version", "notes",
+    )
+    columns = [column for column in authoritative_columns if column in row]
+    if not columns:
+        return
+    assignments = ",".join(f'"{column}"=?' for column in columns)
+    values = [None if row[column] in ("", "NULL", "null") else row[column] for column in columns]
+    connection.execute(
+        f'UPDATE sets SET {assignments} WHERE set_id=?',
+        (*values, str(set_id)),
+    )
+
+
 def seed_v22_defaults(connection: sqlite3.Connection, data_path: str | Path | None = None) -> None:
     """Seed packaged V2.2 data exported from the design document."""
     path = Path(data_path) if data_path else Path(__file__).with_name("equipment_v22_seed.json")
@@ -182,6 +210,8 @@ def seed_v22_defaults(connection: sqlite3.Connection, data_path: str | Path | No
             placeholders = ",".join("?" for _ in columns)
             quoted_columns = ",".join('"' + column.replace('"', '""') + '"' for column in columns)
             connection.execute(f"INSERT OR IGNORE INTO {table} ({quoted_columns}) VALUES ({placeholders})", values)
+            if table == "sets":
+                _refresh_canonical_set_row(connection, row)
             if table == "main_stat_max_values" and row.get("max_value_at_level_cap") is not None:
                 connection.execute(
                     "UPDATE main_stat_max_values SET max_value_at_level_cap=? WHERE quality_id=? AND slot_scope=? AND stat_type=? AND max_value_at_level_cap IS NULL",
