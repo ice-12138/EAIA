@@ -13,19 +13,24 @@ from hero_core_service import (
     _select_group_build_candidates,
     _select_set_aware_candidates,
     _set_effect_scores,
+    recommend_hero_core,
 )
 from optimizer_projection import OptimizerEquipmentDatabase
 
 
 class BrokkirInventoryPipelineTests(unittest.TestCase):
-    def test_repository_unshaken_complete_set_survives_brokkir_pipeline(self):
+    @staticmethod
+    def _repository_database_copy(directory):
         source = Path(__file__).resolve().parents[1] / "data" / "equipment.db"
         if not source.exists():
-            self.skipTest("repository equipment database is unavailable")
+            raise unittest.SkipTest("repository equipment database is unavailable")
+        copied = Path(directory) / "equipment.db"
+        shutil.copyfile(source, copied)
+        return copied
 
+    def test_repository_unshaken_complete_set_survives_brokkir_pipeline(self):
         with tempfile.TemporaryDirectory() as directory:
-            copied = Path(directory) / "equipment.db"
-            shutil.copyfile(source, copied)
+            copied = self._repository_database_copy(directory)
             database = OptimizerEquipmentDatabase(copied, percentile=0.60)
             try:
                 database.initialize()
@@ -134,6 +139,41 @@ class BrokkirInventoryPipelineTests(unittest.TestCase):
                 )
             finally:
                 database.close()
+
+    def test_exact_brokkir_sets_only_recommendation_on_repository_inventory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            copied = self._repository_database_copy(directory)
+            result = recommend_hero_core(
+                copied,
+                {
+                    "hero_core_id": "BROKKIR",
+                    "sets_only": True,
+                    "top_k": 1,
+                    "candidate_per_slot": 5,
+                    "trials": 1,
+                    "screening_trials": 1,
+                    "screening_warmup": 0,
+                    "screening_measurement": 1,
+                    "warmup": 0,
+                    "measurement": 1,
+                    "seed": 20260902,
+                },
+            )
+            self.assertTrue(result["results"])
+            best = result["results"][0]
+            self.assertTrue(best["sets_only"])
+            final_states = best["final_set_states"]
+            by_slot = {row["slot"]: row for row in final_states}
+            self.assertEqual(set(by_slot), {"weapon", "armor", "bracelet", "necklace", "ring"})
+            self.assertEqual(by_slot["weapon"]["set_id"], by_slot["armor"]["set_id"])
+            self.assertEqual(
+                by_slot["bracelet"]["set_id"],
+                by_slot["necklace"]["set_id"],
+            )
+            self.assertEqual(
+                by_slot["bracelet"]["set_id"],
+                by_slot["ring"]["set_id"],
+            )
 
 
 if __name__ == "__main__":
