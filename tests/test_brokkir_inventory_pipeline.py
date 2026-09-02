@@ -41,29 +41,25 @@ class BrokkirInventoryPipelineTests(unittest.TestCase):
                        WHERE set_id='set_unshaken_will'
                        ORDER BY slot_id,item_id"""
                 ).fetchall()
-                print("RAW UNSHAKEN ITEMS:", [dict(row) for row in raw_rows])
                 raw_ids = [str(row["item_id"]) for row in raw_rows]
-                for item_id in raw_ids:
-                    stats = database.connection.execute(
-                        """SELECT stat_index,stat_source,stat_type,stat_value,
-                                  is_unlocked,roll_grade_id,estimate_override
-                           FROM equipment_stats WHERE item_id=? ORDER BY stat_index""",
-                        (item_id,),
-                    ).fetchall()
-                    print("RAW STATS", item_id, [dict(row) for row in stats])
 
                 projected_items = database.load_equipment()
                 projected_unshaken = [
                     item for item in projected_items if item.set_id == "set_unshaken_will"
                 ]
-                print(
-                    "PROJECTED UNSHAKEN:",
-                    [(item.item_id, item.slot.value) for item in projected_unshaken],
+                projected_slots = {item.slot.value for item in projected_unshaken}
+                self.assertTrue(raw_ids, "repository inventory should contain 不灭意志 items")
+                self.assertTrue(
+                    {"bracelet", "necklace", "ring"}.issubset(projected_slots),
+                    "the visible 不灭意志 3-piece set must not disappear during projection",
                 )
-                print(
-                    "UNSHAKEN PROJECTION EXCLUSIONS:",
-                    {item_id: database.projection_exclusions.get(item_id) for item_id in raw_ids
-                     if item_id in database.projection_exclusions},
+                self.assertNotIn("56", database.projection_exclusions)
+                self.assertNotIn("58", database.projection_exclusions)
+                self.assertTrue(
+                    database.projection_reports["56"]["uses_locked_substat_zero_fallback"]
+                )
+                self.assertTrue(
+                    database.projection_reports["58"]["uses_locked_substat_zero_fallback"]
                 )
 
                 core = load_core("BROKKIR")
@@ -72,39 +68,34 @@ class BrokkirInventoryPipelineTests(unittest.TestCase):
                 filtered_unshaken = [
                     item for item in filtered_items if item.set_id == "set_unshaken_will"
                 ]
-                print("BROKKIR PROFILE:", profile)
-                print(
-                    "PREFILTER UNSHAKEN:",
-                    [(item.item_id, item.slot.value) for item in filtered_unshaken],
-                )
-                removed = report.get("removed_item_ids") or {}
-                print(
-                    "UNSHAKEN PREFILTER REMOVALS:",
-                    {reason: [item_id for item_id in ids if item_id in raw_ids]
-                     for reason, ids in removed.items()
-                     if any(item_id in raw_ids for item_id in ids)},
+                filtered_slots = {item.slot.value for item in filtered_unshaken}
+                self.assertTrue(
+                    {"bracelet", "necklace", "ring"}.issubset(filtered_slots),
+                    "Brokkir prefilter must retain the defensively relevant 不灭意志 set",
                 )
 
                 by_slot = {slot: [] for slot in ("weapon", "armor", "bracelet", "necklace", "ring")}
                 for item in filtered_items:
                     if item.slot.value in by_slot:
                         by_slot[item.slot.value].append(item)
-                print("FILTERED SLOT COUNTS:", {slot: len(items) for slot, items in by_slot.items()})
 
                 candidates, _ = _select_set_aware_candidates(
                     database, by_slot, 5, profile
                 )
-                print(
-                    "CANDIDATE UNSHAKEN:",
-                    {slot: [item.item_id for item in items if item.set_id == "set_unshaken_will"]
-                     for slot, items in candidates.items()},
+                candidate_unshaken_slots = {
+                    slot for slot, items in candidates.items()
+                    if any(item.set_id == "set_unshaken_will" for item in items)
+                }
+                self.assertTrue(
+                    {"bracelet", "necklace", "ring"}.issubset(candidate_unshaken_slots),
+                    "set-aware candidate pruning must retain one 不灭意志 item per right slot",
                 )
 
                 definitions = database.load_sets()
                 evolutions = load_set_evolutions(database)
                 set_names = load_set_names(database)
                 effect_scores = _set_effect_scores(database, profile)
-                right_builds, right_raw = _select_group_build_candidates(
+                right_builds, _ = _select_group_build_candidates(
                     candidates,
                     _RIGHT_SLOT_ORDER,
                     16,
@@ -125,17 +116,13 @@ class BrokkirInventoryPipelineTests(unittest.TestCase):
                         set_names=set_names,
                     )
                 ]
-                print("RIGHT RAW/KEPT/COMPLETE:", right_raw, len(right_builds), len(complete))
-                print(
-                    "COMPLETE RIGHT BUILDS:",
-                    [[(item.item_id, item.set_id, item.slot.value) for item in build]
-                     for build in complete[:20]],
-                )
-
-                self.assertTrue(raw_ids, "repository inventory should contain 不灭意志 items")
+                unshaken_complete = [
+                    build for build in complete
+                    if {item.set_id for item in build} == {"set_unshaken_will"}
+                ]
                 self.assertTrue(
-                    complete,
-                    "repository inventory has a complete right set, but Brokkir pipeline removes it",
+                    unshaken_complete,
+                    "the visible 不灭意志 bracelet+necklace+ring set must reach complete-set validation",
                 )
             finally:
                 database.close()
