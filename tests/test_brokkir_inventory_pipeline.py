@@ -38,33 +38,44 @@ class BrokkirInventoryPipelineTests(unittest.TestCase):
                     """SELECT item_id,COALESCE(slot_id,slot) AS slot_id,set_id,
                               available,locked,item_locked,quality_id,enhancement_level
                        FROM equipment
-                       WHERE set_id='set_unshaken_will'
+                       WHERE set_id='set_unshaken_will' AND available=1 AND locked=0
                        ORDER BY slot_id,item_id"""
                 ).fetchall()
-                raw_ids = [str(row["item_id"]) for row in raw_rows]
+                raw_ids = {str(row["item_id"]) for row in raw_rows}
 
                 projected_items = database.load_equipment()
                 projected_unshaken = [
                     item for item in projected_items if item.set_id == "set_unshaken_will"
                 ]
+                projected_ids = {str(item.item_id) for item in projected_unshaken}
                 projected_slots = {item.slot.value for item in projected_unshaken}
-                self.assertTrue(raw_ids, "repository inventory should contain 不灭意志 items")
+                self.assertTrue(raw_ids, "repository inventory should contain usable 不灭意志 items")
                 self.assertTrue(
                     {"bracelet", "necklace", "ring"}.issubset(projected_slots),
                     "the visible 不灭意志 3-piece set must not disappear during projection",
                 )
-                self.assertNotIn("56", database.projection_exclusions)
-                self.assertNotIn("58", database.projection_exclusions)
                 self.assertTrue(
-                    database.projection_reports["56"]["uses_locked_substat_zero_fallback"]
+                    raw_ids.issubset(projected_ids),
+                    f"usable 不灭意志 items disappeared during projection: {sorted(raw_ids - projected_ids)}",
                 )
+                self.assertFalse(
+                    raw_ids.intersection(database.projection_exclusions),
+                    "usable 不灭意志 items must not be excluded only because a locked P60 is unavailable",
+                )
+                reports = [
+                    database.projection_reports[item_id]
+                    for item_id in raw_ids
+                    if item_id in database.projection_reports
+                ]
+                self.assertEqual(len(reports), len(raw_ids))
                 self.assertTrue(
-                    database.projection_reports["58"]["uses_locked_substat_zero_fallback"]
+                    any(report.get("uses_locked_substat_zero_fallback") for report in reports),
+                    "this regression inventory should exercise the conservative locked-stat fallback",
                 )
 
                 core = load_core("BROKKIR")
                 profile = resolve_recommendation_profile(core)
-                filtered_items, report = prefilter_equipment(database, core, projected_items)
+                filtered_items, _ = prefilter_equipment(database, core, projected_items)
                 filtered_unshaken = [
                     item for item in filtered_items if item.set_id == "set_unshaken_will"
                 ]
