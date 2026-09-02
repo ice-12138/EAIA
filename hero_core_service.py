@@ -262,6 +262,10 @@ def _reachable_set_context(
     for source, target in evolutions.items():
         sources_by_target[target].add(source)
 
+    # Reachability is a structural property of the inventory, not a scoring
+    # property of the current hero profile. Complete-set-only validation happens
+    # after lossy candidate/group pruning, so every physically reachable set
+    # must survive those stages even when its cheap effect score is zero.
     feasible_final_sets: set[str] = set()
     for final_set_id, definition in definitions.items():
         compatible_current_sets = {final_set_id, *sources_by_target.get(final_set_id, set())}
@@ -270,8 +274,7 @@ def _reachable_set_context(
             reachable_slots.update(slots_by_current_set.get(current_set_id, set()))
         if len(reachable_slots & _eligible_slots(definition.slot_group)) < int(definition.required_pieces):
             continue
-        if effect_scores.get(final_set_id, 0.0) > 0:
-            feasible_final_sets.add(final_set_id)
+        feasible_final_sets.add(final_set_id)
     return definitions, evolutions, effect_scores, sources_by_target, feasible_final_sets
 
 
@@ -284,7 +287,7 @@ def _set_candidate_bonuses(
         database, all_items, recommendation_profile
     )
     feasible_final_bonus = {
-        set_id: effect_scores[set_id] / max(1, int(definitions[set_id].required_pieces))
+        set_id: effect_scores.get(set_id, 0.0) / max(1, int(definitions[set_id].required_pieces))
         for set_id in feasible_final_sets
     }
     current_sets = {item.set_id for item in all_items}
@@ -311,7 +314,8 @@ def _select_set_aware_candidates(
     Protection is not limited to native T2 anymore. T3 sets and mixed
     ``native T2 + evolvable T1`` final states receive one best representative in
     every eligible slot, preventing a complete set from disappearing before the
-    group/HeroCore stages.
+    group/HeroCore stages. Physical reachability is protected independently of
+    whether the current profile assigns a positive cheap score to the set.
     """
     profile = recommendation_profile or _output_profile()
     all_items = [item for values in by_slot.values() for item in values]
@@ -419,8 +423,9 @@ def _select_group_build_candidates(
         for variant_items, _ in iter_ascension_variants(physical_items, evolutions, set_names):
             reachable_active.update(_active_set_ids_for_items(variant_items, definitions))
         for set_id in reachable_active:
-            if effect_scores.get(set_id, 0.0) <= 0:
-                continue
+            # A completed set is semantically relevant to sets_only even when
+            # the current profile's cheap effect score is zero. Protect one
+            # representative per completed set before truncating the group pool.
             previous = best_by_active_set.get(set_id)
             if previous is None or row > previous:
                 best_by_active_set[set_id] = row

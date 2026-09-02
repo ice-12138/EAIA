@@ -1,0 +1,465 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.2.0",
+  "game_version": "CN-2026-09-02",
+  "hero": {
+    "id": "DOLORES",
+    "name": "德洛丽丝",
+    "title": "",
+    "faction": "炼狱爆破",
+    "role": "医师",
+    "damage_type": "magic",
+    "mechanic_summary": "攻击型群体治疗/激励辅助。普通治疗频率不受攻击速度影响；终结技“轻歌曼舞”按自身攻击力为范围内其他友方提供激励；“楚楚动人”强化治疗并在终结技结束时概率返还怒气。当前截图为觉醒I。",
+    "base_stats": {
+      "atk": 2536,
+      "hp": 7459,
+      "def": 1378,
+      "mres": 1988,
+      "crit_rate": 0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0,
+      "healing_effect": 0,
+      "attack_interval": 2.0
+    }
+  },
+  "recommendation_profile": {
+    "category": "support",
+    "archetype": "atk_inspiration",
+    "primary_scaling_stat": "ATK",
+    "support_modes": {
+      "manual_priority": {
+        "stat_priority": [
+          "ATK_PCT",
+          "ATK_FLAT",
+          "RAGE_REGEN",
+          "HP_PCT",
+          "HP_FLAT",
+          "DEF_PCT"
+        ],
+        "ignored_stats": [
+          "ATK_SPEED",
+          "CRIT_RATE",
+          "CRIT_DMG"
+        ],
+        "set_categories": [
+          "buff",
+          "healing",
+          "output",
+          "defense"
+        ],
+        "set_utility_weight": 0.25,
+        "min_relevant_substats": 1
+      },
+      "auto_utility": {
+        "stat_weights": {
+          "ATK_PCT": 1.0,
+          "ATK_FLAT": 0.7,
+          "RAGE_REGEN": 0.8,
+          "HP_PCT": 0.08,
+          "DEF_PCT": 0.05,
+          "HEALING_EFFECT": 0.02
+        },
+        "set_categories": [
+          "buff",
+          "healing",
+          "output",
+          "defense"
+        ],
+        "min_relevant_substats": 1,
+        "utility_model": {
+          "activation_event": "ultimate_cast",
+          "source_stat": "atk",
+          "buff_ratio": 0.6,
+          "duration_seconds": 22,
+          "target_count": 1,
+          "team_response": 1.0,
+          "coverage_cap": 1.0,
+          "panel_secondary_weight": 0.0
+        }
+      }
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 400,
+      "max": 900,
+      "auto_per_second": 18
+    }
+  },
+  "codex": {
+    "observed_capture": {
+      "date": "2026-09-02",
+      "level": "50/50",
+      "awakening": 1,
+      "white_stats": {
+        "hp": 6201,
+        "atk": 1700,
+        "def": 923,
+        "mres": 1332,
+        "cost": 5,
+        "block": 1,
+        "redeploy_time": 60,
+        "attack_interval": 2.0,
+        "atk_speed": 100,
+        "crit_rate": 0,
+        "crit_dmg": 1.5,
+        "healing_effect": 0,
+        "rage_regen": 0,
+        "auto_rage": 18,
+        "basic_rage": 3
+      }
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 7459,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 2536,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 1378,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 1988,
+        "unit": "flat",
+        "source": "public_database"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 5,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 1,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.0,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "healing_effect",
+        "name": "治疗效果",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "rage_regen",
+        "name": "怒气恢复效率",
+        "value": 0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 18,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 3,
+        "unit": "rage_per_attack",
+        "source": "white"
+      }
+    ],
+    "observed_skill_levels": {
+      "graceful_dancing": "MAX",
+      "basic_attack": "MAX",
+      "merciful_beauty": "MAX"
+    },
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "持续范围治疗",
+        "type": "basic",
+        "description": "对范围内所有友方单位施加基于攻击的治疗，且治疗频率不受攻击速度影响。基于攻击的治疗：根据目标最大生命值和自身攻击恢复生命。",
+        "coefficient": 0,
+        "target_cap": null,
+        "direct_damage": false,
+        "values": {
+          "rage_gain": 3,
+          "affected_by_atk_speed": false,
+          "healing_multiplier": null
+        }
+      },
+      {
+        "id": "graceful_dancing",
+        "name": "轻歌曼舞",
+        "type": "ultimate",
+        "description": "满级：对攻击范围内的其他友方单位附加40%的激励，持续22秒。当前截图已觉醒I，轻歌曼舞激励效果提高20%，执行层按60%自身攻击力的激励建模。",
+        "coefficient": 0,
+        "target_cap": null,
+        "duration": 22,
+        "direct_damage": false,
+        "values": {
+          "rage_cost": 900,
+          "initial_rage": 400,
+          "base_inspiration_ratio": 0.4,
+          "observed_a1_inspiration_bonus": 0.2,
+          "current_inspiration_ratio": 0.6
+        }
+      },
+      {
+        "id": "merciful_beauty",
+        "name": "楚楚动人",
+        "type": "passive",
+        "description": "满级：上场50秒后，普攻的治疗倍率增加5%，永久持续；轻歌曼舞持续时间结束时，有50%概率使自身怒气+300。",
+        "coefficient": null,
+        "target_cap": null,
+        "direct_damage": false,
+        "values": {
+          "trigger_time": 50,
+          "basic_healing_multiplier_bonus": 0.05,
+          "ult_end_rage_refund_chance": 0.5,
+          "ult_end_rage_refund": 300
+        }
+      }
+    ],
+    "talents": [],
+    "awakenings": [
+      {
+        "level": 1,
+        "description": "轻歌曼舞激励效果提高20%。",
+        "observed": true
+      },
+      {
+        "level": 2,
+        "description": "生命值+1200。",
+        "observed": false
+      },
+      {
+        "level": 3,
+        "description": "轻歌曼舞持续期间，治疗倍率增加10%。",
+        "observed": false
+      },
+      {
+        "level": 4,
+        "description": "攻击+5%。",
+        "observed": false
+      },
+      {
+        "level": 5,
+        "description": "轻歌曼舞结束时，增加怒气的触发概率提高至80%。",
+        "observed": false
+      }
+    ]
+  },
+  "state": {},
+  "buffs": {
+    "graceful_dancing_inspiration": {
+      "duration": 22,
+      "modifiers": {},
+      "metadata": {
+        "target": "other_allies_in_range",
+        "effect": "inspiration",
+        "source_stat": "atk",
+        "base_ratio": 0.4,
+        "current_ratio_with_observed_a1": 0.6
+      }
+    },
+    "merciful_beauty_healing_bonus": {
+      "duration": 1000000000,
+      "modifiers": {},
+      "metadata": {
+        "effect": "basic_healing_multiplier",
+        "value": 0.05
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "持续范围治疗",
+      "kind": "basic",
+      "coefficient": 0,
+      "hit_count": 1,
+      "target_cap": null,
+      "can_crit": false,
+      "affected_by_atk_speed": false,
+      "initial_cooldown": 0,
+      "tags": [
+        "basic_attack",
+        "healing",
+        "aoe",
+        "non_damage"
+      ]
+    },
+    "graceful_dancing": {
+      "id": "graceful_dancing",
+      "name": "轻歌曼舞",
+      "kind": "ultimate",
+      "coefficient": 0,
+      "hit_count": 1,
+      "target_cap": null,
+      "duration": 22,
+      "can_crit": false,
+      "blocks_basic_attack": false,
+      "resource": {
+        "name": "rage",
+        "cost": 900
+      },
+      "tags": [
+        "ultimate",
+        "support",
+        "buff",
+        "inspiration",
+        "non_damage"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "fixed_basic_rage_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "DOLORES_BASIC_RAGE_TICK",
+          "delay": 0
+        },
+        {
+          "type": "schedule_event",
+          "event": "MERCIFUL_BEAUTY_ACTIVATE",
+          "delay": 50
+        }
+      ]
+    },
+    {
+      "id": "fixed_basic_rage_tick",
+      "event": "DOLORES_BASIC_RAGE_TICK",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "add_resource",
+          "resource": "rage",
+          "value": 3,
+          "scale_with_regen": true
+        },
+        {
+          "type": "schedule_event",
+          "event": "DOLORES_BASIC_RAGE_TICK",
+          "delay": 2.0
+        }
+      ]
+    },
+    {
+      "id": "graceful_dancing_apply_inspiration",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "graceful_dancing_inspiration",
+          "duration": 22
+        }
+      ]
+    },
+    {
+      "id": "merciful_beauty_activate",
+      "event": "MERCIFUL_BEAUTY_ACTIVATE",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "merciful_beauty_healing_bonus",
+          "duration": 1000000000
+        }
+      ]
+    },
+    {
+      "id": "merciful_beauty_rage_refund",
+      "event": "ULT_CAST_END",
+      "priority": 10,
+      "chance": 0.5,
+      "actions": [
+        {
+          "type": "add_resource",
+          "resource": "rage",
+          "value": 300,
+          "scale_with_regen": false
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "immediate": {
+      "label": "怒气满立即释放",
+      "ultimate_when": "resource.rage >= 900"
+    }
+  },
+  "default_policy": "immediate",
+  "assumptions": [
+    "按满级英雄、满级技能建模；用户截图中的英雄当前为50/50，因此HP6201、攻击1700、防御923、魔抗1332只作为observed_capture保存，执行层使用当前公开数据库的Lv60裸装属性HP7459、攻击2536、防御1378、魔抗1988。",
+    "用户截图直接确认费用5、阻挡1、再部署60秒、攻击间隔2.0秒、攻击速度100、暴击率0%、暴击伤害150%、治疗效果0、怒气恢复效率0%、自然回怒18、普攻回怒3。",
+    "轻歌曼舞满级由截图直接确认：技能消耗900、初始怒气400、激励40%、持续22秒。",
+    "当前英雄截图已觉醒I。执行层将“激励效果提高20%”按增加20个百分点处理，因此自动辅助utility_model使用60%自身攻击力；基础未觉醒满技能值仍保留为40%。",
+    "楚楚动人满级由截图直接确认：50秒后普攻治疗倍率永久+5%；轻歌曼舞结束时50%概率怒气+300。",
+    "治疗频率明确不受攻击速度影响。由于当前HeroCore引擎仍按攻击速度调度BASIC_ATTACK_READY，执行层不从basic_attack事件直接回怒，而用固定2.0秒DOLORES_BASIC_RAGE_TICK模拟普攻回怒，避免ATK_SPEED错误提高终结技循环。",
+    "basic_attack的治疗倍率未在截图中给出，且当前辅助自动推荐以激励团队收益为目标，因此治疗倍率保存为null，不静默猜测。",
+    "recommendation_profile显式设为support而不是healing；德洛丽丝装备推荐以自身攻击与激励覆盖为主，ATK_SPEED对其治疗频率无效并从手动模式中排除。"
+  ],
+  "validation_required": [
+    "确认当前国服Lv60裸装HP7459、攻击2536、防御1378、魔抗1988是否与用户账号升至60级后的白字一致；这些数值来自2026-07更新的公开数据库，而非本次50级截图。",
+    "觉醒I“激励效果提高20%”当前按40%+20个百分点=60%建模；若国服实际采用乘算40%×1.2=48%，需将current_inspiration_ratio与auto_utility.utility_model.buff_ratio改为0.48。",
+    "当前HeroCore引擎尚未执行治疗量与友方生命模型，持续范围治疗和楚楚动人的治疗倍率提升目前主要作为codex/metadata保存。",
+    "当前引擎未原生执行affected_by_atk_speed=false；固定普攻回怒事件已保证自动辅助评分中的怒气循环不被攻速污染，但BASIC_ATTACK_READY事件数量本身仍会随装备攻速变化。",
+    "自动辅助utility_model按单个受激励友方的等效收益计算；target_count=1只影响分数绝对量，不影响同一英雄不同装备之间的排序。"
+  ]
+}
