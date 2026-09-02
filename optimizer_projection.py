@@ -5,8 +5,10 @@ recommendation engine compares gear at its cultivation ceiling whenever that
 ceiling is known, estimates locked sub-stats at P60 by default, and exposes
 normalized set effects to HeroCore. If a max-level main stat value is still
 unknown, the observed current-level main stat is retained as a conservative
-fallback instead of excluding the item. Stored inventory rows are never
-mutated.
+fallback instead of excluding the item. When a locked sub-stat identity is
+known but the database does not yet contain enough representative samples for a
+P60 estimate, the optimizer uses a zero lower bound for scoring instead of
+discarding the physical item. Stored inventory rows are never mutated.
 """
 
 from __future__ import annotations
@@ -51,14 +53,22 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
     example, a known +8 main stat participate in recommendation until its +16
     cap is measured, without pretending that the +8 value is the +16 value.
 
+    A locked sub-stat whose identity is known but whose empirical P60 cannot yet
+    be estimated also remains usable. It contributes zero until enough samples
+    or an explicit override are available. Because equipment sub-stat rolls are
+    non-negative, zero is a conservative lower bound: it can under-rank an item
+    but cannot fabricate a positive benefit. The projection report marks this
+    fallback explicitly so callers can surface incomplete estimates.
+
     HeroCore also reads the full normalized V2.2 set-effect catalog through this
     database. Historical ``enabled_in_optimizer`` flags only described limits of
     the old simulator and must not suppress effects that HeroCore can now model.
     Temporary T1 -> T2 set overrides are calculation-only and are never
     persisted to SQLite.
 
-    A Mythic item still needs all four sub-stat identities. Missing stat
-    identities or missing locked-substat estimates remain exclusion reasons.
+    A Mythic item still needs all four sub-stat identities. Missing identities
+    remain exclusion reasons because the optimizer cannot know which stat is
+    missing.
     """
 
     def __init__(
@@ -176,6 +186,7 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
         report_stats: list[dict[str, Any]] = []
         report_warnings: list[str] = []
         uses_current_main_fallback = False
+        uses_locked_substat_zero_fallback = False
         main_stat_level_used: int | None = None
 
         for stat in stat_rows:
@@ -255,11 +266,19 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
                     projection_source = estimate.source
                     stat_level_used = target_level
                     if projected is None:
+                        # The stat identity is known, so rejecting the whole item
+                        # is unnecessarily destructive: it can erase an actual
+                        # complete set before the complete-set constraint runs.
+                        # All modeled equipment sub-stat contributions are
+                        # non-negative, therefore zero is a safe lower bound.
+                        projected = 0.0
+                        projection_source = "unknown_locked_zero_lower_bound"
+                        uses_locked_substat_zero_fallback = True
                         tier_text = set_tier_id or "unknown-tier"
-                        raise EquipmentProjectionError(
+                        report_warnings.append(
                             f"{item_id}: no P{int(round(self.percentile * 100))} estimate for locked "
                             f"{stat_type_raw} ({tier_text}; representative samples "
-                            f"<{self.min_samples_for_percentile})"
+                            f"<{self.min_samples_for_percentile}); using 0 as conservative lower bound"
                         )
 
             projected_stats.append(
@@ -294,7 +313,8 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             "projected_level": projected_level,
             "main_stat_level_used": main_stat_level_used,
             "uses_current_main_fallback": uses_current_main_fallback,
-            "projection_complete": not uses_current_main_fallback,
+            "uses_locked_substat_zero_fallback": uses_locked_substat_zero_fallback,
+            "projection_complete": not uses_current_main_fallback and not uses_locked_substat_zero_fallback,
             "warnings": report_warnings,
             "percentile": self.percentile,
             "stats": report_stats,
@@ -343,6 +363,9 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             if item_id in self.projection_reports
         ]
         fallback_items = [report for report in reports if report.get("uses_current_main_fallback")]
+        locked_zero_items = [
+            report for report in reports if report.get("uses_locked_substat_zero_fallback")
+        ]
         active_overrides = {
             item_id: set_id
             for item_id, set_id in sorted(self._set_variant_overrides.items())
@@ -355,6 +378,8 @@ class OptimizerEquipmentDatabase(EquipmentDatabase):
             "locked_substat_grouping": "set_tier_id+stat_type",
             "locked_substat_robust_filter": "IQR_1.5",
             "locked_substat_min_representative_samples": self.min_samples_for_percentile,
+            "locked_substat_missing_estimate_policy": "zero_lower_bound",
+            "locked_substat_zero_fallback_item_count": len(locked_zero_items),
             "inf_tier_mapping": "T3",
             "main_stat_fallback_policy": "use_current_observed_value_when_max_cap_unknown",
             "current_main_fallback_item_count": len(fallback_items),
