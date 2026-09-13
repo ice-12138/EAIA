@@ -310,6 +310,18 @@ def delete_equipment(db,item_id):
     return {"ok":True}
 
 
+def clear_equipment(db):
+    """Delete the complete player inventory and invalidate cached eligibility."""
+    path = Path(db).resolve()
+    with _connect(path) as c:
+        deleted_count = int(c.execute("SELECT COUNT(*) FROM equipment").fetchone()[0])
+        c.execute("DELETE FROM equipment")
+        c.commit()
+    with _calculability_cache_lock:
+        _calculability_cache[path] = {}
+    return {"ok": True, "deleted_count": deleted_count}
+
+
 def set_equipment_availability(db, item_ids, available):
     """Set build participation for a group of existing equipment items."""
     ids = [str(item_id).strip() for item_id in (item_ids or []) if str(item_id).strip()]

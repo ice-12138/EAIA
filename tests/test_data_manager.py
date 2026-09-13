@@ -4,6 +4,7 @@ import unittest
 from pathlib import Path
 
 from data_manager import (
+    clear_equipment,
     create_resource,
     delete_equipment,
     delete_resource,
@@ -123,6 +124,34 @@ class DataManagerTests(unittest.TestCase):
         rows = {row["item_id"]: row for row in list_equipment(self.database)["rows"]}
         self.assertTrue(rows["BULK_A"]["available"])
         self.assertTrue(rows["BULK_B"]["available"])
+
+    def test_clear_equipment_deletes_inventory_and_dependent_stats(self):
+        connection = sqlite3.connect(self.database)
+        try:
+            set_id = connection.execute("SELECT set_id FROM sets LIMIT 1").fetchone()[0]
+            slot_id = connection.execute("SELECT slot_id FROM equipment_slots LIMIT 1").fetchone()[0]
+            quality_id = connection.execute("SELECT quality_id FROM gear_qualities LIMIT 1").fetchone()[0]
+            stat_type = connection.execute(
+                "SELECT stat_type FROM stat_definitions WHERE can_main_stat=1 LIMIT 1"
+            ).fetchone()[0]
+        finally:
+            connection.close()
+        for item_id in ("CLEAR_A", "CLEAR_B"):
+            save_equipment(self.database, {
+                "item_id": item_id, "slot_id": slot_id, "set_id": set_id,
+                "quality_id": quality_id, "available": True,
+                "stats": [{"stat_index": 0, "stat_source": "main", "stat_type": stat_type, "stat_value": 10}],
+            })
+
+        result = clear_equipment(self.database)
+
+        self.assertEqual(result, {"ok": True, "deleted_count": 2})
+        self.assertEqual(list_equipment(self.database)["rows"], [])
+        connection = sqlite3.connect(self.database)
+        try:
+            self.assertEqual(connection.execute("SELECT COUNT(*) FROM equipment_stats").fetchone()[0], 0)
+        finally:
+            connection.close()
 
 
 if __name__ == "__main__":

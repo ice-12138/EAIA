@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from data_manager import (
     DataManagerError,
+    clear_equipment,
     create_resource,
     delete_equipment,
     delete_resource,
@@ -523,6 +524,9 @@ class EAIARequestHandler(SimpleHTTPRequestHandler):
         path = urlparse(self.path).path.rstrip("/") or "/"
         try:
             payload = self._read_json()
+            if path == "/api/manage/equipment/all":
+                self._send_json(clear_equipment(self.database))
+                return
             if path == "/api/manage/equipment":
                 self._send_json(delete_equipment(self.database, str(payload.get("item_id") or "")))
                 return
