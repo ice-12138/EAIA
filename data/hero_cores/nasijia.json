@@ -1,0 +1,1240 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.3.1",
+  "game_version": "CN-2026-09-13",
+  "hero": {
+    "id": "NASIJIA",
+    "name": "娜斯佳",
+    "title": "",
+    "faction": "秘法会",
+    "role": "法师 / 领主",
+    "damage_type": "magic",
+    "mechanic_summary": "毒系单体输出领主。通过中毒、中毒加深、魔抗降低和挂毒触发真实伤害叠加输出，并在持续附加/刷新中毒后叠加自身攻击。",
+    "base_stats": {
+      "atk": 5317,
+      "hp": 12312,
+      "def": 888,
+      "mres": 2769,
+      "crit_rate": 0.0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0.0,
+      "attack_interval": 2.6
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 200,
+      "max": 450,
+      "auto_per_second": 14
+    }
+  },
+  "codex": {
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 12312,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 5317,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 888,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 2769,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white",
+        "notes": "白字基础攻击间隔；此前1.5秒为带攻速加成后的当前面板/识别值，不作为HeroCore裸装基准。"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0.0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 14,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 6,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "魔法攻击",
+        "type": "basic",
+        "description": "攻击对1名敌人造成120%魔法伤害。",
+        "coefficient": 1.2,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 10
+        }
+      },
+      {
+        "id": "despair_sting",
+        "name": "绝望毒刺",
+        "type": "ultimate",
+        "description": "对范围内生命值最高的1名敌人造成6次、每次320%的伤害；每次必定附加1层中毒和魔抗降低。目标每有1层中毒，此次终结技伤害倍率增加1%，最多增加30%。",
+        "coefficient": 3.2,
+        "target_cap": 1,
+        "duration": 3.5,
+        "direct_damage": true,
+        "values": {
+          "hit_count": 6,
+          "nominal_rage_cost": 450,
+          "leader_adjusted_rage_cost": 337.5,
+          "initial_rage": 200
+        }
+      },
+      {
+        "id": "death_prophecy",
+        "name": "死亡预言",
+        "type": "passive",
+        "description": "每次成功附加中毒，会对目标造成1次攻击力15%的真实伤害；目标每有1层中毒，此次真实伤害倍率增加1%，最多增加30%。",
+        "coefficient": 0.15,
+        "target_cap": 1,
+        "direct_damage": true
+      },
+      {
+        "id": "doomsday_shadow",
+        "name": "末日幽影",
+        "type": "passive",
+        "description": "自身免疫中毒。每成功附加或刷新4次中毒，自身攻击力增加4%，最多可叠加10次。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      },
+      {
+        "id": "arcane_curse_iii",
+        "name": "秘法恶咒III",
+        "type": "lord",
+        "description": "阵营小队成员基础属性提升15%，技能消耗-25%；对附带减益效果的目标造成伤害增加，每1个减益增加5%，最多40%。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      }
+    ],
+    "talents": [
+      {
+        "id": "poison_talent",
+        "name": "天赋",
+        "description": "造成伤害有40%概率附加40%的中毒加深和1层中毒；受到敌方直接伤害会对目标附加40%的中毒加深和1层中毒。",
+        "values": {
+          "proc_chance": 0.4,
+          "poison_deepening": 0.4,
+          "poison_stacks": 1
+        }
+      }
+    ],
+    "statuses": {
+      "poison": {
+        "damage_per_second": 0.05,
+        "duration": 10,
+        "max_stacks_per_source": 10
+      },
+      "poison_deepening": {
+        "poison_damage_taken_bonus": 0.4,
+        "duration": 10
+      },
+      "mres_down": {
+        "mres_reduction": 0.3,
+        "duration": 15
+      }
+    }
+  },
+  "state": {
+    "poison_stacks": {
+      "initial": 0,
+      "min": 0,
+      "max": 10
+    },
+    "poison_idle_seconds": {
+      "initial": 0,
+      "min": 0,
+      "max": 10
+    }
+  },
+  "buffs": {
+    "lord_base_stats": {
+      "duration": null,
+      "max_stacks": 1,
+      "modifiers": {
+        "base_atk_pct": 0.15
+      }
+    },
+    "poison_deepening": {
+      "duration": 10,
+      "max_stacks": 1,
+      "modifiers": {
+        "damage_pct": 0.05
+      }
+    },
+    "mres_down": {
+      "duration": 15,
+      "max_stacks": 1,
+      "modifiers": {
+        "target_mres_reduction": 0.3,
+        "damage_pct": 0.05
+      }
+    },
+    "lord_poison_bonus": {
+      "duration": 10,
+      "max_stacks": 1,
+      "modifiers": {
+        "damage_pct": 0.05
+      }
+    },
+    "doomsday_shadow_atk": {
+      "duration": null,
+      "max_stacks": 10,
+      "modifiers": {
+        "atk_pct": 0.04
+      }
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "魔法攻击",
+      "kind": "basic",
+      "coefficient": 1.2,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "magic",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "despair_sting": {
+      "id": "despair_sting",
+      "name": "绝望毒刺",
+      "kind": "ultimate",
+      "coefficient": 3.2,
+      "hit_count": 6,
+      "hit_interval": 0.5833333333333334,
+      "duration": 3.5,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": false,
+      "blocks_basic_attack": true,
+      "resource": {
+        "name": "rage",
+        "cost": 337.5
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "magic",
+        "direct_damage",
+        "single_target",
+        "poison"
+      ]
+    },
+    "death_prophecy": {
+      "id": "death_prophecy",
+      "name": "死亡预言",
+      "kind": "triggered",
+      "coefficient": 0.15,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": false,
+      "affected_by_atk_speed": false,
+      "auto_cast": false,
+      "source": "death_prophecy",
+      "tags": [
+        "passive",
+        "true_damage",
+        "single_target",
+        "poison_trigger"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "nasijia_battle_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "lord_base_stats"
+        },
+        {
+          "type": "schedule_event",
+          "event": "POISON_TICK",
+          "delay": 1.0
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_0",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 10,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 0",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.2
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_1",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 11,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 1",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.232
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_2",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 12,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 2",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.264
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_3",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 13,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 3",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.296
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_4",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 14,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 4",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.328
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_5",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 15,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 5",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.36
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_6",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 16,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 6",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.392
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_7",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 17,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 7",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.424
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_8",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 18,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 8",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.456
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_9",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 19,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 9",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.488
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_scale_10",
+      "event": "ULT_BEFORE_DAMAGE",
+      "priority": 20,
+      "condition": "event.skill_id == 'despair_sting' and state.poison_stacks == 10",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 3.52
+        }
+      ]
+    },
+    {
+      "id": "despair_sting_guaranteed_debuffs",
+      "event": "ULT_HIT",
+      "priority": 10,
+      "condition": "event.skill_id == 'despair_sting'",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "mres_down"
+        },
+        {
+          "type": "schedule_event",
+          "event": "APPLY_POISON",
+          "delay": 0.0,
+          "payload": {
+            "poison_was_new": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "poison_talent_from_ult",
+      "event": "ULT_HIT",
+      "priority": 20,
+      "condition": "event.skill_id == 'despair_sting'",
+      "chance": 0.4,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "APPLY_POISON_DEEPEN",
+          "delay": 0.0
+        }
+      ]
+    },
+    {
+      "id": "poison_talent_from_basic",
+      "event": "BASIC_ATTACK_HIT",
+      "priority": 10,
+      "chance": 0.4,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "APPLY_POISON_DEEPEN",
+          "delay": 0.0
+        }
+      ]
+    },
+    {
+      "id": "apply_poison_deepening",
+      "event": "APPLY_POISON_DEEPEN",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "poison_deepening"
+        },
+        {
+          "type": "schedule_event",
+          "event": "APPLY_POISON",
+          "delay": 0.0,
+          "payload": {
+            "poison_was_new": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "poison_add_new_stack",
+      "event": "APPLY_POISON",
+      "priority": 10,
+      "condition": "state.poison_stacks < 10",
+      "actions": [
+        {
+          "type": "set_event_value",
+          "key": "poison_was_new",
+          "value": true
+        },
+        {
+          "type": "add_state",
+          "state": "poison_stacks",
+          "value": 1
+        },
+        {
+          "type": "set_state",
+          "state": "poison_idle_seconds",
+          "value": 0
+        },
+        {
+          "type": "apply_buff",
+          "buff": "lord_poison_bonus"
+        },
+        {
+          "type": "cast_skill",
+          "skill": "death_prophecy"
+        }
+      ]
+    },
+    {
+      "id": "poison_refresh_at_cap",
+      "event": "APPLY_POISON",
+      "priority": 20,
+      "condition": "event.poison_was_new == false",
+      "actions": [
+        {
+          "type": "set_state",
+          "state": "poison_idle_seconds",
+          "value": 0
+        },
+        {
+          "type": "apply_buff",
+          "buff": "lord_poison_bonus"
+        }
+      ]
+    },
+    {
+      "id": "doomsday_shadow_every_four_poison_events",
+      "event": "APPLY_POISON",
+      "priority": 30,
+      "every": 4,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "doomsday_shadow_atk",
+          "stacks": 1
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_0",
+      "event": "SKILL_CAST_START",
+      "priority": 10,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 0",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.15
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_1",
+      "event": "SKILL_CAST_START",
+      "priority": 11,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 1",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.1515
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_2",
+      "event": "SKILL_CAST_START",
+      "priority": 12,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 2",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.153
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_3",
+      "event": "SKILL_CAST_START",
+      "priority": 13,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 3",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.1545
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_4",
+      "event": "SKILL_CAST_START",
+      "priority": 14,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 4",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.156
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_5",
+      "event": "SKILL_CAST_START",
+      "priority": 15,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 5",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.1575
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_6",
+      "event": "SKILL_CAST_START",
+      "priority": 16,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 6",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.159
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_7",
+      "event": "SKILL_CAST_START",
+      "priority": 17,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 7",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.1605
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_8",
+      "event": "SKILL_CAST_START",
+      "priority": 18,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 8",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.162
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_9",
+      "event": "SKILL_CAST_START",
+      "priority": 19,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 9",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.1635
+        }
+      ]
+    },
+    {
+      "id": "death_prophecy_scale_10",
+      "event": "SKILL_CAST_START",
+      "priority": 20,
+      "condition": "event.skill_id == 'death_prophecy' and state.poison_stacks == 10",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 0.165
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_1",
+      "event": "POISON_TICK",
+      "priority": 11,
+      "condition": "state.poison_stacks == 1 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.07,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_1",
+      "event": "POISON_TICK",
+      "priority": 31,
+      "condition": "state.poison_stacks == 1 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.05,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_2",
+      "event": "POISON_TICK",
+      "priority": 12,
+      "condition": "state.poison_stacks == 2 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.14,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_2",
+      "event": "POISON_TICK",
+      "priority": 32,
+      "condition": "state.poison_stacks == 2 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.1,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_3",
+      "event": "POISON_TICK",
+      "priority": 13,
+      "condition": "state.poison_stacks == 3 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.21,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_3",
+      "event": "POISON_TICK",
+      "priority": 33,
+      "condition": "state.poison_stacks == 3 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.15,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_4",
+      "event": "POISON_TICK",
+      "priority": 14,
+      "condition": "state.poison_stacks == 4 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.28,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_4",
+      "event": "POISON_TICK",
+      "priority": 34,
+      "condition": "state.poison_stacks == 4 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.2,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_5",
+      "event": "POISON_TICK",
+      "priority": 15,
+      "condition": "state.poison_stacks == 5 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.35,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_5",
+      "event": "POISON_TICK",
+      "priority": 35,
+      "condition": "state.poison_stacks == 5 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.25,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_6",
+      "event": "POISON_TICK",
+      "priority": 16,
+      "condition": "state.poison_stacks == 6 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.42,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_6",
+      "event": "POISON_TICK",
+      "priority": 36,
+      "condition": "state.poison_stacks == 6 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.3,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_7",
+      "event": "POISON_TICK",
+      "priority": 17,
+      "condition": "state.poison_stacks == 7 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.49,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_7",
+      "event": "POISON_TICK",
+      "priority": 37,
+      "condition": "state.poison_stacks == 7 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.35,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_8",
+      "event": "POISON_TICK",
+      "priority": 18,
+      "condition": "state.poison_stacks == 8 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.56,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_8",
+      "event": "POISON_TICK",
+      "priority": 38,
+      "condition": "state.poison_stacks == 8 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.4,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_9",
+      "event": "POISON_TICK",
+      "priority": 19,
+      "condition": "state.poison_stacks == 9 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.63,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_9",
+      "event": "POISON_TICK",
+      "priority": 39,
+      "condition": "state.poison_stacks == 9 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.45,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_deepened_10",
+      "event": "POISON_TICK",
+      "priority": 20,
+      "condition": "state.poison_stacks == 10 and buff.poison_deepening == true",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.7,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_normal_10",
+      "event": "POISON_TICK",
+      "priority": 40,
+      "condition": "state.poison_stacks == 10 and buff.poison_deepening == false",
+      "actions": [
+        {
+          "type": "deal_damage",
+          "coefficient": 0.5,
+          "hit_count": 1,
+          "can_crit": false,
+          "source": "poison_dot",
+          "target_cap": 1,
+          "tags": [
+            "magic",
+            "dot",
+            "poison",
+            "single_target"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_clock",
+      "event": "POISON_TICK",
+      "priority": 80,
+      "condition": "state.poison_stacks > 0",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "poison_idle_seconds",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "poison_expire",
+      "event": "POISON_TICK",
+      "priority": 90,
+      "condition": "state.poison_stacks > 0 and state.poison_idle_seconds >= 10",
+      "actions": [
+        {
+          "type": "reset_state",
+          "state": "poison_stacks"
+        },
+        {
+          "type": "reset_state",
+          "state": "poison_idle_seconds"
+        },
+        {
+          "type": "remove_buff",
+          "buff": "lord_poison_bonus"
+        }
+      ]
+    },
+    {
+      "id": "poison_tick_reschedule",
+      "event": "POISON_TICK",
+      "priority": 100,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "POISON_TICK",
+          "delay": 1.0
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "default": {
+      "label": "怒气达到领主减耗后的终结技消耗即释放",
+      "ultimate_when": "resource.rage >= 337.5"
+    }
+  },
+  "default_policy": "default",
+  "assumptions": [
+    "基础属性只使用白字基准；绿色装备/其他加成不写入HeroCore基础属性。白字基础攻击间隔按2.6秒建模，装备攻速由引擎运行时换算。",
+    "已确认：娜斯佳作为秘法会领主时，秘法恶咒III的15%基础属性提升与25%技能消耗降低对自身生效；终结技名义450怒气按337.5实际消耗执行（暂按精确乘算，不额外取整）。",
+    "秘法恶咒III的15%基础属性提升按base_atk_pct作用于英雄白字基础攻击，再与装备平攻/攻击百分比进入通用攻击公式。",
+    "已确认：中毒为每个来源独立的负面状态，每个来源最多10层、每秒造成施加者5%攻击力的持续魔法伤害、持续10秒；不同来源的中毒可以共存，同一来源多层合并为一次中毒伤害实例。",
+    "暂定：娜斯佳自身同一来源的中毒层共享10秒持续时间；再次成功附加或刷新中毒时刷新该来源全部层的持续时间。后续用录像实测层数衰减方式。",
+    "已确认：40%中毒加深是独立减益，使目标受到的全部中毒与毒爆伤害提高40%；当前娜斯佳自身中毒DOT按基础5%×1.4计算。",
+    "暂定：天赋“造成伤害时40%概率”对普攻直接伤害和绝望毒刺每一段直接伤害分别独立判定；DOT与死亡预言真伤不递归触发天赋。",
+    "暂定：绝望毒刺每层中毒+1%按每段基础320%伤害整体乘以(1+中毒层数×1%)，并在30%处封顶；当前单英雄木桩最多10层。",
+    "暂定：死亡预言每层中毒+1%按15%攻击力真伤整体乘以(1+中毒层数×1%)，并在30%处封顶；只在成功新增中毒层时触发，单纯刷新不触发。",
+    "已确认：末日幽影把“成功附加或刷新中毒”都计入次数；当前满级按每4次增加4%攻击，最多10层。",
+    "绝望毒刺在3.5秒内暂按均匀6段命中建模；每段伤害结算后附加1层中毒与-30%魔抗，并独立进行天赋40%判定。",
+    "秘法恶咒III对目标每个减益+5%伤害：娜斯佳自身明确提供的中毒、中毒加深、魔抗降低分别计1个减益，因此单英雄HeroCore由这三类最多提供15%增伤；队友额外减益需由团队仿真另行注入。",
+    "受击回怒与受到敌方直接伤害反挂毒需要外部来袭事件；当前单向木桩伤害模型不自动产生敌方攻击。",
+    "暴击仍遵循EAIA通用数学期望模型。"
+  ],
+  "validation_required": [
+    "需实测确认娜斯佳自身同一来源中毒的持续时间：当前假设所有层共享10秒并被后续附加/刷新整体刷新；若实际每层独立计时，需要改为逐层expiry队列。",
+    "需实测确认天赋40%挂毒在绝望毒刺6段中的判定粒度：当前按每段独立判定。",
+    "需实测确认绝望毒刺“每层中毒伤害倍率+1%”的底层乘区；当前按320%×(1+层数×1%)。",
+    "需实测确认死亡预言“每层中毒真实伤害倍率+1%”的底层乘区；当前按15%×(1+层数×1%)。",
+    "需补充觉醒页；当前未建模觉醒效果。"
+  ]
+}

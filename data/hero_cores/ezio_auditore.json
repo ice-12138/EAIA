@@ -1,0 +1,587 @@
+{
+  "schema_version": "1.0",
+  "core_version": "1.3.1",
+  "game_version": "CN-2026-09-13",
+  "hero": {
+    "id": "EZIO_AUDITORE",
+    "name": "艾吉奥·奥迪托雷",
+    "title": "",
+    "faction": "刺客信条",
+    "role": "战术家 / 刺客",
+    "damage_type": "physical",
+    "mechanic_summary": "以突袭和刺杀为核心的单体处决型近战输出。终结技后10秒内普攻有概率被突袭替换，突袭通过信条层数提高刺杀伤害，并可触发额外突袭。",
+    "base_stats": {
+      "atk": 5317,
+      "hp": 30710,
+      "def": 2769,
+      "mres": 684,
+      "crit_rate": 0.0,
+      "crit_dmg": 1.5,
+      "atk_speed": 100,
+      "rage_regen": 0.0,
+      "attack_interval": 2.6
+    }
+  },
+  "resources": {
+    "rage": {
+      "initial": 400,
+      "max": 800,
+      "auto_per_second": 13
+    }
+  },
+  "codex": {
+    "observed_skill_levels": {
+      "surprise_attack": "2/5",
+      "basic_attack": "3/5",
+      "eagle_of_florence": "2/5",
+      "dawn_twin_blades": "3/5"
+    },
+    "attributes": [
+      {
+        "id": "hp",
+        "name": "生命值",
+        "value": 30710,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "atk",
+        "name": "攻击",
+        "value": 5317,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "def",
+        "name": "防御",
+        "value": 2769,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "mres",
+        "name": "魔法抗性",
+        "value": 684,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "cost",
+        "name": "费用",
+        "value": 18,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "block",
+        "name": "阻挡数",
+        "value": 2,
+        "unit": "flat",
+        "source": "white"
+      },
+      {
+        "id": "redeploy_time",
+        "name": "再部署时间",
+        "value": 60,
+        "unit": "second",
+        "source": "white"
+      },
+      {
+        "id": "attack_interval",
+        "name": "攻击间隔",
+        "value": 2.6,
+        "unit": "second",
+        "source": "white",
+        "notes": "白字基础攻击间隔；此前1.6秒为带攻速加成后的当前面板/识别值，不作为HeroCore裸装基准。"
+      },
+      {
+        "id": "attack_speed",
+        "name": "攻击速度",
+        "value": 100,
+        "unit": "panel_point",
+        "source": "white"
+      },
+      {
+        "id": "crit_rate",
+        "name": "暴击率",
+        "value": 0.0,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "crit_dmg",
+        "name": "暴击伤害",
+        "value": 1.5,
+        "unit": "ratio",
+        "source": "white"
+      },
+      {
+        "id": "auto_rage",
+        "name": "自然回怒",
+        "value": 13,
+        "unit": "rage_per_second",
+        "source": "white"
+      },
+      {
+        "id": "basic_rage",
+        "name": "普攻回怒",
+        "value": 10,
+        "unit": "rage_per_attack",
+        "source": "white"
+      },
+      {
+        "id": "attacked_rage",
+        "name": "受击回怒",
+        "value": 5,
+        "unit": "rage_per_hit",
+        "source": "white"
+      }
+    ],
+    "skills": [
+      {
+        "id": "basic_attack",
+        "name": "物理攻击",
+        "type": "basic",
+        "description": "当前3/5级：攻击对1名敌人造成110%的伤害。",
+        "coefficient": 1.1,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "rage_gain": 10
+        }
+      },
+      {
+        "id": "ambush",
+        "name": "突袭",
+        "type": "special",
+        "description": "对范围内当前生命百分比最低的敌人造成1次无视防御的400%伤害，并直接击败生命值低于40%的非精英、非首领敌人。",
+        "coefficient": 4.0,
+        "target_cap": 1,
+        "direct_damage": true,
+        "values": {
+          "ignore_defense": true,
+          "execute_threshold": 0.4,
+          "execute_non_elite_non_boss_only": true
+        }
+      },
+      {
+        "id": "assassins_instinct",
+        "name": "刺客本能",
+        "type": "state",
+        "description": "获得50%物理减伤和魔法减伤，每秒恢复自身5%最大生命值和2%最大怒气。受到伤害后移除此状态并反击目标，对其进行1次刺杀；目标在终结技范围内时才可触发反击。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      },
+      {
+        "id": "surprise_attack",
+        "name": "奇袭",
+        "type": "ultimate",
+        "description": "当前2/5级：位移后对范围内生命百分比最低的1名敌人造成无视防御的650%伤害，并直接击败生命值低于40%的非精英、非首领敌人；随后10秒内攻击有30%概率改为突袭。",
+        "coefficient": 6.5,
+        "target_cap": 1,
+        "duration": 10,
+        "direct_damage": true,
+        "values": {
+          "rage_cost": 800,
+          "initial_rage": 400,
+          "replace_basic_with_ambush_chance": 0.3,
+          "execute_non_elite_non_boss_only": true
+        }
+      },
+      {
+        "id": "eagle_of_florence",
+        "name": "佛罗伦萨之鹰",
+        "type": "passive",
+        "description": "当前2/5级：每次释放终结技或突袭获得1层信条；信条提高刺杀伤害8%，最多5层。满层后下一次突袭消耗所有层数并使自身攻击力提升10%，持续10秒。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      },
+      {
+        "id": "dawn_twin_blades",
+        "name": "拂晓双刃",
+        "type": "passive",
+        "description": "当前3/5级：终结技持续期间发动突袭时，立即触发1次额外突袭；每12秒最多触发1次。",
+        "coefficient": null,
+        "target_cap": 1,
+        "direct_damage": false
+      }
+    ],
+    "talents": [
+      {
+        "id": "assassin_talent",
+        "name": "天赋",
+        "description": "每隔12秒进入刺客本能状态。突袭成功击败敌人时触发1次连杀，立即对范围内另1名敌人再次发动1次突袭；每10秒最多触发1次。",
+        "values": {
+          "instinct_period": 12,
+          "kill_chain_internal_cooldown": 10
+        }
+      }
+    ]
+  },
+  "state": {
+    "creed_stacks": {
+      "initial": 0,
+      "min": 0,
+      "max": 5
+    }
+  },
+  "buffs": {
+    "surprise_attack_mode": {
+      "duration": 10,
+      "max_stacks": 1,
+      "modifiers": {}
+    },
+    "full_creed_attack_bonus": {
+      "duration": 10,
+      "max_stacks": 1,
+      "modifiers": {
+        "atk_pct": 0.1
+      }
+    },
+    "assassins_instinct": {
+      "duration": 12.001,
+      "max_stacks": 1,
+      "modifiers": {}
+    }
+  },
+  "summons": {},
+  "skills": {
+    "basic_attack": {
+      "id": "basic_attack",
+      "name": "物理攻击",
+      "kind": "basic",
+      "coefficient": 1.1,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": true,
+      "initial_cooldown": 0,
+      "resource_gain": {
+        "resource": "rage",
+        "value": 10,
+        "scale_with_regen": true
+      },
+      "tags": [
+        "basic_attack",
+        "physical",
+        "direct_damage",
+        "single_target"
+      ]
+    },
+    "ambush": {
+      "id": "ambush",
+      "name": "突袭",
+      "kind": "triggered",
+      "coefficient": 4.0,
+      "hit_count": 1,
+      "target_cap": 1,
+      "can_crit": true,
+      "affected_by_atk_speed": false,
+      "auto_cast": false,
+      "source": "skill",
+      "tags": [
+        "skill",
+        "physical",
+        "direct_damage",
+        "single_target",
+        "assassination",
+        "ignore_defense"
+      ]
+    },
+    "surprise_attack": {
+      "id": "surprise_attack",
+      "name": "奇袭",
+      "kind": "ultimate",
+      "coefficient": 6.5,
+      "hit_count": 1,
+      "target_cap": 1,
+      "duration": 10,
+      "can_crit": true,
+      "affected_by_atk_speed": false,
+      "blocks_basic_attack": false,
+      "resource": {
+        "name": "rage",
+        "cost": 800
+      },
+      "tags": [
+        "ultimate",
+        "skill",
+        "physical",
+        "direct_damage",
+        "single_target",
+        "ignore_defense"
+      ]
+    }
+  },
+  "triggers": [
+    {
+      "id": "ezio_battle_start",
+      "event": "BATTLE_START",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "schedule_event",
+          "event": "ASSASSINS_INSTINCT_PULSE",
+          "delay": 12.0
+        },
+        {
+          "type": "schedule_event",
+          "event": "ASSASSINS_INSTINCT_RAGE_TICK",
+          "delay": 1.0
+        }
+      ]
+    },
+    {
+      "id": "assassins_instinct_pulse",
+      "event": "ASSASSINS_INSTINCT_PULSE",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "assassins_instinct"
+        },
+        {
+          "type": "schedule_event",
+          "event": "ASSASSINS_INSTINCT_PULSE",
+          "delay": 12.0
+        }
+      ]
+    },
+    {
+      "id": "assassins_instinct_rage_tick",
+      "event": "ASSASSINS_INSTINCT_RAGE_TICK",
+      "priority": 10,
+      "actions": [
+        {
+          "type": "add_resource",
+          "resource": "rage",
+          "max_fraction": 0.02,
+          "scale_with_regen": false,
+          "condition": "buff.assassins_instinct == true"
+        },
+        {
+          "type": "schedule_event",
+          "event": "ASSASSINS_INSTINCT_RAGE_TICK",
+          "delay": 1.0
+        }
+      ]
+    },
+    {
+      "id": "assassins_instinct_counter_in_range",
+      "event": "HERO_DAMAGED_IN_ULT_RANGE",
+      "priority": 10,
+      "condition": "buff.assassins_instinct == true",
+      "actions": [
+        {
+          "type": "remove_buff",
+          "buff": "assassins_instinct"
+        },
+        {
+          "type": "cast_skill",
+          "skill": "ambush"
+        }
+      ]
+    },
+    {
+      "id": "assassins_instinct_break_on_damage",
+      "event": "HERO_DAMAGED",
+      "priority": 20,
+      "condition": "buff.assassins_instinct == true",
+      "actions": [
+        {
+          "type": "remove_buff",
+          "buff": "assassins_instinct"
+        }
+      ]
+    },
+    {
+      "id": "surprise_attack_start",
+      "event": "ULT_CAST_START",
+      "priority": 10,
+      "condition": "event.skill_id == 'surprise_attack'",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "surprise_attack_mode"
+        },
+        {
+          "type": "add_state",
+          "state": "creed_stacks",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "replace_basic_with_ambush",
+      "event": "BASIC_ATTACK_BEFORE_DAMAGE",
+      "priority": 10,
+      "condition": "buff.surprise_attack_mode == true",
+      "chance": 0.3,
+      "actions": [
+        {
+          "type": "cancel_event_damage"
+        },
+        {
+          "type": "cast_skill",
+          "skill": "ambush"
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_0",
+      "event": "SKILL_CAST_START",
+      "priority": 10,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 0",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 4.0
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_1",
+      "event": "SKILL_CAST_START",
+      "priority": 11,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 1",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 4.32
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_2",
+      "event": "SKILL_CAST_START",
+      "priority": 12,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 2",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 4.64
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_3",
+      "event": "SKILL_CAST_START",
+      "priority": 13,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 3",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 4.96
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_4",
+      "event": "SKILL_CAST_START",
+      "priority": 14,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 4",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 5.28
+        }
+      ]
+    },
+    {
+      "id": "ambush_creed_snapshot_5",
+      "event": "SKILL_CAST_START",
+      "priority": 15,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 5",
+      "actions": [
+        {
+          "type": "set_event_coefficient",
+          "value": 5.6
+        }
+      ]
+    },
+    {
+      "id": "consume_full_creed",
+      "event": "SKILL_CAST_START",
+      "priority": 30,
+      "condition": "event.skill_id == 'ambush' and state.creed_stacks == 5",
+      "actions": [
+        {
+          "type": "apply_buff",
+          "buff": "full_creed_attack_bonus"
+        },
+        {
+          "type": "reset_state",
+          "state": "creed_stacks"
+        }
+      ]
+    },
+    {
+      "id": "gain_creed_from_ambush",
+      "event": "SKILL_CAST_START",
+      "priority": 40,
+      "condition": "event.skill_id == 'ambush'",
+      "actions": [
+        {
+          "type": "add_state",
+          "state": "creed_stacks",
+          "value": 1
+        }
+      ]
+    },
+    {
+      "id": "dawn_twin_blades_extra_ambush",
+      "event": "SKILL_CAST_START",
+      "priority": 100,
+      "condition": "event.skill_id == 'ambush' and buff.surprise_attack_mode == true",
+      "internal_cooldown": 12.0,
+      "actions": [
+        {
+          "type": "cast_skill",
+          "skill": "ambush"
+        }
+      ]
+    },
+    {
+      "id": "ambush_kill_chain",
+      "event": "AMBUSH_KILL",
+      "priority": 10,
+      "internal_cooldown": 10.0,
+      "condition": "target.enemy_count > 1",
+      "actions": [
+        {
+          "type": "cast_skill",
+          "skill": "ambush"
+        }
+      ]
+    }
+  ],
+  "policies": {
+    "default": {
+      "label": "怒气满立即释放奇袭",
+      "ultimate_when": "resource.rage >= 800"
+    }
+  },
+  "default_policy": "default",
+  "assumptions": [
+    "基础属性采用白字基准；绿色/橙色装备和其它加成不写入HeroCore基础属性。白字基础攻击间隔按2.6秒建模，装备攻速由引擎运行时换算。",
+    "奇袭按当前2/5技能等级650%建模，物理攻击按当前3/5技能等级110%建模；未升级到后续等级的灰色升级项不计入。",
+    "已确认：突袭(Assassinate)为400%伤害、无视防御，只处决生命值低于40%的非精英且非首领敌人；Boss木桩不执行处决。",
+    "已确认：奇袭开场650%伤害无视防御；随后10秒内正常攻击每次有30%概率“变为”突袭，因此触发时取消原110%普攻伤害而不是追加一次400%。",
+    "暂定：被30%突袭替换的普通攻击仍占用一次普通攻击计时，并保留该次10点普攻回怒；后续通过怒气录像验证。",
+    "已确认：信条只提高Assassinate/突袭伤害，不提高奇袭开场650%伤害；当前2/5级为每层+8%，最多5层。",
+    "信条在一次突袭开始时按施放前层数快照；若施放前已满5层，该次突袭享受5层增伤，同时触发10秒+10%攻击，随后消耗满层，并因本次突袭重新获得1层。",
+    "已确认：拂晓双刃当前3/5级触发间隔为12秒；终结技持续期间发动突袭时立即追加1次突袭。内部冷却在递归额外施放前锁定，避免同一时间戳无限连锁。",
+    "已确认：刺客本能每12秒进入一次，期间每秒恢复5%最大生命和2%最大怒气，并获得50%物理/魔法减伤；受到伤害后移除状态。",
+    "已确认：刺客本能受击反击使用标准Assassinate/突袭。HeroCore用HERO_DAMAGED_IN_ULT_RANGE事件表示攻击者位于终结技范围内，此事件会移除刺客本能并立即发动400%无视防御突袭；普通HERO_DAMAGED仅移除状态。",
+    "处决与连杀依赖敌人实时生命值/死亡事件；当前固定Boss木桩没有生命值耗尽过程，因此不把处决和击杀连杀虚构进单目标ED60。",
+    "暴击仍遵循EAIA通用数学期望模型。"
+  ],
+  "validation_required": [
+    "需实测确认被30%突袭替换的普通攻击是否仍获得10点普攻回怒；当前按仍获得处理。",
+    "需实测确认满5层信条触发的+10%攻击是否在触发它的这一发突袭本身即生效；当前按立即生效。",
+    "需补充右侧第5个紫色满级技能的名称与效果；当前公开资料显示为竞技场伤害+15%，但需确认国服当前技能槽与截图是否一致后再写入运行时模型。",
+    "需补充觉醒页；当前未按账号实际觉醒等级建模觉醒效果。"
+  ]
+}
